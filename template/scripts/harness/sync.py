@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""Harness surfaces — one canonical brief, one skills tree, one MCP file.
+
+This project keeps a single source of truth:
+
+    AGENTS.md          the brief every AI tool reads
+    .claude/skills/    the seat playbooks
+    .mcp.json          the MCP connectors
+
+Every other harness's surface is *derived* from those — a pointer, a symlink, or
+a generated block — so the copies cannot drift. This script regenerates them and,
+with --check, fails when they have drifted. It is the same rule `CLAUDE.md`
+already lives under, applied to Codex, Copilot and the rest.
+
+Usage:
+  scripts/harness/sync.py --check      # exit 1 if a derived surface is stale
+  scripts/harness/sync.py --write      # regenerate them
+  scripts/harness/sync.py --list       # show detected harnesses
+
+Adapters are data (harnesses.json); this file only interprets them. Stdlib only.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shutil
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import merge  # noqa: E402
+
+TABLE_REL = "harnesses.json"
+
+POINTER_MD = """\
+# {label} — pointer
+
+**This file carries no rules of its own. The single source of truth is
+[`AGENTS.md`](./AGENTS.md) — read it first.**
+
+Mission, hard constraints, trust tiers, MCP posture, roles and seats, the
+knowledge-grounding rule and the deliverable rules all live in `AGENTS.md`.
+It is the brief every AI tool reads, which is exactly why it is the one place
+we maintain.
+
+A diff that changes this file without changing `AGENTS.md` is a mistake.
+If the two ever disagree, `AGENTS.md` wins.
+"""
+
+POINTER_MDC = """\
+---
+description: {label} rules — pointer to the canonical brief
+alwaysApply: true
+---
+
+This file carries no rules of its own. The single source of truth is
+`AGENTS.md` at the repo root — read it first.
+
+If this file and `AGENTS.md` ever disagree, `AGENTS.md` wins.
+"""
+
+
+def load_table(path=None) -> dict:
+    path = Path(path) if path else Path(__file__).with_name(TABLE_REL)
+    table = json.loads(path.read_text(encoding="utf-8"))
+    return {k: v for k, v in table.items() if not k.startswith("$")}
+
+
+def probe(root, spec: str) -> bool:
+    kind, _, value = spec.partition(":")
+    if kind == "cmd":
+        return shutil.which(value) is not None
+    if kind == "path":
+        return (Path(root) / value).exists()
+    return False
+
+
+def detect(root, table: dict) -> list[str]:
+    """Harnesses whose CLI is installed or whose config already lives in the repo."""
+    return [name for name, spec in table.items()
+            if any(probe(root, p) for p in spec.get("detect", []))]
+
+
+def pointer_text(spec: dict) -> str:
+    template = POINTER_MDC if spec.get("style") == "mdc" else POINTER_MD
+    return template.format(label=spec.get("label", "This tool"))
+
+
+# --- MCP translation -------------------------------------------------------
+
+PLACEHOLDER = re.compile(r"<[A-Z][A-Z_/]{2,}>")
+
+
+def unconfigured(cfg: dict) -> bool:
+    """True when a server entry still carries an unfilled <PLACEHOLDER>.
+
+    Emitting one into a harness config makes that harness dial a bogus endpoint
+    on every session, so placeholder servers are skipped until someone fills
+    them in. `doctor` reports what was skipped.
+    """
+    return bool(PLACEHOLDER.search(json.dumps(cfg)))
+
+
+def mcp_servers(mcp: dict, skipped: list | None = None) -> dict:
+    """Ready-to-run servers in a .mcp.json.
+
+    Drops $comment/$note documentation keys, `$disabled` entries, and any server
+    still holding a placeholder. Names of the last two land in `skipped`.
+    """
+    servers = mcp.get("mcpServers") or {}
+    out = {}
+    for name, cfg in servers.items():
+        if name.startswith("$") or not isinstance(cfg, dict):
+            continue
+        clean = {k: v for k, v in cfg.items() if not k.startswith("$")}
+        if cfg.get("$disabled"):
+            if skipped is not None:
+                skipped.append(f"{name} (disabled)")
+            continue
+        if unconfigured(clean):
+            if skipped is not None:
+                skipped.append(f"{name} (unfilled placeholder)")
+            continue
+        out[name] = clean
+    return out
+
+
+def to_codex_toml(mcp: dict) -> str:
+    """Render .mcp.json servers as Codex `[mcp_servers.<name>]` tables."""
+    lines = ["# Generated from .mcp.json by scripts/install — do not edit by hand.",
+             "# Regenerate:  ./install.sh --into . --sync"]
+    for name, cfg in sorted(mcp_servers(mcp).items()):
+        lines.append("")
+        lines.append(f"[mcp_servers.{merge.toml_key(name)}]")
+        for key in ("command", "url"):
+            if key in cfg:
+                lines.append(f"{key} = {merge.toml_value(cfg[key])}")
+        if cfg.get("args"):
+            lines.append(f"args = {merge.toml_value(list(cfg['args']))}")
+        env = cfg.get("env")
+        if isinstance(env, dict) and env:
+            lines.append("")
+            lines.append(f"[mcp_servers.{merge.toml_key(name)}.env]")
+            for k, v in sorted(env.items()):
+                lines.append(f"{merge.toml_key(k)} = {merge.toml_value(v)}")
+    return "\n".join(lines)
+
+
+def to_copilot_mcp(mcp: dict) -> dict:
+    """Render .mcp.json servers in Copilot CLI's mcp-config.json schema.
+
+    Local: {command, args, tools, [cwd, env, timeout], type: "local"}
+    Remote: {url, tools, type: "http"|"sse", [headers, timeout]}
+    `tools` is required by Copilot's schema; "*" enables the server's full set.
+    """
+    out = {}
+    for name, cfg in sorted(mcp_servers(mcp).items()):
+        if "url" in cfg:
+            entry = {"type": "sse" if cfg.get("type") == "sse" else "http",
+                     "url": cfg["url"], "tools": ["*"]}
+            if isinstance(cfg.get("headers"), dict):
+                entry["headers"] = cfg["headers"]
+        elif "command" in cfg:
+            entry = {"type": "local", "command": cfg["command"],
+                     "args": list(cfg.get("args") or []), "tools": ["*"]}
+            if isinstance(cfg.get("env"), dict) and cfg["env"]:
+                entry["env"] = cfg["env"]
+            if cfg.get("cwd"):
+                entry["cwd"] = cfg["cwd"]
+        else:
+            continue
+        out[name] = entry
+    return {"mcpServers": out}
+
+
+# --- hook translation ------------------------------------------------------
+
+def to_codex_hooks(settings: dict) -> dict:
+    """Codex's hooks file uses Claude Code's event names and matcher/hooks shape.
+
+    Events Codex understands: PreToolUse, PostToolUse, PermissionRequest,
+    PreCompact, PostCompact, SessionStart, UserPromptSubmit, SubagentStart,
+    SubagentStop, Stop. SessionEnd is Claude-only and is dropped.
+    """
+    known = {"PreToolUse", "PostToolUse", "PermissionRequest", "PreCompact",
+             "PostCompact", "SessionStart", "UserPromptSubmit", "SubagentStart",
+             "SubagentStop", "Stop"}
+    events = {}
+    for event, groups in (settings.get("hooks") or {}).items():
+        if event not in known:
+            continue
+        cleaned = []
+        for group in groups:
+            group = {k: v for k, v in group.items() if not k.startswith("_")}
+            if group.get("hooks"):
+                cleaned.append(group)
+        if cleaned:
+            events[event] = cleaned
+    return {"hooks": events}
+
+
+# --- drift check -----------------------------------------------------------
+
+def derived_surfaces(root, table, harnesses):
+    """(rel, want_text, kind) for every surface derived from .mcp.json."""
+    root = Path(root)
+    mcp_path = root / ".mcp.json"
+    mcp = {}
+    if mcp_path.is_file():
+        mcp = json.loads(mcp_path.read_text(encoding="utf-8"))
+
+    for name in harnesses:
+        spec = table.get(name) or {}
+        mspec = spec.get("mcp") or {}
+        if mspec.get("kind") != "generated":
+            continue
+        rel, fmt = mspec["path"], mspec.get("format")
+        if fmt == "copilot-mcp":
+            yield rel, json.dumps(to_copilot_mcp(mcp), indent=2) + "\n", "whole-file"
+        elif fmt == "toml-block":
+            yield rel, to_codex_toml(mcp), "block"
+
+
+def check(root, table, harnesses) -> list[str]:
+    root = Path(root)
+    problems = []
+    for rel, want, kind in derived_surfaces(root, table, harnesses):
+        path = root / rel
+        if not path.is_file():
+            problems.append(f"{rel} is missing")
+            continue
+        have = path.read_text(encoding="utf-8")
+        if kind == "whole-file" and have != want:
+            problems.append(f"{rel} differs from .mcp.json")
+        elif kind == "block":
+            block = merge.extract_block(have)
+            if block is None or want.strip() not in block:
+                problems.append(f"{rel} block differs from .mcp.json")
+    return problems
+
+
+def write(root, table, harnesses) -> list[str]:
+    root = Path(root)
+    written = []
+    for rel, want, kind in derived_surfaces(root, table, harnesses):
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if kind == "whole-file":
+            if not path.is_file() or path.read_text(encoding="utf-8") != want:
+                path.write_text(want, encoding="utf-8")
+                written.append(rel)
+        else:
+            have = path.read_text(encoding="utf-8") if path.is_file() else ""
+            out = merge.merge_toml_block(have, want)
+            if out != have:
+                path.write_text(out, encoding="utf-8")
+                written.append(rel)
+    return written
+
+
+def installed_harnesses(root) -> list[str]:
+    """Harnesses this repo was wired for, per the install manifest."""
+    man = Path(root) / ".ai-sdlc/manifest.json"
+    if man.is_file():
+        try:
+            return json.loads(man.read_text(encoding="utf-8")).get("harnesses", [])
+        except json.JSONDecodeError:
+            pass
+    return []
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--root", default=".")
+    ap.add_argument("--check", action="store_true")
+    ap.add_argument("--write", action="store_true")
+    ap.add_argument("--list", action="store_true")
+    args = ap.parse_args(argv)
+
+    root = Path(args.root).resolve()
+    table = load_table()
+    harnesses = installed_harnesses(root) or detect(root, table)
+
+    if args.list:
+        for name in harnesses:
+            print(f"{name}\t{table.get(name, {}).get('label', name)}")
+        return 0
+
+    if args.write:
+        for rel in write(root, table, harnesses):
+            print(f"regenerated {rel}")
+        return 0
+
+    problems = check(root, table, harnesses)
+    for line in problems:
+        print(f"drift: {line}", file=sys.stderr)
+    if problems:
+        print("\nRegenerate with: python3 scripts/harness/sync.py --write", file=sys.stderr)
+        return 1
+    print(f"harness surfaces match .mcp.json ({len(harnesses)} harness(es))")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
