@@ -14,3 +14,4 @@ node_modules/
 template/docs/knowledge/.index/
 *.db
 *.sqlite
+/docs/prompts/

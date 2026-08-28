@@ -6,7 +6,7 @@ This is the single source of truth that **all AI tools read** — Claude (Claude
 
 > **Where this file lives.** The canonical copy is at the repo root. `CLAUDE.md` (and any other tool-specific file) is a thin pointer to this file. **Edit the brief here; don't fork it.**
 >
-> **Placeholders.** Anything in `<ANGLE_BRACKETS>` is a value you fill in when you bootstrap the project (see `scripts/bootstrap.sh`). Search for `<` to find them all.
+> **Placeholders.** Anything in `<ANGLE_BRACKETS>` is a value you fill in for this project. The installer fills the mechanical ones (name, description, ticket prefix); the rest are governance decisions and are yours. Run `install.sh --into . doctor` from the kit to list exactly which are still open.
 
 ---
 

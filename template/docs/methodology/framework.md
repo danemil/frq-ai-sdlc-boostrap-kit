@@ -39,7 +39,7 @@ This project treats AI agents as **first-class collaborators across the whole so
 ## The seven pillars
 
 ### 1. Setup
-One-command bootstrap of a governed, AI-ready repository — `scripts/bootstrap.sh` copies the template, substitutes the project placeholders, initialises git, and installs the hooks. **Where:** [`../../scripts/bootstrap.sh`](../../scripts/bootstrap.sh), [`../../README.md`](../../README.md).
+One-command setup of a governed, AI-ready repository — the kit's `install.sh` adopts the template into a target repo, **new or already populated**: it classifies every file it would write (kit-owned / yours-to-edit / structured-merge), asks on each conflict, merges config key-by-key rather than overwriting, records what it wrote in `.ai-sdlc/manifest.json` so a re-run is an upgrade, and wires each detected AI harness off one canonical brief. **Where:** the kit's `install.sh` + `scripts/install/`, [`../../README.md`](../../README.md).
 
 ### 2. Onboarding
 Per-machine, per-user first-run that installs tooling, activates hooks, optionally seeds the knowledge index, and creates the git-ignored `USER.md` so the agent can tailor itself to each person. **Where:** [`../../ONBOARDING.md`](../../ONBOARDING.md), [`../onboarding/`](../onboarding/).
