@@ -78,7 +78,7 @@ A single CLI, `scripts/decks/deck.py`, wraps the pure units: `snapshot`, `metric
 |---|---|---|---|
 | **Jira** | Work items, points, sprints, links, fields | `sources/jira_snapshot.py`, which **reuses** `scripts/jira/export_jira.py` (`load_config`, `BACKENDS`, `fetch_all`, `normalize_issue`) and adds the extra fields in §3.3 | `script` |
 | **Bitbucket** | Pull requests (month to date, open, merged, declined) | `sources/bitbucket_prs.py`, a new stdlib adapter for **Cloud** (`/2.0/repositories/{ws}/{repo}/pullrequests`) and **Data Center** (`/rest/api/1.0/projects/{p}/repos/{r}/pull-requests`). Confirm both endpoints against the live docs at implementation time. | `script` |
-| **git** | Commits and merges when Bitbucket isn't configured. Tags for releases. | `sources/git_log.py` (`git log`, `git tag`) | `script` |
+| **git** | Merged work when Bitbucket isn't configured (merge commits only, so squash merges and open or declined PRs are invisible). Tags for releases. | `sources/git_log.py` (`git log --merges`, `git for-each-ref refs/tags`) | `script` |
 | **Knowledge graph** | Architecture: components, ADRs, traces | `scripts/knowledge/query.py` / the `knowledge` MCP (local, already in the kit) | `script` |
 | **Jama Connect** | Software System Requirements (SSR) and their traces to work items | Agent via the Jama MCP or CLI once it's in the harness | `agent-sourced` |
 | **Confluence** | Docs, decisions, meeting outcomes | Agent via the `docs-wiki` MCP | `agent-sourced` |

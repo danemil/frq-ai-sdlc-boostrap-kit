@@ -160,24 +160,30 @@ def fetch(deck_cfg: dict, scope: dict, ledger_cfg=None, fetch_all=None) -> tuple
 BACKENDS = {"cloud": {...}, "datacenter": {...}}   # base path, auth header, pagination (next URL | start/isLastPage)
 def normalize_pr(raw: dict, deployment: str, repo: str) -> dict   # §3.2 pull_requests shape
 def extract_keys(*texts: str) -> list[str]   # Jira keys from title + source branch, KEY_RE as commit_msg_ticket.py
-def fetch(deck_cfg: dict, since: str, until: str, http_get=_http_get) -> tuple[list[dict], dict]
+def fetch(deck_cfg: dict, since: str, until: str, http_get=None, env=None) -> tuple[list[dict], dict]
+    # http_get(url, headers) -> dict, raising SourceUnavailable; env defaults to os.environ.
+    # Window: created or closed in [since, until] (whole UTC days), or still OPEN and created by `until`.
+    # Cloud has no close time in the list API, so merged/declined PRs use updated_on.
+    # Cloud ignores BITBUCKET_BASE_URL unless the config names a base_url_env explicitly.
 # git_log.py
 def merges(since: str, until: str, cwd=".") -> list[dict]   # PR-like rows from merge commits (tier: script, source: git)
-def tags(cwd=".") -> list[dict]
+    # Dates filtered in Python: `git log --since` stops at the first older commit and would miss merges.
+    # Squash/rebase merges leave no merge commit, and open/declined PRs are invisible: Bitbucket stays preferred.
+def tags(cwd=".") -> list[dict]                             # newest first; tagger date for annotated tags
 ```
 
 The state values are normalised: Cloud `MERGED/DECLINED/OPEN/SUPERSEDED` and Data Center `MERGED/DECLINED/OPEN` become `MERGED/DECLINED/OPEN`.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - Normalise the Cloud and Data Center fixtures.
   - Paginate both styles with a fake `http_get`.
   - Keys come from both title and branch, deduplicated and sorted.
   - Missing auth raises `SourceUnavailable`.
   - `git_log.merges` runs on a temporary repo (`git init` plus two merge commits).
-- [ ] **Step 2:** Run the tests and confirm they fail.
-- [ ] **Step 3: Implement.** Use stdlib `urllib`, with one bounded retry on 429 and 5xx, honouring `Retry-After`. Confirm the Cloud and Data Center endpoints against the live docs and note the date in a code comment.
-- [ ] **Step 4:** Run the tests and confirm they pass.
-- [ ] **Step 5: Commit** `feat(decks): Bitbucket PR source (Cloud/DC) with git fallback`.
+- [x] **Step 2:** Run the tests and confirm they fail.
+- [x] **Step 3: Implement.** Use stdlib `urllib`, with one bounded retry on 429 and 5xx, honouring `Retry-After`. Confirm the Cloud and Data Center endpoints against the live docs and note the date in a code comment.
+- [x] **Step 4:** Run the tests and confirm they pass.
+- [x] **Step 5: Commit** `feat(decks): Bitbucket PR source (Cloud/DC) with git fallback`.
 
 ---
 
