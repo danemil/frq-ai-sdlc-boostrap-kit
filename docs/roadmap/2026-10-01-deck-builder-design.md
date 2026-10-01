@@ -127,7 +127,7 @@ A single CLI, `scripts/decks/deck.py`, wraps the pure units: `snapshot`, `metric
 - `doc_update` (a select or checkbox custom field, or a label)
 - the existing `sprint`, `epic_link` and `story_points` ids, inherited from `docs/product/jira/config.json`
 
-Jama traces are matched by a configurable Jira link type or remote-link prefix (`jama.link_match`).
+Jama traces are matched by a configurable regex on the Jira issue-link type or linked key (`jama.link_match`). Jira *remote* links need one extra API call per issue, so v1 doesn't fetch them. A team that traces to Jama only through remote links gets the SSR check through the agent fallback until a scripted Jama source exists.
 
 ---
 

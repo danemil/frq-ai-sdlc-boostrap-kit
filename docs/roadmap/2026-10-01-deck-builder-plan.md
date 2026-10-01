@@ -120,9 +120,11 @@ def weakest(tiers: Iterable[str]) -> str
 EXTRA_FIELDS = ["issuelinks", "components", "fixVersions", "subtasks", "resolutiondate", "status"]
 def deck_jira_config(ledger_cfg: dict, deck_cfg: dict, scope: dict) -> dict
     # ledger cfg + extra fields + scoped JQL (project in …, sprint/fixVersion/updated window)
-def normalize_work_item(raw: dict, cfg: dict, base_url: str) -> dict   # §3.2 work_items shape
-def fetch(deck_cfg: dict, scope: dict, fetch_all=export_jira.fetch_all) -> tuple[list[dict], dict]
-    # returns (work_items, source_meta); raises SourceUnavailable(reason) on missing auth/config
+def scoped_jql(scope: dict, default_project: str) -> str     # explicit scope["jql"] wins verbatim
+def normalize_work_item(raw: dict, cfg: dict, deck_cfg: dict, base_url: str) -> dict   # §3.2 work_items shape
+def fetch(deck_cfg: dict, scope: dict, ledger_cfg=None, fetch_all=None) -> tuple[list[dict], dict]
+    # returns (work_items, source_meta); raises SourceUnavailable(reason) on missing auth/config.
+    # export_jira reports auth/HTTP failures via sys.exit; fetch converts SystemExit to SourceUnavailable.
 ```
 
 **Field rules:**
@@ -133,17 +135,18 @@ def fetch(deck_cfg: dict, scope: dict, fetch_all=export_jira.fetch_all) -> tuple
   - With `"description:<Heading>"`: the heading is present in the description text (use `export_jira.adf_to_text` for Cloud).
 - `doc_update` takes the select value, `"missing"` when empty, or `"n/a"` when unconfigured.
 - `links` maps `issuelinks[]` to `{type, direction (inward|outward), key, status_category}`.
-- `requirement_links` keeps the remote links or link types that match `jama.link_match`.
+- `requirement_links` keeps the linked keys whose link type or key matches `jama.link_match` (a regex).
+- **Unconfigured means unknown, not missing:** with no AC field, no doc field or no `link_match`, the value is `None` / `"n/a"`, so metrics report "Not measured" rather than counting every item as missing.
 
-- [ ] **Step 1: Write failing tests.**
+- [x] **Step 1: Write failing tests.**
   - Cloud fixture: links, components, fix versions, sub-task count, statusCategory, AC via custom field, AC via description heading.
   - Data Center fixture: the same fields (v2 shape, wiki-markup description).
   - Missing `JIRA_BASE_URL` raises `SourceUnavailable`.
   - `fetch` with an injected fake `fetch_all` never touches the network.
-- [ ] **Step 2:** Run the tests and confirm they fail.
-- [ ] **Step 3: Implement.** Call `export_jira.fetch_all(cfg)` with the extended cfg. The extra field ids are appended through `cfg["fields"]`, exactly as `fetch_all` already does.
-- [ ] **Step 4:** Run the tests. Then run the existing `scripts/jira/tests/test_export_jira.py` to confirm the ledger exporter didn't regress.
-- [ ] **Step 5: Commit** `feat(decks): Jira snapshot source reusing the ledger adapter`.
+- [x] **Step 2:** Run the tests and confirm they fail.
+- [x] **Step 3: Implement.** Call `export_jira.fetch_all(cfg)` with the extended cfg. The extra field ids are appended through `cfg["fields"]`, exactly as `fetch_all` already does.
+- [x] **Step 4:** Run the tests. Then run the existing `scripts/jira/tests/test_export_jira.py` to confirm the ledger exporter didn't regress.
+- [x] **Step 5: Commit** `feat(decks): Jira snapshot source reusing the ledger adapter`.
 
 ---
 
