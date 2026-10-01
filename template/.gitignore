@@ -42,6 +42,12 @@ npm-debug.log*
 *.pptx
 !docs/**/templates/*.docx
 
+# Deck builder (docs/decks/README.md): per-run snapshots/metrics, rendered decks,
+# and brand binaries (template .potx, logos, key visuals) stay out of git.
+/.ai-sdlc/decks/
+/out/decks/
+docs/brand/*/assets/
+
 # OS / editor
 .DS_Store
 Thumbs.db

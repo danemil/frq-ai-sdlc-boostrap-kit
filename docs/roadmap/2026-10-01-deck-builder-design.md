@@ -297,7 +297,7 @@ Auth is env-only, mirroring the Jira ledger: `JIRA_*` as today, plus `BITBUCKET_
 ## 11. Dependencies, install and git hygiene
 
 - **One new runtime dependency:** `python-pptx`, used only by `render.py`. Every other unit is stdlib (plus `pyyaml`, which the validators already use). This is the kit's first non-stdlib runtime dependency, so it's documented in `docs/decks/README.md`, and `render.py` fails with an install hint if the package is missing.
-- `.gitignore`: add `.ai-sdlc/decks/`, `out/`, and `docs/brand/*/assets/`. `*.pptx` is already ignored.
+- `.gitignore`: add `/.ai-sdlc/decks/`, `/out/decks/` (both anchored to the project root) and `docs/brand/*/assets/`. `*.pptx` is already ignored.
 - **Installer profile:** once `feat/brownfield-installer` merges, add `scripts/decks/**`, `docs/decks/**`, `docs/brand/**` and `.claude/skills/deck-builder/**` to the **`full`** profile in `scripts/install/file-classes.json`, with `docs/decks/decks.config.json` and `docs/brand/**` as `seed` (yours after the first write). Until then, the files simply ship in `template/`.
 
 ---

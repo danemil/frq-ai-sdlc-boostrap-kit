@@ -71,7 +71,7 @@ ai-trust: working
 - `.claude/skills/deck-builder/SKILL.md`
 
 **Modify:**
-- `.gitignore`: add `.ai-sdlc/decks/`, `out/`, `docs/brand/*/assets/`.
+- `.gitignore`: add `/.ai-sdlc/decks/`, `/out/decks/`, `docs/brand/*/assets/` (run folders anchored to the project root).
 - `.claude/skills/README.md`: add a row to *Tooling skills*.
 - `.claude/skills/playbook-em/SKILL.md`: add a one-line pointer to `deck-builder`.
 - `../.gitlab-ci.yml`: add the new tests, plus a python-pptx install line for the render smoke test.
@@ -95,18 +95,18 @@ def load(path) -> dict ; def save(snap, path) -> None           # atomic write, 
 def weakest(tiers: Iterable[str]) -> str
 ```
 
-- [ ] **Step 1: Write failing tests.** Cover these cases:
+- [x] **Step 1: Write failing tests.** Cover these cases:
   - A new snapshot validates.
   - An unknown tier fails.
   - A `work_items` entry without `key` fails.
   - `weakest(["script", "agent-sourced"]) == "agent-sourced"`.
   - `weakest([]) == "unavailable"`.
   - `save` then `load` round-trips byte-identically.
-- [ ] **Step 2:** Run `python3 scripts/decks/tests/test_snapshot.py`. Expect it to fail with an import error.
-- [ ] **Step 3: Implement** `snapshot.py`. Write atomically: temp file plus `os.replace`.
-- [ ] **Step 4:** Run the tests. Expect `OK`.
-- [ ] **Step 5:** Add `.ai-sdlc/decks/`, `out/` and `docs/brand/*/assets/` to `.gitignore`.
-- [ ] **Step 6: Commit** `feat(decks): snapshot schema v1 and git-ignored run dirs`.
+- [x] **Step 2:** Run `python3 scripts/decks/tests/test_snapshot.py`. Expect it to fail with an import error.
+- [x] **Step 3: Implement** `snapshot.py`. Write atomically: temp file plus `os.replace`.
+- [x] **Step 4:** Run the tests. Expect `OK`.
+- [x] **Step 5:** Add `/.ai-sdlc/decks/`, `/out/decks/` and `docs/brand/*/assets/` to `.gitignore`. Anchor the run folders to the project root so an unrelated `out/` elsewhere stays tracked.
+- [x] **Step 6: Commit** `feat(decks): snapshot schema v1 and git-ignored run dirs`.
 
 ---
 
