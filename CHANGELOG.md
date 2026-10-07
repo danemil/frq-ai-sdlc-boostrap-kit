@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Fixed
+- The generated `.github/workflows/ai-governance.yml` now runs on `minimal` and `standard` installs: steps for scripts a profile does not ship are skipped. Kit CI's `adopt-e2e` job covers all three profiles and runs the generated GitHub workflow on a fresh clone.
 
 ## [0.3.0] — 2026-10-07
 ### Added
