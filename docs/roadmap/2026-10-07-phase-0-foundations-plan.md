@@ -2205,13 +2205,136 @@ EOF
 
 ---
 
+### Task H6: adopt end-to-end job in kit CI (fresh clone)
+
+The human tests the kit through GitHub, not on a laptop. Today kit CI runs the template's validators and the installer's unit tests, but nothing installs the kit into an empty repo and then runs the **generated** project's governance gate on a **fresh clone**. That is the H1 failure mode: `.vscode/settings.json` never reached a clone, so the gate failed on every client checkout while every kit test stayed green. Task 12 Step 2 checks this by hand once; this task makes it run on every push and PR.
+
+**Design choice: a separate job, a matrix over `minimal` and `standard`.** The existing `ai-governance` job tests the kit's own tree; `adopt-e2e` tests what a client gets. Keeping them apart keeps each log readable and lets them run in parallel. `minimal` is the smallest install and skips the session validators; `standard` ships `scripts/session/` and runs them. `full` adds only the dashboard and spend scripts, which no generated gate checks. `fail-fast: false`, so one failing profile does not hide the other.
+
+**Design choice: doctor's drift section, not its exit code.** On a clean fresh install `doctor` exits 1: the template's `<PLACEHOLDERS>` (`<KEY_DATES>`, `<ONE_LINE_DESCRIPTION>`, …) are unfilled by design and each counts as a problem. The job accepts exit 0 or 1, fails on anything higher (doctor crashed), and gates on the line after `Generated-surface drift`, which must start with `none`.
+
+**Idempotence.** A second `--yes` install over the committed repo must leave `git status --porcelain` empty, with one exception: `scripts/install/manifest.py` stamps `installed_at` on every run, so `.ai-sdlc/manifest.json` changes whenever the second run lands in a later second. The job excludes the manifest from the status check and then requires its diff to be empty apart from that line (`git diff --exit-code -I '"installed_at":'`, git 2.30+). Any other manifest change (hashes, profile, harnesses) still fails.
+
+**Files:**
+- Modify: `.github/workflows/ci.yml` (new job `adopt-e2e`, after `ai-governance`)
+- Modify: this plan (Task 12 Steps 1 and 2)
+
+**Step 1: Add the job.** Append to `.github/workflows/ci.yml`. The action versions match the `ai-governance` job. The gate step runs exactly the `sh` lines of `template/ci/Jenkinsfile.ai-governance`, minus its `pip install`:
+
+```yaml
+  adopt-e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [minimal, standard]
+    env:
+      PROFILE: ${{ matrix.profile }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install --quiet "pyyaml>=6"
+
+      - name: Throwaway git identity
+        run: |
+          set -euo pipefail
+          git config --global user.name "kit-ci"
+          git config --global user.email "kit-ci@users.noreply.github.com"
+          git config --global init.defaultBranch main
+
+      - name: Adopt the kit into an empty repo
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/proj"
+          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli
+
+      - name: Commit the adoption; generated Copilot files are tracked (H1)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/proj"
+          git init -q && git add -A && git commit -qm "adopt kit"
+          git ls-files --error-unmatch .vscode/settings.json .github/copilot-instructions.md
+
+      - name: Fresh clone runs the generated governance gate (ci/Jenkinsfile.ai-governance)
+        run: |
+          set -euo pipefail
+          git clone -q "$RUNNER_TEMP/proj" "$RUNNER_TEMP/clone"
+          cd "$RUNNER_TEMP/clone"
+          python3 scripts/validate-skills.py
+          python3 scripts/validate-frontmatter.py
+          [ ! -f scripts/session/moments.json ] || python3 scripts/validate-moments.py
+          [ ! -f scripts/session/seat-profiles.json ] || python3 scripts/validate-seat-profiles.py
+          python3 scripts/harness/sync.py --check
+
+      - name: Fresh clone has no generated-surface drift (doctor)
+        run: |
+          set -euo pipefail
+          # doctor exits 1 on a fresh install because the template's <PLACEHOLDERS>
+          # are unfilled by design. Allow 0 or 1, and gate on the drift section only.
+          rc=0
+          out="$(./install.sh --into "$RUNNER_TEMP/clone" doctor)" || rc=$?
+          printf '%s\n' "$out"
+          if [ "$rc" -gt 1 ]; then echo "doctor failed to run (exit $rc)"; exit 1; fi
+          printf '%s\n' "$out" | grep -A1 '^Generated-surface drift$' | tail -n1 | grep -q '^  none '
+
+      - name: Re-running the installer changes nothing
+        run: |
+          set -euo pipefail
+          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli
+          # Every run stamps the manifest's "installed_at"; that one line may change.
+          changes="$(git -C "$RUNNER_TEMP/proj" status --porcelain -- . ':!.ai-sdlc/manifest.json')"
+          if [ -n "$changes" ]; then printf 'Re-run changed the repo:\n%s\n' "$changes"; exit 1; fi
+          git -C "$RUNNER_TEMP/proj" diff --exit-code -I '"installed_at":' -- .ai-sdlc/manifest.json
+```
+
+`$RUNNER_TEMP` is used inside the scripts because the `runner` context is not available in a job-level `env:`.
+
+**Step 2: Verify locally (macOS).** Parse the YAML, then run each step's `run:` body in order for both profiles, with `RUNNER_TEMP` pointing at a scratch dir and `HOME` at a temp dir (so `git config --global` does not touch your own config):
+
+```bash
+python3 -c 'import yaml; yaml.safe_load(open(".github/workflows/ci.yml"))' && echo YAML-OK
+for p in minimal standard; do
+  scratch=$(mktemp -d); export RUNNER_TEMP="$scratch/runner" HOME="$scratch/home" PROFILE=$p
+  mkdir -p "$RUNNER_TEMP" "$HOME"
+  # one subshell per step: like Actions, each step starts back in the kit checkout
+  python3 -c 'import yaml; [print("(\n" + s["run"] + ")") for s in yaml.safe_load(open(".github/workflows/ci.yml"))["jobs"]["adopt-e2e"]["steps"][3:]]' \
+    > "$scratch/steps.sh"
+  bash -euo pipefail "$scratch/steps.sh" > "$scratch/log" 2>&1 && echo "$p E2E-OK" || { echo "$p FAILED"; tail -30 "$scratch/log"; }
+done
+```
+Expected: `YAML-OK`, `minimal E2E-OK`, `standard E2E-OK`. Then run `test_adopt.py` and `test_harness_copilot.py`: the counts are unchanged (29 and 29), since no kit code changed.
+
+**Step 3: Commit, push, watch the run.**
+
+```bash
+git add .github/workflows/ci.yml docs/roadmap/2026-10-07-phase-0-foundations-plan.md
+git commit -F - <<'EOF'
+ci(kit): adopt end-to-end job — install, fresh clone, governance gate
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+git push
+gh run list --branch feat/onboarding-roles-skills --limit 4
+gh run watch <id> --exit-status
+```
+Expected: `ai-governance`, `adopt-e2e (minimal)` and `adopt-e2e (standard)` all succeed.
+
+---
+
 ### Task 12: Full verification and phase close-out
 
-**Step 1: Run the whole kit CI locally**, copying every `run:` line from `.github/workflows/ci.yml`:
+**Step 1: Run the whole kit CI locally**, copying every `run:` line of the `ai-governance` job in `.github/workflows/ci.yml`. The `sed` range stops at `adopt-e2e` (Task H6), whose `python3 scripts/…` lines run inside a generated clone and fail from the kit root:
 
 ```bash
 pip install --quiet "pyyaml>=6"
-grep -E '^\s+(run: )?python3 ' .github/workflows/ci.yml | sed -E 's/^ *(run: )?//' > /tmp/ci-cmds.sh
+sed -n '/^  ai-governance:/,/^  adopt-e2e:/p' .github/workflows/ci.yml \
+  | grep -E '^\s+(run: )?python3 ' | sed -E 's/^ *(run: )?//' > /tmp/ci-cmds.sh
 wc -l < /tmp/ci-cmds.sh
 bash -e /tmp/ci-cmds.sh && echo ALL-GREEN
 ```
@@ -2226,7 +2349,7 @@ cd ~/scratch/frq-repo && python3 scripts/harness/sync.py --check && copilot
 ```
 Expected: dry-run shows a plan without conflicts on the client's own files, `--check` passes, and Copilot CLI starts onboarding because `USER.md` is missing (design §4.0 step 2).
 
-Then prove the gate passes on a **clean checkout**, which is what CI sees. This verifies H1: before H1, `.vscode/settings.json` was gitignored, so it never reached a clone and the gate failed on every one.
+Then prove the gate passes on a **clean checkout**, which is what CI sees. This verifies H1: before H1, `.vscode/settings.json` was gitignored, so it never reached a clone and the gate failed on every one. Kit CI's `adopt-e2e` job (Task H6) already runs this on an empty repo, for `minimal` and `standard`, on every push and PR; check that both legs are green on the latest branch run first. This step adds what that job cannot: a real FRQ repo with its own content.
 
 ```bash
 cd ~/scratch/frq-repo && git add -A && git commit -qm "chore: adopt AI-SDLC kit (scratch)"
