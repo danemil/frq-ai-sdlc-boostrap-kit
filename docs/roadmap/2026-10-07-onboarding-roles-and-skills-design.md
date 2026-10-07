@@ -357,3 +357,5 @@ Each phase gets its own implementation plan (superpowers `writing-plans` format,
 | Pilot | One existing FRQ repo on an Ubuntu VM with Copilot CLI, following the §4.0 flow end to end; results feed next week's iteration | 1–4 |
 
 Next iteration (week of 2026-10-12): the other team's harness, FRQ skill schema and starter skills (4d-4), new FRQ role catalogues, the security pack, Hurl/Pact, and the deferred Superpowers decision.
+
+**Role discovery (idea, 2026-10-07):** `docs/FRQ-Roles/` is the drop folder for role descriptions and JDs. A future mechanism should point the agent at it, detect new or changed roles, and propose how the seat model, playbooks and skills adapt (always as a proposal a human approves). To be designed with `superpowers:brainstorming`, with Codex as an independent second opinion, before any plan is written.
