@@ -990,8 +990,9 @@ This edit is outside §0/§3, so the generated brief does not change. The brief-
 **Step 2: ONBOARDING.md.** In "Notes for AI harnesses", add after the Claude Code bullet:
 
 ```markdown
-- **GitHub Copilot** (CLI, VS Code, IntelliJ): interactive questions in chat, shell for commands, file-write for `USER.md`. Copilot CLI and VS Code run the SessionStart hook; **IntelliJ has no session hooks — run `bash scripts/session/start.sh` yourself** at the start of each session (the generated `.github/copilot-instructions.md` says so too).
+- **GitHub Copilot** (CLI, VS Code, IntelliJ): interactive questions in chat, shell for commands, file-write for `USER.md`. Copilot CLI runs the SessionStart hook in interactive sessions; VS Code does when `chat.useClaudeHooks` is on (set by the installer). **IntelliJ has no session hooks** (and `copilot -p` skips them) **— run `bash scripts/session/start.sh` yourself** at the start of each session (the generated `.github/copilot-instructions.md` says so too).
 ```
+This is the text committed in 503e0ea. It reflects Task 2's finding that `copilot -p` does not fire hooks.
 
 **Step 3: Verify**
 
@@ -1060,8 +1061,9 @@ printf '0.3.0\n' > VERSION
 
 The kit is versioned with SemVer (`VERSION`, history in [`CHANGELOG.md`](./CHANGELOG.md)). The installer records the version in each adopting repo's `.ai-sdlc/manifest.json`, and `./install.sh doctor --into <repo>` shows it.
 
-To upgrade a repo, run `./install.sh --into <repo> --dry-run` from the newer kit, review the plan, then run it without `--dry-run`. Files the kit owns and you never edited are replaced. Files you changed are shown as a diff for you to decide; nothing is overwritten silently.
+To upgrade a repo, run `./install.sh --into <repo> --dry-run` from the newer kit, review the plan, then run it without `--dry-run`. Files the kit owns and you never edited are replaced. Files you changed are flagged as conflicts: keep yours, take the kit's, or write the kit's copy alongside as `.kit-new` (press `d` to see the diff). With `--yes`, your version is kept. Nothing is overwritten silently.
 ```
+This is the text committed in df5447e. Task H2 revises this paragraph again, because before H2 the "nothing is overwritten silently" promise did not hold for the generated Copilot files.
 
 **Step 4: Verify the installer records the new version**
 
@@ -1080,16 +1082,1118 @@ git commit -m "chore(release): changelog, version policy, kit 0.3.0"
 
 ---
 
+## Phase 0 hardening (from the Task 12 code review, 2026-10-07)
+
+The Task 12 code review found five defects in the Copilot wiring, set out below as H1–H5. Do them in order: H4 relies on H3's error path.
+Every task is test-first: write the failing test, watch it fail with the stated message, then add the minimal stdlib fix.
+There is one commit per task, and a human reviews each commit before the next task starts.
+
+The test counts before H1 are: `test_adopt` 20, `test_harness` 13, `test_harness_copilot` 16, `test_manifest` 9, `test_merge` 19, `test_plan` 11. Every task ends by running all six with this loop:
+
+```bash
+for t in scripts/install/tests/test_{adopt,harness,manifest,merge,plan}.py \
+         template/scripts/tests/test_harness_copilot.py; do
+  printf '%-48s ' "$t"; python3 "$t" 2>&1 | tail -3 | tr -s '\n' ' '; echo
+done
+```
+
+---
+
+### Task H1: `.vscode/settings.json` reaches git, and an ignored one is not drift
+
+`template/.gitignore` ignores `.vscode/*` and re-includes only `extensions.json`. So the generated `.vscode/settings.json` is never committed, every clone lacks it, and `sync.py --check` fails in CI with `.vscode/settings.json lacks "chat.useClaudeHooks": true`. Two fixes are needed:
+
+- The template re-includes the file.
+- `check()` skips the VS Code switch when git ignores the file in this repo. A brownfield repo may keep `.vscode/` out of git on purpose, and once the manifest is committed CI checks copilot-cli anyway.
+
+**Design choice: notes.** An ignored file produces no output at all, not even a stdout note. `check()` returns failures only. A non-failing note would need a second return channel through `check`, `main` and `doctor`, which is more surface than one skipped key is worth. The reason for the skip lives in a code comment.
+
+**Known limitation (accepted).** If a developer ignores `.vscode/` only in their *global* git excludes, their clone treats the file as ignored, so they never commit it. A clean CI checkout has no such global rule, so the gate fails there. The fix is to remove the global rule or force-add the file.
+
+**Files:**
+- Modify: `template/.gitignore`
+- Modify: `template/scripts/harness/sync.py` (`import subprocess`, new `_git_ignored`, `check`)
+- Modify: `template/scripts/tests/test_harness_copilot.py` (imports, new `git` helper, new class `TestGitIgnoredSettings`)
+- Modify: `scripts/install/tests/test_adopt.py` (`TestHarnessWiring.test_vscode_settings_is_committed`)
+
+**Step 1: Write the failing tests.**
+
+(a) In `template/scripts/tests/test_harness_copilot.py`, extend the imports to:
+
+```python
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+```
+
+then append before `if __name__`:
+
+```python
+def git(root, *args):
+    """git with no user or system config, so a global excludesFile cannot skew the result."""
+    return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True,
+                          env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                               "HOME": str(root), "GIT_CONFIG_NOSYSTEM": "1"})
+
+
+@unittest.skipUnless(shutil.which("git"), "needs git")
+class TestGitIgnoredSettings(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = repo(self.tmp.name)
+        self.table = sync.load_table()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_ignored_vscode_settings_is_not_drift(self):
+        git(self.root, "init", "-q")
+        (self.root / ".gitignore").write_text(".vscode/\n", encoding="utf-8")
+        sync.write(self.root, self.table, ["copilot-cli"])
+        (self.root / ".vscode/settings.json").unlink()      # what a fresh clone sees
+        self.assertEqual([p for p in sync.check(self.root, self.table, ["copilot-cli"])
+                          if "mcp" not in p], [])
+
+    def test_outside_git_a_missing_switch_is_still_drift(self):
+        sync.write(self.root, self.table, ["copilot-cli"])
+        (self.root / ".vscode/settings.json").unlink()
+        self.assertIn('.vscode/settings.json lacks "chat.useClaudeHooks": true',
+                      sync.check(self.root, self.table, ["copilot-cli"]))
+```
+
+The second test passes before and after the fix. It is a guard: when there is no repo, or no git, the file counts as "not ignored".
+
+(b) In `scripts/install/tests/test_adopt.py`, append to `class TestHarnessWiring`:
+
+```python
+    def test_vscode_settings_is_committed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            env = {"PATH": "/usr/bin:/bin", "HOME": tmp, "GIT_CONFIG_NOSYSTEM": "1"}
+
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=tmp, capture_output=True,
+                                      text=True, env=env)
+
+            git("init", "-q")
+            git("add", "-A")
+            self.assertIn(".vscode/settings.json", git("ls-files", ".vscode").stdout.split())
+```
+
+**Step 2: Run them to make sure they fail**
+
+Run:
+```bash
+python3 template/scripts/tests/test_harness_copilot.py
+python3 scripts/install/tests/test_adopt.py
+```
+Expected:
+- `test_harness_copilot`: `Ran 18 tests`, `FAILED (failures=1)`, with `AssertionError: Lists differ: ['.vscode/settings.json lacks "chat.useClaudeHooks": true'] != []`.
+- `test_adopt`: `Ran 21 tests`, `FAILED (failures=1)`, with `AssertionError: '.vscode/settings.json' not found in []`.
+
+**Step 3: Implement.**
+
+(a) `template/.gitignore`: after `!.vscode/extensions.json`, add:
+
+```gitignore
+!.vscode/settings.json
+```
+
+(b) `template/scripts/harness/sync.py`: add `import subprocess` after `import shutil`. Then add this after `vscode_hooks_state`:
+
+```python
+def _git_ignored(root, rel) -> bool:
+    """True only when git says `rel` is ignored in this repo. No git, or no repo: False."""
+    try:
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=root,
+                           capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+```
+
+`git check-ignore` exits 0 for ignored, 1 for not ignored, and 128 outside a repo. A file that is tracked is never reported as ignored, so a force-added `settings.json` is still checked.
+
+(c) In `check()`, make the `json-key` branch start like this:
+
+```python
+        if mode == "json-key":
+            if _git_ignored(root, rel):
+                continue  # kept out of git on purpose: no clone has it, so nothing to gate
+            state = vscode_hooks_state(path.read_text(encoding="utf-8") if path.is_file() else "")
+```
+
+`write()` is unchanged. It still sets the key locally, which helps the developer even when the file stays out of git.
+
+**Step 4: Run the suites**
+
+Run the loop from the top of this section.
+Expected: `test_adopt` 21 OK · `test_harness` 13 OK · `test_manifest` 9 OK · `test_merge` 19 OK · `test_plan` 11 OK · `test_harness_copilot` 18 OK.
+
+**Step 5: Commit**
+
+```bash
+git add template/.gitignore template/scripts/harness/sync.py \
+        template/scripts/tests/test_harness_copilot.py scripts/install/tests/test_adopt.py
+git commit -F - <<'EOF'
+fix(harness): commit .vscode/settings.json; an ignored one is not drift
+
+The template ignored .vscode/* except extensions.json, so the generated
+settings.json never reached a clone and the drift gate failed in every CI
+run. Re-include it, and skip the VS Code switch in check() when git
+ignores the file (brownfield repos may keep .vscode/ out of git on purpose).
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+```
+
+---
+
+### Task H2: generated Copilot files never overwrite yours
+
+`_generate_copilot` writes whenever `manifest.state` is not `IDENTICAL`. That includes `FOREIGN` (a `.github/copilot-instructions.md` the team wrote before adopting) and `MODIFIED` (a generated file someone edited). Both are overwritten silently, and once overwritten the file is recorded as kit-owned, so `uninstall` then deletes it.
+
+The fix routes those two states through the planner's conflict contract: the same `Resolver`, the same `deferred` map, and the same `.kit-new` sidecar.
+
+**Design choices:**
+- **Same Resolver.** `wire_harnesses` takes the `Resolver` that `main()` already built for `apply()`. `--yes` gives keep, `--take-kit` gives take, and when there is no TTY the default is keep.
+- **Keeping writes `.kit-new`.** `apply()` writes `.kit-new` only for `[m]`. Here, keeping (`[k]`, `[a]`, `--yes`, or no TTY) also writes the kit's copy to `<rel>.kit-new`, because a generated file has no template copy to diff against. Without the sidecar, the operator could not see what the kit wanted. The file is then recorded in `man["deferred"]` with the kit copy's hash, exactly as `apply()` does, and is not asked about again until that copy changes.
+- **Uninstall needs no change.** `uninstall` deletes only paths listed in `man["files"]`. A kept file is never recorded there, so uninstall cannot delete it. The remaining uninstall gaps are listed under "Out of scope": *take* on a pre-existing file, MODIFIED own-class files, and `.kit-new` sidecars.
+- **A kept file keeps failing the drift gate, with a message that says what to do.** `sync.py` reads `deferred` from `.ai-sdlc/manifest.json`, the same file `installed_harnesses` already reads, using stdlib only. `check` reports a deferred file that differs from its rendering as `<rel> is your file (kit copy in <rel>.kit-new) — merge it into its source, delete it, then run python3 scripts/harness/sync.py --write`. That line is still a failure.
+- **`--write` never overwrites an existing deferred file.** It skips the file, reports the same line through a new `errors` list, and exits 1. If the operator has deleted the file, `--write` regenerates it. So the way out is:
+  1. Fold what you need into `AGENTS.md` or `.claude/rules/`.
+  2. Delete your file.
+  3. Run `--write`.
+  4. The next `install` sees the file is `IDENTICAL`, clears the deferral and records the file as kit-owned again.
+- **Merge-class files are unchanged.** The merge-class `.vscode/settings.json` stays a key-union where operator values win. Keeping the operator's indent is not trivial (`merge_json` re-serialises), so it is left out of scope (see "Out of scope").
+- **Dry runs ask too.** In `--dry-run` the Resolver is still asked, as `apply()` does, but nothing is written.
+
+**Files:**
+- Modify: `scripts/install/adopt.py` (`wire_harnesses`, `_generate`, `_generate_copilot`, `main`)
+- Modify: `template/scripts/harness/sync.py` (new `_deferred`, `_kept`; `check`, `write`, `main`)
+- Modify: `scripts/install/tests/test_adopt.py` (new class `TestCopilotConflicts`)
+- Modify: `template/scripts/tests/test_harness_copilot.py` (new class `TestDeferred`)
+- Modify: `README.md` (harness table, the paragraph under it, and the upgrade paragraph)
+
+**Step 1: Write the failing tests.**
+
+(a) In `template/scripts/tests/test_harness_copilot.py`, append before `if __name__`:
+
+```python
+class TestDeferred(unittest.TestCase):
+    """A generated file the operator kept at install time is never overwritten by sync."""
+
+    REL = ".github/copilot-instructions.md"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = repo(self.tmp.name)
+        self.table = sync.load_table()
+        (self.root / ".ai-sdlc").mkdir()
+        (self.root / ".ai-sdlc/manifest.json").write_text(json.dumps(
+            {"harnesses": ["copilot-cli"], "deferred": {self.REL: "0" * 64}}), encoding="utf-8")
+        (self.root / ".github").mkdir()
+        (self.root / self.REL).write_text("mine\n", encoding="utf-8")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_check_says_how_to_hand_the_file_back(self):
+        self.assertIn(f"{self.REL} is your file (kit copy in {self.REL}.kit-new) — merge it"
+                      f" into its source, delete it, then run {sync.REGENERATE}",
+                      sync.check(self.root, self.table, ["copilot-cli"]))
+
+    def test_write_skips_a_kept_file_and_regenerates_a_deleted_one(self):
+        errors = []
+        self.assertNotIn(self.REL, sync.write(self.root, self.table, ["copilot-cli"], errors))
+        self.assertEqual((self.root / self.REL).read_text(), "mine\n")
+        self.assertEqual(len(errors), 1)
+        (self.root / self.REL).unlink()                      # handed back to the kit
+        self.assertIn(self.REL, sync.write(self.root, self.table, ["copilot-cli"], []))
+```
+
+(b) In `scripts/install/tests/test_adopt.py`, add this class before `class TestDoctorAndUninstall`:
+
+```python
+class TestCopilotConflicts(unittest.TestCase):
+    """Generated Copilot files follow the planner's contract: yours are never overwritten."""
+
+    HAND = "# Our Copilot rules\nWritten by the team before the kit.\n"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.root = Path(self.tmp)
+        (self.root / ".github").mkdir()
+        (self.root / ".github/copilot-instructions.md").write_text(self.HAND, encoding="utf-8")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def install(self):
+        return run("--into", self.tmp, "--profile", "minimal", "--yes",
+                   "--harness", "copilot-cli")
+
+    def test_yes_keeps_a_hand_written_brief_and_writes_kit_new(self):
+        r = self.install()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.root / ".github/copilot-instructions.md").read_text(), self.HAND)
+        self.assertIn("Generated by scripts/harness/sync.py",
+                      (self.root / ".github/copilot-instructions.md.kit-new").read_text())
+        man = manifest.load(self.tmp)
+        self.assertIn(".github/copilot-instructions.md", man["deferred"])
+        self.assertNotIn(".github/copilot-instructions.md", man["files"])
+
+    def test_uninstall_leaves_a_hand_written_brief(self):
+        self.install()
+        run("--into", self.tmp, "uninstall")
+        brief = self.root / ".github/copilot-instructions.md"
+        self.assertTrue(brief.is_file())
+        self.assertEqual(brief.read_text(), self.HAND)
+
+    def test_reinstall_keeps_an_edited_instructions_file(self):
+        self.install()
+        adr = self.root / ".github/instructions/adr-conventions.instructions.md"
+        edited = adr.read_text() + "\nTeam note: keep me.\n"
+        adr.write_text(edited, encoding="utf-8")
+        run("--into", self.tmp, "--yes")
+        self.assertEqual(adr.read_text(), edited)
+        self.assertTrue(adr.with_name(adr.name + ".kit-new").is_file())
+
+    def test_matching_the_kit_copy_clears_the_deferral(self):
+        self.install()
+        brief = self.root / ".github/copilot-instructions.md"
+        brief.write_text(brief.with_name(brief.name + ".kit-new").read_text(), encoding="utf-8")
+        run("--into", self.tmp, "--yes")
+        man = manifest.load(self.tmp)
+        self.assertNotIn(".github/copilot-instructions.md", man["deferred"])
+        self.assertIn(".github/copilot-instructions.md", man["files"])
+```
+
+**Step 2: Run to verify they fail**
+
+Run:
+```bash
+python3 template/scripts/tests/test_harness_copilot.py
+python3 scripts/install/tests/test_adopt.py
+```
+Expected:
+- `test_harness_copilot`: `Ran 20 tests`, `FAILED (failures=1, errors=1)`. The check test fails with `AssertionError: '.github/copilot-instructions.md is your file […]' not found in ['.github/copilot-instructions.md differs from its source', …]`. The write test errors with `TypeError: write() takes 3 positional arguments but 4 were given`.
+- `test_adopt`: `Ran 25 tests`, `FAILED (failures=3, errors=1)`:
+  - `test_yes_keeps_…`: `AssertionError: '<!-- Generated by scripts/harness/sync.py from AGENTS.md […]' != '# Our Copilot rules\n[…]'`
+  - `test_uninstall_…`: `AssertionError: False is not true`
+  - `test_reinstall_…`: `AssertionError: '---\napplyTo: […]' != '---\napplyTo: […]Team note: keep me.\n'`
+  - `test_matching_…`: `FileNotFoundError: […]copilot-instructions.md.kit-new` (before the fix, no sidecar is ever written)
+
+**Step 3: Implement.** In `scripts/install/adopt.py`:
+
+(a) Change the `wire_harnesses` signature, and the first line of its body after `root = Path(root)`:
+
+```python
+def wire_harnesses(root, names, table, man, dry_run=False, resolver=None) -> list[str]:
+    """Write each harness's surface from the canonical artefacts."""
+    root = Path(root)
+    resolver = resolver or Resolver("keep")
+```
+
+and in the `kind == "generated"` branch, pass it on:
+
+```python
+                note = _generate(root, rel, sspec, mcp, settings, surface, label, man,
+                                 dry_run, resolver)
+```
+
+(b) In `_generate`, change the signature and the Copilot hand-off:
+
+```python
+def _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run,
+              resolver) -> str | None:
+    if sspec.get("format") in harness.COPILOT_FORMATS:
+        return _generate_copilot(root, sspec, surface, label, man, dry_run, resolver)
+```
+
+(c) Replace `_generate_copilot` entirely with:
+
+```python
+def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> str:
+    """Write the Copilot surfaces sync.py renders. One generator, two callers.
+
+    Own-class files follow the planner's contract: a file you wrote before adopting
+    (FOREIGN) or a generated file you edited (MODIFIED) is a conflict for the
+    Resolver. Keeping yours writes the kit's copy to <rel>.kit-new, since a generated
+    file has no template to diff against, and defers it until that copy changes.
+    Merge-class files (the VS Code switch) stay a key-union where your values win.
+    """
+    classes = {"own": planner.CLASS_OWN, "merge": planner.CLASS_MERGE}
+    try:
+        files = harness.materialize(root, sspec)
+    except ValueError as exc:          # e.g. AGENTS.md lacks a required section
+        return f"{label}: {surface} -> {sspec['path']} FAILED ({exc})"
+    deferred = man.setdefault("deferred", {})
+    changed, kept = [], []
+    for rel, text, cls in files:
+        blob = text.encode("utf-8")
+        st = manifest.state(root, man, rel, blob)
+        if st == manifest.IDENTICAL:
+            if rel in deferred and not dry_run:   # you handed it back: kit-owned again
+                deferred.pop(rel)
+                manifest.record(man, rel, classes[cls], blob)
+            continue
+        if deferred.get(rel) == manifest.sha256_bytes(blob):
+            continue
+        if cls == "own" and st in (manifest.FOREIGN, manifest.MODIFIED):
+            action = planner.Action(rel, classes[cls], planner.CONFLICT, st, blob)
+            if resolver.resolve(action, root, None) != "take":
+                if not dry_run:
+                    write_file(root, rel + ".kit-new", blob)
+                    deferred[rel] = manifest.sha256_bytes(blob)
+                kept.append(rel)
+                continue
+        if not dry_run:
+            write_file(root, rel, blob)
+            manifest.record(man, rel, classes[cls], blob)
+            deferred.pop(rel, None)
+        changed.append(rel)
+    if sspec.get("format") == "copilot-instructions":
+        for orphan in harness.orphan_instructions(root, sspec, {r for r, _, _ in files}):
+            if not dry_run:
+                (Path(root) / orphan).unlink()
+            changed.append(f"{orphan} (removed)")
+    notes = []
+    if changed:
+        notes.append(f"{', '.join(changed)} (generated)")
+    if kept:
+        notes.append(f"{', '.join(kept)} (kept yours; kit's copy in .kit-new)")
+    if not notes:
+        return f"{label}: {surface} -> {sspec['path']} (current)"
+    return f"{label}: {surface} -> {'; '.join(notes)}"
+```
+
+`Resolver.resolve(action, target_root, spec)` reads only `action.rel`, `.cls`, `.reason` and `.payload`, so a `planner.Action` built here is all it needs. `spec` is unused, so `None` is passed. `plan.build` checks for a deferral before it looks at the file's state. Here the order is reversed: `IDENTICAL` is checked first, because that is the moment a deferral ends.
+
+(d) In `main()`, move `wire_harnesses` inside the `try`, so that `[q]` on a Copilot conflict aborts cleanly:
+
+```python
+    try:
+        report = apply(root, actions, man, spec, resolver, dry_run=args.dry_run)
+        notes = wire_harnesses(root, names, table, man, dry_run=args.dry_run,
+                               resolver=resolver)
+    except KeyboardInterrupt:
+        print("\ninstall: aborted; nothing further written.")
+        return 130
+
+    print(f"\n{paint('Harness wiring', 'b')}")
+```
+
+(the old standalone `notes = wire_harnesses(...)` line goes away).
+
+(e) `template/scripts/harness/sync.py`. Add these two helpers after `installed_harnesses`:
+
+```python
+def _deferred(root) -> dict:
+    """Generated files the operator kept at install time (manifest `deferred`)."""
+    man = Path(root) / ".ai-sdlc/manifest.json"
+    try:
+        data = json.loads(man.read_text(encoding="utf-8")) if man.is_file() else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return (data.get("deferred") or {}) if isinstance(data, dict) else {}
+
+
+def _kept(rel) -> str:
+    return (f"{rel} is your file (kit copy in {rel}.kit-new) — merge it into its source, "
+            f"delete it, then run {REGENERATE}")
+```
+
+`check` and `write` are defined above `installed_harnesses`. That is fine, because the helpers are only looked up at call time.
+
+In `check`, add `deferred = _deferred(root)` after `root = Path(root)`, and change the whole-file comparison to:
+
+```python
+        if mode == "whole-file" and have != want:
+            problems.append(_kept(rel) if rel in deferred else f"{rel} differs from its source")
+```
+
+Replace the head of `write` with the version below. The rest of the function is unchanged:
+
+```python
+def write(root, table, harnesses, errors: list | None = None) -> list[str]:
+    root = Path(root)
+    deferred = _deferred(root)
+    written = []
+    for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
+        path = root / rel
+        if rel in deferred and path.is_file() and path.read_text(encoding="utf-8") != want:
+            if errors is not None:
+                errors.append(_kept(rel))         # never overwrite a file you kept
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        ...                                       # unchanged
+```
+
+and replace the `--write` branch of `main` with:
+
+```python
+    if args.write:
+        errors = []
+        for rel in write(root, table, harnesses, errors):
+            print(f"regenerated {rel}")
+        for line in errors:
+            print(f"not regenerated: {line}", file=sys.stderr)
+        return 1 if errors else 0
+```
+
+(f) `README.md`, "One brief, every tool". Replace the table and the paragraph under it with:
+
+```markdown
+| | Claude Code | Codex CLI | GitHub Copilot (CLI · VS Code · IntelliJ) | Cursor · Gemini · Windsurf · opencode |
+|---|---|---|---|---|
+| Brief | `CLAUDE.md` pointer | reads `AGENTS.md` natively | reads `AGENTS.md` natively (CLI, VS Code); generated `.github/copilot-instructions.md` with §0 + §3 inlined (IntelliJ) | pointer files |
+| Rules | `.claude/rules/` | — | generated `.github/instructions/*.instructions.md` (`paths:` → `applyTo:`) | — |
+| Skills | `.claude/skills/` | symlinked | **reads `.claude/skills/` natively** | — |
+| MCP | `.mcp.json` | generated TOML block | generated `.copilot/mcp-config.json` | merged |
+| Hooks | `.claude/settings.json` | generated `.codex/hooks.json` | `.claude/settings.json` natively (CLI, interactive); `chat.useClaudeHooks` in `.vscode/settings.json` (VS Code); none in IntelliJ, where the brief says to run `scripts/session/start.sh` | — |
+
+Because Copilot discovers `.claude/skills/` and both Codex and Copilot read `AGENTS.md` natively, three harnesses run off one brief and one skills tree. The only copies are Copilot's generated brief and path instructions; `sync.py --check` keeps them in step, and the installer never overwrites one you wrote or edited (see below).
+```
+
+and in "Versioning & upgrades", replace the second paragraph with:
+
+```markdown
+To upgrade a repo, run `./install.sh --into <repo> --dry-run` from the newer kit, review the plan, then run it without `--dry-run`. Files the kit owns and you never edited are replaced. Files you changed are flagged as conflicts: keep yours, take the kit's, or write the kit's copy alongside as `.kit-new` (press `d` to see the diff). With `--yes`, your version is kept. The generated Copilot files (`.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`) follow the same rule, including a file you had before adopting the kit. They have no template to compare against, so keeping yours always writes the kit's copy as `.kit-new`. The drift gate (`sync.py --check`) keeps failing on a kept file, and `--write` never overwrites it. To hand it back, fold what you need into its source (`AGENTS.md` or `.claude/rules/`), delete your file, and run `python3 scripts/harness/sync.py --write`. Nothing is overwritten silently.
+```
+
+**Step 4: Run the suites**
+
+Run the loop from the top of this section.
+Expected: `test_adopt` 25 OK · `test_harness` 13 OK · `test_manifest` 9 OK · `test_merge` 19 OK · `test_plan` 11 OK · `test_harness_copilot` 20 OK. The existing idempotency tests (`test_second_run_changes_nothing`, `test_brownfield_rerun_is_idempotent`) must still pass.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/install/adopt.py template/scripts/harness/sync.py README.md \
+        scripts/install/tests/test_adopt.py template/scripts/tests/test_harness_copilot.py
+git commit -F - <<'EOF'
+fix(install): generated Copilot files never overwrite yours
+
+A hand-written .github/copilot-instructions.md, or a generated file the
+operator edited, was overwritten silently and then recorded as kit-owned,
+so uninstall deleted it. Route FOREIGN/MODIFIED own-class files through the
+Resolver: keeping yours writes .kit-new and defers, as the planner does.
+sync.py reads the deferral: --check fails with the way out, --write never
+overwrites a kept file, and matching the kit copy ends the deferral.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+```
+
+---
+
+### Task H3: a missing AGENTS.md, or a missing §0/§3, is a problem line, not a crash
+
+Two crashes, one in each caller:
+
+- **Installer.** `adopt.py --into <empty> --dry-run --harness copilot-cli` dies with `FileNotFoundError: … AGENTS.md`. In a dry run, `apply()` writes nothing, so AGENTS.md is not on disk yet when `wire_harnesses` renders the brief. Only `ValueError` is caught.
+- **Sync.** `sync.py --check` and `--write` raise `ValueError: AGENTS.md has no section(s): …` straight out of `derived_surfaces`. Brownfield repos keep their own AGENTS.md (it is a seed file), so this is the normal brownfield case.
+
+**Design choices:**
+- `derived_surfaces` yields a fourth mode, `"error"`, carrying one message per broken surface.
+- `check` turns that into one problem line.
+- `write` skips that surface but still writes all the others, and reports the error through the optional `errors` list that H2 added. This is the same idiom as `mcp_servers(mcp, skipped)`. `main --write` already prints those errors and exits 1.
+- The orphan sweep never runs when the rules render fails, so the sweep never runs without a list of wanted files.
+- `render_copilot_brief` raises `ValueError("AGENTS.md is missing")` itself, so that the problem line does not carry an absolute path.
+
+**Files:**
+- Modify: `template/scripts/harness/sync.py` (`render_copilot_brief`, `derived_surfaces`, `check`, `write`)
+- Modify: `scripts/install/adopt.py` (`_generate_copilot`'s `except`)
+- Modify: `template/scripts/tests/test_harness_copilot.py` (imports, new class `TestRenderErrors`)
+- Modify: `scripts/install/tests/test_adopt.py` (`TestGreenfield.test_dry_run_into_an_empty_dir_wires_copilot`)
+
+**Step 1: Write the failing tests.**
+
+(a) In `template/scripts/tests/test_harness_copilot.py`, add `import contextlib` and `import io` to the imports (the list stays alphabetical). Then append before `if __name__`:
+
+```python
+NO_STARTUP = AGENTS.replace("## 0. Startup", "## 9. Startup")
+
+
+class TestRenderErrors(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = repo(self.tmp.name, NO_STARTUP)
+        self.table = sync.load_table()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_missing_section_is_one_problem_line(self):
+        problems = sync.check(self.root, self.table, ["copilot-cli"])
+        self.assertIn(".github/copilot-instructions.md: AGENTS.md has no section(s): 0"
+                      " — fix the source or remove copilot-cli", problems)
+
+    def test_write_skips_the_broken_surface_and_writes_the_rest(self):
+        errors = []
+        written = sync.write(self.root, self.table, ["copilot-cli"], errors)
+        self.assertIn(".vscode/settings.json", written)
+        self.assertIn(".copilot/mcp-config.json", written)
+        self.assertFalse((self.root / ".github/copilot-instructions.md").exists())
+        self.assertEqual(len(errors), 1)
+        (self.root / ".ai-sdlc").mkdir()
+        (self.root / ".ai-sdlc/manifest.json").write_text(
+            '{"harnesses": ["copilot-cli"]}', encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()), \
+             contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(sync.main(["--root", str(self.root), "--write"]), 1)
+```
+
+(b) In `scripts/install/tests/test_adopt.py`, append to `class TestGreenfield`:
+
+```python
+    def test_dry_run_into_an_empty_dir_wires_copilot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = run("--into", tmp, "--dry-run", "--harness", "copilot-cli")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("would generate after AGENTS.md is installed", r.stdout)
+```
+
+**Step 2: Run to verify they fail**
+
+Run:
+```bash
+python3 template/scripts/tests/test_harness_copilot.py
+python3 scripts/install/tests/test_adopt.py
+```
+Expected:
+- `test_harness_copilot`: `Ran 22 tests`, `FAILED (errors=2)`. Both errors are `ValueError: AGENTS.md has no section(s): 0`, raised from `derived_surfaces`.
+- `test_adopt`: `Ran 26 tests`, `FAILED (failures=1)`, with `AssertionError: 1 != 0 : Traceback […] FileNotFoundError: [Errno 2] No such file or directory: '…/AGENTS.md'`.
+
+**Step 3: Implement.**
+
+(a) `sync.py`, `render_copilot_brief`: replace its first line with:
+
+```python
+def render_copilot_brief(root, spec: dict) -> str:
+    path = Path(root) / "AGENTS.md"
+    if not path.is_file():
+        raise ValueError("AGENTS.md is missing")
+    agents = path.read_text(encoding="utf-8")
+```
+
+(b) `derived_surfaces`: add `| 'error' (render failed; want_text is the message)` to the docstring's mode line. Then replace the `if fmt in COPILOT_FORMATS:` branch with:
+
+```python
+            if fmt in COPILOT_FORMATS:
+                mode = "json-key" if fmt == "vscode-claude-hooks" else "whole-file"
+                try:
+                    files = materialize(root, sspec)
+                except (ValueError, OSError) as exc:
+                    yield (sspec["path"], f"{exc} — fix the source or remove {name}",
+                           "error", sspec)
+                    continue
+                for rel, text, _cls in files:
+                    yield rel, text, mode, sspec
+```
+
+(c) `check`: make the loop body start with:
+
+```python
+        if mode == "error":
+            problems.append(f"{rel}: {want}")
+            continue
+```
+
+and guard the orphan loop at the end:
+
+```python
+    for rspec in _instruction_specs(table, harnesses):
+        try:
+            wanted = set(render_copilot_instructions(root, rspec))
+        except (ValueError, OSError):
+            continue  # already one problem line; never sweep without the wanted list
+        for orphan in orphan_instructions(root, rspec, wanted):
+            problems.append(f"{orphan} is an orphan")
+```
+
+(d) `write`: H2 already gave it the `errors` list. Add the error branch as the first statement of the loop body, before H2's deferred skip, and guard the orphan loop in the same way:
+
+```python
+def write(root, table, harnesses, errors: list | None = None) -> list[str]:
+    root = Path(root)
+    deferred = _deferred(root)
+    written = []
+    for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
+        if mode == "error":
+            if errors is not None:
+                errors.append(f"{rel}: {want}")
+            continue
+        path = root / rel
+        ...                                   # unchanged (H2's deferred skip, then the write)
+    for rspec in _instruction_specs(table, harnesses):
+        try:
+            wanted = set(render_copilot_instructions(root, rspec))
+        except (ValueError, OSError):
+            continue
+        for orphan in orphan_instructions(root, rspec, wanted):
+            (root / orphan).unlink()
+            written.append(f"{orphan} (removed)")
+    return written
+```
+
+(e) `main` needs no change. H2's `--write` branch already prints each entry of `errors` as `not regenerated: …` and exits 1.
+
+(f) `scripts/install/adopt.py`, `_generate_copilot`: replace the `except` clause with:
+
+```python
+    except (ValueError, OSError) as exc:   # AGENTS.md missing or lacks a section; bad rule
+        if dry_run and not (Path(root) / "AGENTS.md").is_file():
+            return (f"{label}: {surface} -> {sspec['path']} "
+                    f"(would generate after AGENTS.md is installed)")
+        return f"{label}: {surface} -> {sspec['path']} FAILED ({exc})"
+```
+
+**Step 4: Run the suites**
+
+Run the loop from the top of this section.
+Expected: `test_adopt` 26 OK · `test_harness` 13 OK · `test_manifest` 9 OK · `test_merge` 19 OK · `test_plan` 11 OK · `test_harness_copilot` 22 OK.
+
+**Known limitation (accepted).** In a `--dry-run` into an empty dir, the rules surface reports `(current)`, because `.claude/rules/` is not on disk yet and there is nothing to render. The real run generates the files.
+
+**Step 5: Commit**
+
+```bash
+git add template/scripts/harness/sync.py scripts/install/adopt.py \
+        template/scripts/tests/test_harness_copilot.py scripts/install/tests/test_adopt.py
+git commit -F - <<'EOF'
+fix(harness): a missing AGENTS.md section is a problem line, not a crash
+
+sync.py --check/--write raised out of derived_surfaces when AGENTS.md lacked
+§0/§3 (the normal brownfield case), and a --dry-run into an empty dir died
+on the not-yet-installed AGENTS.md. Render errors are now one problem line;
+--write skips that surface, writes the rest, and exits 1.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+```
+
+---
+
+### Task H4: safer orphan sweep and rule parsing
+
+The review found four smaller defects:
+
+- **Orphan sweep.** `orphan_instructions` counts a file as generated if `GENERATED_MARK` appears anywhere in it. A copied or renamed generated file, or a notes file that quotes the mark, is therefore deleted.
+- **Stale manifest entries.** The installer deletes orphans but leaves their manifest entries. If the operator later creates a file at that path, it reads as `MODIFIED`, not `FOREIGN`, and `uninstall` deletes it.
+- **Rule parsing.** `_rule_paths` only reads an indented block list. Unindented lists, flow lists, a scalar, and comments silently become `applyTo: '**'`, which applies the rule everywhere.
+- **Non-object settings.** `vscode_hooks_state('1')` raises `TypeError`.
+
+**Design choices:**
+- A file is generated only if its first body line, after the frontmatter, is the header that names *its own* source: `<!-- Generated … from {src_rel}/{stem}.md — do not edit.`. One helper, `_instruction_header`, both writes and checks this header, so the rendered bytes do not change.
+- `manifest.forget` already exists (`manifest.py`), so no new function is needed.
+- **The installer's sweep keeps an orphan you edited.** If `manifest.state` is `MODIFIED` (the recorded hash differs from the disk), the file is reported as kept, not deleted. Deleting a rule does not delete your edits. `sync.py --write` has no state per file, so its sweep still relies on the header alone. That gap is listed under "Out of scope".
+- `_rule_paths(front, rule)` raises a `ValueError` that names the rule in two cases: `paths:` is present but yields nothing, or a brace glob holds a comma. Copilot's `applyTo` is itself comma-separated, so `*.{ts,tsx}` would split in two. Through H3, either error becomes one problem line in `check` and a `FAILED` note in the installer.
+
+**Files:**
+- Modify: `template/scripts/harness/sync.py` (`_rule_paths` and helpers, `_instruction_header`, `render_copilot_instructions`, `orphan_instructions`, `vscode_hooks_state`)
+- Modify: `scripts/install/adopt.py` (`_generate_copilot` orphan loop)
+- Modify: `template/scripts/tests/test_harness_copilot.py` (one fixture, a new `apply_to` helper, seven tests)
+- Modify: `scripts/install/tests/test_adopt.py` (`TestHarnessWiring.test_removed_orphan_is_forgotten`, `TestHarnessWiring.test_edited_orphan_is_kept`)
+
+**Step 1: Write the failing tests.** All of these go in `template/scripts/tests/test_harness_copilot.py` except (f).
+
+(a) The existing fixture in `test_orphans_are_only_our_generated_files` writes a bare mark. That stops counting as generated, so give it the real header. Replace
+
+```python
+            (out_dir / "gone.instructions.md").write_text(
+                f"<!-- {sync.GENERATED_MARK} -->\n", encoding="utf-8")
+```
+with
+```python
+            (out_dir / "gone.instructions.md").write_text(
+                f"---\napplyTo: '**'\n---\n<!-- {sync.GENERATED_MARK} from "
+                ".claude/rules/gone.md — do not edit. -->\n", encoding="utf-8")
+```
+
+(b) Add after the `rules` helper:
+
+```python
+def apply_to(front):
+    """The applyTo line generated for a rule with this frontmatter."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = rules(tmp, {"r.md": f"---\n{front}---\n# R\n"})
+        text = sync.render_copilot_instructions(root, RULES_SPEC)[
+            ".github/instructions/r.instructions.md"]
+        return text.splitlines()[1]
+```
+
+(c) Append to `class TestInstructions`:
+
+```python
+    def test_a_copied_generated_file_is_not_an_orphan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"a.md": "# A\n"})
+            wanted = sync.render_copilot_instructions(root, RULES_SPEC)
+            out_dir = root / ".github/instructions"
+            out_dir.mkdir(parents=True)
+            (out_dir / "mine.instructions.md").write_text(       # copied to start my own
+                wanted[".github/instructions/a.instructions.md"], encoding="utf-8")
+            self.assertEqual(sync.orphan_instructions(root, RULES_SPEC, wanted), [])
+
+    def test_a_note_quoting_the_mark_is_not_an_orphan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"a.md": "# A\n"})
+            out_dir = root / ".github/instructions"
+            out_dir.mkdir(parents=True)
+            (out_dir / "notes.instructions.md").write_text(
+                "---\napplyTo: '**'\n---\n# Notes\nGenerated files start with "
+                f"`<!-- {sync.GENERATED_MARK} from .claude/rules/notes.md — do not edit.`\n",
+                encoding="utf-8")
+            wanted = sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertEqual(sync.orphan_instructions(root, RULES_SPEC, wanted), [])
+
+    def test_paths_accepts_the_yaml_shapes_rules_use(self):
+        cases = {
+            'paths:\n- "a/**"\n- b/**\n': "applyTo: 'a/**,b/**'",            # unindented
+            'paths: ["a/**", \'b/**\']\n': "applyTo: 'a/**,b/**'",           # flow list
+            "paths: a/**\n": "applyTo: 'a/**'",                               # scalar
+            '# scope\npaths:\n  # docs first\n  - "a/**"  # ADRs\n  - b/**\n':
+                "applyTo: 'a/**,b/**'",                                       # comments
+        }
+        for front, want in cases.items():
+            with self.subTest(front=front):
+                self.assertEqual(apply_to(front), want)
+
+    def test_empty_paths_is_an_error_naming_the_rule(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"r.md": "---\npaths:\n---\n# R\n"})
+            with self.assertRaises(ValueError) as ctx:
+                sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertIn(".claude/rules/r.md", str(ctx.exception))
+
+    def test_brace_glob_with_a_comma_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"r.md": '---\npaths:\n  - "src/**/*.{ts,tsx}"\n---\n# R\n'})
+            with self.assertRaises(ValueError) as ctx:
+                sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertIn("expand brace globs into separate paths", str(ctx.exception))
+```
+
+(d) Append to `class TestVscode`:
+
+```python
+    def test_non_object_settings_are_unparseable(self):
+        for text in ("1", "[]", '"x"'):
+            with self.subTest(text=text):
+                self.assertEqual(sync.vscode_hooks_state(text), "unparseable")
+```
+
+(e) Append to `class TestCheckWrite`:
+
+```python
+    def test_a_rule_with_empty_paths_is_one_problem_line(self):
+        (self.root / ".claude/rules/bad.md").write_text("---\npaths:\n---\n# Bad\n",
+                                                        encoding="utf-8")
+        self.assertIn(".github/instructions: .claude/rules/bad.md: paths: is present but"
+                      " lists no paths — fix the source or remove copilot-cli",
+                      sync.check(self.root, self.table, ["copilot-cli"]))
+```
+
+That is 7 new tests in this file: 5 from (c), 1 from (d) and 1 from (e). So 22 becomes 29.
+
+(f) In `scripts/install/tests/test_adopt.py`, append to `class TestHarnessWiring`. It uses an operator rule: a deleted *template* rule would just be re-created by the planner.
+
+```python
+    def test_removed_orphan_is_forgotten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude/rules").mkdir(parents=True)
+            (root / ".claude/rules/local.md").write_text("# Local rule\n", encoding="utf-8")
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            rel = ".github/instructions/local.instructions.md"
+            self.assertIn(rel, manifest.load(tmp)["files"])
+            (root / ".claude/rules/local.md").unlink()
+            run("--into", tmp, "--yes")
+            self.assertFalse((root / rel).exists())
+            self.assertNotIn(rel, manifest.load(tmp)["files"])
+
+    def test_edited_orphan_is_kept(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude/rules").mkdir(parents=True)
+            (root / ".claude/rules/local.md").write_text("# Local rule\n", encoding="utf-8")
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            gen = root / ".github/instructions/local.instructions.md"
+            gen.write_text(gen.read_text() + "\nTeam note: keep me.\n", encoding="utf-8")
+            (root / ".claude/rules/local.md").unlink()
+            run("--into", tmp, "--yes")
+            self.assertIn("Team note: keep me.", gen.read_text())
+```
+
+**Step 2: Run to verify they fail**
+
+Run:
+```bash
+python3 template/scripts/tests/test_harness_copilot.py
+python3 scripts/install/tests/test_adopt.py
+```
+Expected:
+- `test_harness_copilot`: `Ran 29 tests`, `FAILED (failures=11, errors=1)`. The edited fixture (a) still passes. The failures:
+  - both orphan tests, each with `AssertionError: Lists differ: ['.github/instructions/mine.instructions.md'] != []` (or `notes…`);
+  - all 4 YAML subtests, each with `AssertionError: "applyTo: '**'" != "applyTo: 'a/**,b/**'"` (or `'a/**'`);
+  - the `"[]"` and `'"x"'` subtests, each with `AssertionError: 'missing' != 'unparseable'`;
+  - `AssertionError: ValueError not raised`, twice;
+  - the problem-line test's `AssertionError: '.github/instructions: …' not found in […]`.
+
+  The one error is the `"1"` subtest: `TypeError: argument of type 'int' is not iterable`.
+- `test_adopt`: `Ran 28 tests`, `FAILED (failures=1, errors=1)`:
+  - the forgotten-orphan test fails with `AssertionError: '.github/instructions/local.instructions.md' unexpectedly found in {…}`;
+  - the edited-orphan test errors with `FileNotFoundError: […]local.instructions.md`, because the sweep deleted the edited file.
+
+**Step 3: Implement.** In `template/scripts/harness/sync.py`:
+
+(a) Replace `_rule_paths` with:
+
+```python
+_COMMENT = re.compile(r"(?:^|\s+)#.*$")
+_BRACE_LIST = re.compile(r"\{[^{}]*,[^{}]*\}")
+
+
+def _unquote(item: str) -> str:
+    item = item.strip()
+    if len(item) >= 2 and item[0] == item[-1] and item[0] in "\"'":
+        return item[1:-1]
+    return item
+
+
+def _rule_paths(front: str, rule: str) -> list[str]:
+    """The `paths:` of a .claude/rules frontmatter (the only key the rules use).
+
+    Accepts a block list (indented or not), a one-line flow list, or one scalar,
+    with `#` comments. Raises ValueError naming `rule` when `paths:` is present but
+    yields nothing, or when a brace glob holds a comma: Copilot's applyTo is itself
+    comma-separated, so `*.{ts,tsx}` would be split in two.
+    """
+    out, inside, present = [], False, False
+    for raw in front.splitlines():
+        line = _COMMENT.sub("", raw).rstrip()
+        m = re.match(r"^paths:\s*(.*)$", line)
+        if m:
+            present, value = True, m.group(1)
+            inside = not value
+        elif inside and re.match(r"^\s*-\s", line):
+            value = line.split("-", 1)[1]
+        else:
+            inside = inside and not line      # blank and comment lines keep the list open
+            continue
+        if _BRACE_LIST.search(value):
+            raise ValueError(f"{rule}: {value.strip()} — applyTo is comma-separated; "
+                             "expand brace globs into separate paths")
+        if value.startswith("[") and value.endswith("]"):
+            out += [_unquote(v) for v in value[1:-1].split(",") if v.strip()]
+        elif value.strip():
+            out.append(_unquote(value))
+    if present and not out:
+        raise ValueError(f"{rule}: paths: is present but lists no paths")
+    return out
+```
+
+(b) Add `_instruction_header`, and use it in `render_copilot_instructions`, which now also passes the rule's name. The rendered bytes do not change:
+
+```python
+def _instruction_header(src_rel: str, stem: str) -> str:
+    """First body line of a generated instruction file. It names its own source rule."""
+    return f"<!-- {GENERATED_MARK} from {src_rel}/{stem}.md — do not edit."
+
+
+def render_copilot_instructions(root, spec: dict) -> dict:
+    """{repo-relative path: text} — one .instructions.md per .claude/rules/*.md."""
+    src_rel = spec.get("from", ".claude/rules")
+    src = Path(root) / src_rel
+    files = {}
+    for rule in sorted(src.glob("*.md")) if src.is_dir() else []:
+        front, body = _split_frontmatter(rule.read_text(encoding="utf-8"))
+        apply_to = ",".join(_rule_paths(front, f"{src_rel}/{rule.name}")) or "**"
+        rel = f"{spec['path']}/{rule.stem}.instructions.md"
+        files[rel] = (f"---\napplyTo: '{apply_to}'\n---\n"
+                      f"{_instruction_header(src_rel, rule.stem)} "
+                      f"Regenerate: {REGENERATE} -->\n\n{body}")
+    return files
+```
+
+(c) Replace `orphan_instructions` with:
+
+```python
+def orphan_instructions(root, spec: dict, wanted: dict) -> list[str]:
+    """Generated instruction files whose source rule was deleted.
+
+    A file counts as ours only if its first body line is the header naming its own
+    source (`<stem>.instructions.md` <- `<from>/<stem>.md`). A copied or renamed
+    file, or a note that quotes the mark, is never touched.
+    """
+    out_dir = Path(root) / spec["path"]
+    if not out_dir.is_dir():
+        return []
+    src_rel = spec.get("from", ".claude/rules")
+    orphans = []
+    for p in sorted(out_dir.glob("*.instructions.md")):
+        rel = f"{spec['path']}/{p.name}"
+        if rel in wanted:
+            continue
+        stem = p.name[: -len(".instructions.md")]
+        body = _split_frontmatter(p.read_text(encoding="utf-8"))[1]
+        if body.startswith(_instruction_header(src_rel, stem)):
+            orphans.append(rel)
+    return orphans
+```
+
+(d) In `vscode_hooks_state`, after the `try/except`, add:
+
+```python
+    if not isinstance(data, dict):
+        return "unparseable"
+```
+
+(e) `scripts/install/adopt.py`, `_generate_copilot`. Replace the orphan loop, and the notes after it, with:
+
+```python
+    edited = []
+    if sspec.get("format") == "copilot-instructions":
+        for orphan in harness.orphan_instructions(root, sspec, {r for r, _, _ in files}):
+            if manifest.state(root, man, orphan) == manifest.MODIFIED:
+                edited.append(orphan)          # its rule is gone, your edits are not
+                continue
+            if not dry_run:
+                (Path(root) / orphan).unlink()
+                manifest.forget(man, orphan)
+            changed.append(f"{orphan} (removed)")
+    notes = []
+    if changed:
+        notes.append(f"{', '.join(changed)} (generated)")
+    if kept:
+        notes.append(f"{', '.join(kept)} (kept yours; kit's copy in .kit-new)")
+    if edited:
+        notes.append(f"{', '.join(edited)} (source rule deleted; kept your edits — "
+                     f"delete by hand if unwanted)")
+```
+
+The `if not notes:` lines and the final `return` stay as H2 left them. `manifest.state(root, man, rel)` with no kit bytes returns `CLEAN` if the disk matches the recorded hash and `MODIFIED` if it does not. A file that was never recorded returns `FOREIGN`; its header already proves it was generated, so it is still removed.
+
+**Step 4: Run the suites**
+
+Run the loop from the top of this section.
+Expected: `test_adopt` 28 OK · `test_harness` 13 OK · `test_manifest` 9 OK · `test_merge` 19 OK · `test_plan` 11 OK · `test_harness_copilot` 29 OK. The existing `test_paths_become_apply_to` and `test_codex_and_copilot_surfaces` (`applyTo: 'docs/architecture/decisions/**'`) still pass, so the shipped rules' indented, quoted lists render as before.
+
+**Step 5: Commit**
+
+```bash
+git add template/scripts/harness/sync.py scripts/install/adopt.py \
+        template/scripts/tests/test_harness_copilot.py scripts/install/tests/test_adopt.py
+git commit -F - <<'EOF'
+fix(harness): orphan sweep checks the source header; rules parse all list shapes
+
+The orphan sweep deleted any *.instructions.md that merely contained the
+generated mark (copies, renames, notes quoting it); it now requires the
+header naming its own source rule. The installer forgets what it removes
+and keeps an orphan the operator edited. paths: accepts block, flow and scalar forms with comments; an
+empty paths: or a comma brace glob is a named error, not applyTo '**'.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+```
+
+---
+
+### Task H5: `doctor` reports drift for every generated surface
+
+`doctor`'s "Generated-surface drift" section calls `check_drift`, which only compares the two MCP formats against `.mcp.json`. Drift in the Copilot brief, the path instructions or the VS Code switch passes `doctor` but fails CI.
+
+**Design choice:** `check_drift` becomes a thin wrapper over `harness.check(root, table, man["harnesses"])`, the function that `sync.py --check` and the CI gate already run. The MCP-only body is redundant and goes: `sync.check` does the same `copilot-mcp` whole-file and `toml-block` comparisons. The output format is unchanged (`none` / `drift <line>`, with one problem counted per line). The one behaviour that `check` lacks is surviving an invalid `.mcp.json` (`derived_surfaces` would raise), so the wrapper keeps that line. One difference to note: with `.mcp.json` deleted, the old check reported nothing, while `check` reports an MCP file that still lists servers. That matches what CI already says.
+
+**Files:**
+- Modify: `scripts/install/adopt.py` (`check_drift`, one `doctor` line)
+- Modify: `scripts/install/tests/test_adopt.py` (`TestDoctorAndUninstall.test_doctor_flags_copilot_brief_drift`)
+
+**Step 1: Write the failing test.** Append to `class TestDoctorAndUninstall`:
+
+```python
+    def test_doctor_flags_copilot_brief_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            agents = Path(tmp) / "AGENTS.md"
+            agents.write_text(agents.read_text().replace("No fabrication", "No fabrication, ever"),
+                              encoding="utf-8")
+            out = run("--into", tmp, "doctor")
+            self.assertIn("drift .github/copilot-instructions.md differs from its source",
+                          out.stdout)
+            self.assertEqual(out.returncode, 1)
+```
+
+**Step 2: Run to verify it fails**
+
+Run: `python3 scripts/install/tests/test_adopt.py`
+Expected: `Ran 29 tests`, `FAILED (failures=1)`, with `AssertionError: 'drift .github/copilot-instructions.md differs from its source' not found in 'AI-SDLC doctor — …'`.
+
+**Step 3: Implement.** In `scripts/install/adopt.py`:
+
+(a) Replace `check_drift` entirely with:
+
+```python
+def check_drift(root, table, man) -> list[str]:
+    """Derived harness surfaces that no longer match their sources.
+
+    The same check as `scripts/harness/sync.py --check` and the CI gate: AGENTS.md
+    -> Copilot brief, .claude/rules -> path instructions, the VS Code switch, and
+    .mcp.json -> the MCP files.
+    """
+    try:
+        return harness.check(root, table, man.get("harnesses", []))
+    except json.JSONDecodeError:
+        return [".mcp.json is not valid JSON"]
+```
+
+(b) In `doctor`, change the "no drift" line to:
+
+```python
+        print(f"  {paint('none', 'g')} — derived harness files match their sources")
+```
+
+**Step 4: Run the suites**
+
+Run the loop from the top of this section.
+Expected: `test_adopt` 29 OK · `test_harness` 13 OK · `test_manifest` 9 OK · `test_merge` 19 OK · `test_plan` 11 OK · `test_harness_copilot` 29 OK. The existing `test_doctor_flags_drift` (an emptied `.copilot/mcp-config.json`) still passes, now through `sync.check`.
+
+**Step 5: Commit**
+
+```bash
+git add scripts/install/adopt.py scripts/install/tests/test_adopt.py
+git commit -F - <<'EOF'
+fix(install): doctor reports drift for every generated surface
+
+doctor's drift section only compared the MCP files with .mcp.json, so a
+stale Copilot brief, path instruction or VS Code switch passed doctor and
+failed CI. check_drift now wraps harness.check, the same check sync.py
+--check and the CI gate run.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+```
+
+---
+
 ### Task 12: Full verification and phase close-out
 
 **Step 1: Run the whole kit CI locally**, copying every `run:` line from `.github/workflows/ci.yml`:
 
 ```bash
 pip install --quiet "pyyaml>=6"
-grep -E '^\s+python3 ' .github/workflows/ci.yml | sed 's/^ *//' > /tmp/ci-cmds.sh
+grep -E '^\s+(run: )?python3 ' .github/workflows/ci.yml | sed -E 's/^ *(run: )?//' > /tmp/ci-cmds.sh
+wc -l < /tmp/ci-cmds.sh
 bash -e /tmp/ci-cmds.sh && echo ALL-GREEN
 ```
-Expected: `ALL-GREEN`. The knowledge-graph smoke commands at the end of the file are multi-line `run:` blocks, so run that step by hand from the YAML.
+Expected: `40`, then `ALL-GREEN`. The pattern catches both the one-line `run: python3 …` steps and the lines inside multi-line `run: |` blocks, including the knowledge-graph smoke pipes at the end of the file. The old pattern (`^\s+python3 `) found only 31 commands. The count was verified at df5447e; if `ci.yml` has gained steps since, the count grows to match.
 
 **Step 2: End-to-end on a real FRQ-shaped repo (human-observed).** On the VM, in a scratch clone of an existing FRQ repo:
 
@@ -1099,6 +2203,26 @@ Expected: `ALL-GREEN`. The knowledge-graph smoke commands at the end of the file
 cd ~/scratch/frq-repo && python3 scripts/harness/sync.py --check && copilot
 ```
 Expected: dry-run shows a plan without conflicts on the client's own files, `--check` passes, and Copilot CLI starts onboarding because `USER.md` is missing (design §4.0 step 2).
+
+Then prove the gate passes on a **clean checkout**, which is what CI sees. This verifies H1: before H1, `.vscode/settings.json` was gitignored, so it never reached a clone and the gate failed on every one.
+
+```bash
+cd ~/scratch/frq-repo && git add -A && git commit -qm "chore: adopt AI-SDLC kit (scratch)"
+git ls-files .vscode/settings.json
+rm -rf ~/scratch/frq-repo-clean && git clone -q ~/scratch/frq-repo ~/scratch/frq-repo-clean
+cd ~/scratch/frq-repo-clean && python3 scripts/harness/sync.py --check
+```
+Expected: `git ls-files` prints `.vscode/settings.json` (it is committed, not ignored), and `--check` passes in the clone. Then the human pushes the scratch repo to a throwaway remote branch, so that the Jenkins job (`ci/Jenkinsfile.ai-governance`) or the Actions workflow (`ai-governance.yml`) runs on a checkout it made itself. The `sync.py --check` stage must be green. If no throwaway remote is available, run the Jenkinsfile's `sh` steps by hand in `~/scratch/frq-repo-clean` instead, and say so in the record.
+
+**VM checks 3–5 from Task 2 (deferred to here).** Task 2 recorded them as ⏸. Run them now in the `~/copilot-spike` repo from Task 2 Step 1, with the same "Pass when" column:
+
+| # | Check | How | Pass when |
+|---|---|---|---|
+| 3 | VS Code Chat runs Claude hooks with `chat.useClaudeHooks` | `rm -f /tmp/spike-hook.log`, open the folder in VS Code, start a Copilot Chat | `/tmp/spike-hook.log` contains `HOOK-OK` |
+| 4 | IntelliJ Chat reads `.github/copilot-instructions.md` | open in IntelliJ, ask anything | the answer ends `BRIEF-OK` |
+| 5 | IntelliJ Chat applies `.github/instructions` `applyTo` | ask about a file under `docs/` | the answer ends `RULE-OK` |
+
+Update the "Verified on the FRQ VM" line in §3.6 of the design note: replace the ⏸ marks, and add the IntelliJ and plugin versions. If 3 fails, apply Task 2 Step 3's "3 fails" fallback. If 4 or 5 fails, stop and escalate, as Task 2 Step 3 says.
 
 **Step 3: Record the outcome.** In `docs/roadmap/2026-10-07-onboarding-roles-and-skills-design.md` §6, change the Phase 0 row to start with `✅ 0. Foundations (done <date>, kit 0.3.0)`.
 
@@ -1117,3 +2241,16 @@ Then use superpowers:requesting-code-review on the Phase 0 range, and stop for t
 - **MCP policy gate (`policy.mcp_allowed`)**: Phase 2. Until then the Copilot MCP file is still generated but only used if someone passes `--additional-mcp-config`.
 - **Seat model, multi-seat, re-run onboarding, catalogue**: Phases 1–2.
 - **`CONTRIBUTING-KIT.md` recipes**: Phase 5. This phase only sets the version policy that the recipes reference.
+
+Minor items deferred by the Task 12 code review (2026-10-07). Each one is known and none blocks Phase 0:
+
+- **Link rewriting in the Copilot brief** only handles `](./`. Bare relative links (`](docs/x.md)`), `](../`, and reference-style links inside §0/§3 still resolve against `.github/`.
+- **PEP 668 and pip in the Jenkinsfile**: `python3 -m pip install --user` fails on an "externally managed" system Python (Debian/Ubuntu 23.04+). It needs a venv or `--break-system-packages`, depending on the FRQ agents.
+- **A deletion-only commit skips the `harness-drift` pre-commit hook**: when the only staged change is a removed rule, `files:` matches nothing. The fix is `always_run: true` (or a `types`/`files` tweak), weighed against the cost of running the hook on every commit.
+- **`.vscode/settings.json` formatting**: `merge_json` rewrites with `indent=2` and `ensure_ascii=True`, so an operator's tab or 4-space indent, and any non-ASCII characters (escaped as `\uXXXX`), are rewritten the first time the key is added.
+- **Uninstall leaves `chat.useClaudeHooks` behind**: `.vscode/settings.json` is merge-class with no sentinel block, so uninstall keeps the file as it is, key included.
+- **"Take" on a pre-existing file records it as kit-owned, so `uninstall` deletes it.** This applies to template files through `apply()` and to generated Copilot files through H2. It needs a `preexisting` flag on the manifest entry.
+- **`uninstall` deletes MODIFIED own-class files**, so an operator's edits to a kit-owned file are lost on uninstall.
+- **`uninstall` leaves `.kit-new` sidecars behind.** They are never recorded in the manifest.
+- **`sync.py --write`'s orphan sweep relies on the header alone.** Unlike the installer after H4, it does not check the manifest hash, so an edited orphan is still removed by `--write`.
+- **The session-hook tests (`test_session*`) append to the real `template/scripts/session/.usage-errors.log`**, the relative `errlog` path in `collect-usage.sh`. The file is gitignored but grows in the kit checkout. The tests should run the hook from a temp dir.
