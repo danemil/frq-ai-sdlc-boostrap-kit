@@ -536,6 +536,46 @@ class TestCiChoice(unittest.TestCase):
         self.assertIn("--ci none cannot be combined", r.stderr)
         self.assertEqual(self.gates(), set())
 
+    # H9: the GitHub-only docs link check follows the gate, and still needs >= standard.
+    DOCS = (".github/workflows/docs.yml", ".github/workflows/mlc-config.json")
+
+    def install_standard(self, *extra):
+        return run("--into", self.tmp, "--profile", "standard", "--yes",
+                   "--harness", "claude-code", *extra)
+
+    def docs(self):
+        return {rel for rel in self.DOCS if (self.root / rel).is_file()}
+
+    def test_ci_jenkins_standard_ships_no_github_workflows(self):
+        r = self.install_standard("--ci", "jenkins")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        shipped = sorted(p.name for p in (self.root / ".github/workflows").glob("*"))
+        self.assertEqual(shipped, [])
+        self.assertEqual(self.gates(), {JENKINSFILE})
+
+    def test_standard_github_ships_the_docs_check(self):
+        for extra in ((), ("--ci", "github")):
+            with self.subTest(extra=extra):
+                r = self.install_standard(*extra)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(self.docs(), set(self.DOCS))
+
+    def test_minimal_github_has_no_docs_check(self):
+        r = self.install("--ci", "github")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {WORKFLOW})
+        self.assertEqual(self.docs(), set())
+
+    def test_switch_to_jenkins_removes_a_clean_docs_check(self):
+        self.install_standard("--ci", "github")
+        self.assertEqual(self.docs(), set(self.DOCS))
+        r = self.install_standard("--ci", "jenkins")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.docs(), set())
+        self.assertFalse((self.root / ".github/workflows").exists(), "empty workflows/ left behind")
+        for rel in self.DOCS:
+            self.assertNotIn(rel, self.recorded()["files"])
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=1)

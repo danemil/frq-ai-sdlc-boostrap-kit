@@ -76,7 +76,7 @@ If your CI is Jenkins rather than GitHub Actions, install only the Jenkins gate,
 ./install.sh --into ../my-repo --profile standard --ci jenkins
 ```
 
-This writes `ci/Jenkinsfile.ai-governance`. A Multibranch Pipeline looks for `Jenkinsfile` at the repository root by default, so set the job's **Build Configuration → Script Path** to `ci/Jenkinsfile.ai-governance`, or call its stage from your existing root `Jenkinsfile`. The agent needs `python3` 3.10+; the stage installs `pyyaml` itself. `doctor` shows the recorded choice.
+This writes `ci/Jenkinsfile.ai-governance`. A Multibranch Pipeline looks for `Jenkinsfile` at the repository root by default, so set the job's **Build Configuration → Script Path** to `ci/Jenkinsfile.ai-governance`, or call its stage from your existing root `Jenkinsfile`. The agent needs `python3` 3.10+ with either `pyyaml` preinstalled (e.g. `python3-yaml`) or venv support (`python3-venv` on Debian/Ubuntu); without pyyaml the stage installs it into a gitignored `.venv-ai-governance/`, since `pip install --user` is refused on Debian 12+ and Ubuntu 23.04+ (PEP 668). `--ci jenkins` ships no `.github/workflows/`: the Markdown link check (`docs.yml`) is GitHub-only. `doctor` shows the recorded choice.
 
 ### One brief, every tool
 

@@ -2,20 +2,38 @@
 // (.github/workflows/ai-governance.yml, installed with `install.sh --ci github`) also runs the unit tests.
 // Use as a stage in your pipeline or as a standalone job on every PR. A Multibranch Pipeline looks for
 // `Jenkinsfile` at the repo root by default: set the job's Script Path to ci/Jenkinsfile.ai-governance.
-// Requires python3 (3.10+) and pyyaml on the agent.
+// Requires python3 (3.10+) on the agent, plus either pyyaml (e.g. python3-yaml) or venv support
+// (python3-venv on Debian/Ubuntu). pip --user is not used: PEP 668 refuses it on Debian 12+ and
+// Ubuntu 23.04+, so without pyyaml the stage installs it into .venv-ai-governance/ (gitignored).
 pipeline {
   agent any
   options { timeout(time: 10, unit: 'MINUTES') }
   stages {
     stage('AI governance') {
       steps {
-        sh 'python3 -m pip install --quiet --user "pyyaml>=6"'
-        sh 'python3 scripts/validate-skills.py'
-        sh 'python3 scripts/validate-frontmatter.py'
-        // Session manifests ship with the 'standard' profile; skip their validators when absent.
-        sh '[ ! -f scripts/session/moments.json ] || python3 scripts/validate-moments.py'
-        sh '[ ! -f scripts/session/seat-profiles.json ] || python3 scripts/validate-seat-profiles.py'
-        sh 'python3 scripts/harness/sync.py --check'
+        // One shell script, so every command runs with the python ($PY) chosen up front.
+        sh '''
+          PY=python3
+          if ! "$PY" -c 'import yaml' 2>/dev/null; then
+            PY=.venv-ai-governance/bin/python
+            if ! "$PY" -c 'import yaml' 2>/dev/null; then
+              rm -rf .venv-ai-governance
+              if ! python3 -m venv .venv-ai-governance; then
+                rm -rf .venv-ai-governance
+                echo "ai-governance: python3 cannot import yaml and cannot create a venv." >&2
+                echo "Install python3-venv (or python3-yaml) on the Jenkins agent." >&2
+                exit 1
+              fi
+              "$PY" -m pip install --quiet --disable-pip-version-check "pyyaml>=6"
+            fi
+          fi
+          "$PY" scripts/validate-skills.py
+          "$PY" scripts/validate-frontmatter.py
+          # Session manifests ship with the 'standard' profile; skip their validators when absent.
+          [ ! -f scripts/session/moments.json ] || "$PY" scripts/validate-moments.py
+          [ ! -f scripts/session/seat-profiles.json ] || "$PY" scripts/validate-seat-profiles.py
+          "$PY" scripts/harness/sync.py --check
+        '''
       }
     }
   }

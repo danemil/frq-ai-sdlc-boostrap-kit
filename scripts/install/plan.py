@@ -59,17 +59,17 @@ def classify(rel: str, spec: dict) -> str:
     return CLASS_OWN
 
 
-def profile_patterns(spec: dict, profile: str) -> list[str]:
-    """Expand a profile, following @inherits references."""
+def _expand_profile(spec: dict, profile: str) -> tuple[list[str], list[str]]:
+    """Walk a profile and its @inherits references: (profile names, patterns)."""
     profiles = spec.get("profiles", {})
     if profile not in profiles:
         raise KeyError(f"unknown profile: {profile}")
-    out, seen = [], set()
+    out, seen = [], []
 
     def expand(name):
         if name in seen:
             return
-        seen.add(name)
+        seen.append(name)
         for pat in profiles[name]:
             if pat.startswith("@"):
                 expand(pat[1:])
@@ -77,7 +77,17 @@ def profile_patterns(spec: dict, profile: str) -> list[str]:
                 out.append(pat)
 
     expand(profile)
-    return out
+    return seen, out
+
+
+def profile_patterns(spec: dict, profile: str) -> list[str]:
+    """Expand a profile, following @inherits references."""
+    return _expand_profile(spec, profile)[1]
+
+
+def profile_chain(spec: dict, profile: str) -> list[str]:
+    """The profile and every profile it inherits (`full` -> full, standard, minimal)."""
+    return _expand_profile(spec, profile)[0]
 
 
 def template_files(template_root) -> list[str]:
@@ -100,19 +110,31 @@ def ci_gates(spec: dict) -> list[str]:
     return sorted(spec.get("ci", {}))
 
 
-def ci_patterns(spec: dict, ci=None) -> list[str]:
-    """Patterns of the chosen CI gates. None means every gate (the default)."""
+def ci_patterns(spec: dict, ci=None, profile=None) -> list[str]:
+    """Patterns of the chosen CI gates. None means every gate (the default).
+
+    A gate is a list (every profile) or a map from the smallest profile that ships
+    a pattern to its patterns. With a profile, only the keys it inherits apply;
+    without one, every pattern of the gate is returned (used to drop a gate).
+    """
     gates = spec.get("ci", {})
+    chain = None if profile is None else profile_chain(spec, profile)
     out = []
     for name in (ci_gates(spec) if ci is None else ci):
         if name not in gates:
             raise KeyError(f"unknown CI gate: {name}")
-        out.extend(gates[name])
+        entry = gates[name]
+        if isinstance(entry, dict):
+            for needs, patterns in entry.items():
+                if chain is None or needs in chain:
+                    out.extend(patterns)
+        else:
+            out.extend(entry)
     return out
 
 
 def selected_files(template_root, spec: dict, profile: str, ci=None) -> list[str]:
-    patterns = profile_patterns(spec, profile) + ci_patterns(spec, ci)
+    patterns = profile_patterns(spec, profile) + ci_patterns(spec, ci, profile)
     return [rel for rel in template_files(template_root) if _matches(rel, patterns)]
 
 

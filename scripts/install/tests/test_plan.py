@@ -138,6 +138,40 @@ class TestCiGates(unittest.TestCase):
             self.assertIn(f"[ ! -f {manifest_rel} ]", text)
             self.assertIn(f"python3 {validator}", text)
 
+    def test_docs_check_follows_the_github_gate_and_the_profile(self):
+        # The docs link check is GitHub-only (H9): it follows --ci and still needs >= standard.
+        docs = {".github/workflows/docs.yml", ".github/workflows/mlc-config.json"}
+        for profile, ci, shipped in (("standard", None, True), ("standard", ["github"], True),
+                                     ("full", ["github"], True), ("minimal", ["github"], False),
+                                     ("minimal", None, False), ("standard", ["jenkins"], False),
+                                     ("full", ["jenkins"], False), ("standard", [], False)):
+            files = set(plan.selected_files(self.template, self.spec, profile, ci=ci))
+            self.assertEqual(docs & files, docs if shipped else set(), f"{profile} ci={ci}")
+
+    def test_dropped_github_gate_lists_the_docs_check(self):
+        dropped = plan.unselected_ci_files(self.template, self.spec, ["jenkins"])
+        self.assertIn(".github/workflows/docs.yml", dropped)
+        self.assertIn(WORKFLOW, dropped)
+
+    def test_jenkinsfile_survives_pep_668(self):
+        # H9: no `pip install --user` (refused on Debian 12 / Ubuntu 23.04+); probe, then a venv.
+        text = (self.template / JENKINSFILE).read_text(encoding="utf-8")
+        self.assertNotIn("pip install --quiet --user", text)
+        self.assertIn("-c 'import yaml'", text)
+        self.assertIn("python3 -m venv .venv-ai-governance", text)
+        self.assertIn("python3-venv", text)
+        for validator in ("validate-skills.py", "validate-frontmatter.py"):
+            self.assertIn(f'"$PY" scripts/{validator}', text)
+        self.assertIn('"$PY" scripts/harness/sync.py --check', text)
+        for manifest_rel, validator in (
+                ("scripts/session/moments.json", "validate-moments.py"),
+                ("scripts/session/seat-profiles.json", "validate-seat-profiles.py")):
+            self.assertIn(f'[ ! -f {manifest_rel} ] || "$PY" scripts/{validator}', text)
+
+    def test_jenkins_venv_is_gitignored(self):
+        lines = (self.template / ".gitignore").read_text(encoding="utf-8").splitlines()
+        self.assertIn(".venv-ai-governance/", lines)
+
 
 if __name__ == "__main__":
     unittest.main()
