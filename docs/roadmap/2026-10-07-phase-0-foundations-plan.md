@@ -2327,6 +2327,77 @@ Expected: `ai-governance`, `adopt-e2e (minimal)` and `adopt-e2e (standard)` all 
 
 ---
 
+### Task H7: generated ai-governance.yml runs on every profile
+
+`template/.github/workflows/ai-governance.yml` ships with the `minimal` profile (`scripts/install/file-classes.json`), but three of its `run:` steps call scripts that only bigger profiles ship. A client on `minimal` or `standard` gets a GitHub gate that fails on its first push. H6 did not catch this: its gate step replays the Jenkinsfile, which already guards its profile-dependent lines, and never runs the GitHub workflow. H6 also left `full` out of the matrix on the grounds that no generated gate checks the dashboard or spend scripts; this workflow does.
+
+Which profile ships what each `run:` step needs:
+
+| Step | Needs | First shipped in |
+|---|---|---|
+| Install deps | pip | every profile |
+| Validate Agent Skills | `scripts/validate-skills.py` | `minimal` |
+| Validate doc frontmatter | `scripts/validate-frontmatter.py` | `minimal` |
+| Knowledge-graph unit tests | `scripts/knowledge/**` | `standard` |
+| Consumption/ROI unit tests | `dashboard/**`, `scripts/spend/**` | `full` |
+| (same step) brief-churn unit test | `scripts/tests/test_check_brief_churn.py` | `minimal` |
+| Harness-surface drift gate | `scripts/harness/sync.py` | `minimal` |
+| Brief-churn gate | `scripts/check-brief-churn.py`, `AGENTS.md` | `minimal` |
+| Knowledge graph build + trace smoke | `scripts/knowledge/**`, `docs/knowledge/**` | `standard` |
+
+**Design choice: guard on the directory, as the Jenkinsfile does.** Each profile-dependent block runs only when its directory exists (`if [ -d scripts/knowledge ] …`) and prints `skipped: … not installed` otherwise, with a one-line YAML comment naming the profile. Nothing a profile ships is skipped: the brief-churn unit test stays unguarded inside the ROI step, and `full` runs every line it ran before. Generating a per-profile workflow at install time was rejected: it adds installer code for what a shell test already does.
+
+**Design choice: run the generated workflow, not a copy of it.** The new `adopt-e2e` step loads the clone's `.github/workflows/ai-governance.yml` with pyyaml and runs each `run:` step of the `governance` job with `bash -euo pipefail -c`, stopping at the first failure. `uses:` steps are skipped. A future step added to the template is covered without touching kit CI. The matrix gains `full`, so all three profiles run.
+
+**Files:**
+- Modify: `.github/workflows/ci.yml` (`adopt-e2e`: matrix `full`, new step after the doctor step)
+- Modify: `template/.github/workflows/ai-governance.yml`
+- Modify: `CHANGELOG.md` (Unreleased, Fixed)
+
+**Step 1: Failing check.** Add the step and the matrix leg:
+
+```yaml
+      - name: Fresh clone runs the generated GitHub workflow (.github/workflows/ai-governance.yml)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/clone"
+          python3 - <<'EOF'
+          import subprocess, sys, yaml
+          wf = yaml.safe_load(open(".github/workflows/ai-governance.yml"))
+          for step in wf["jobs"]["governance"]["steps"]:
+              if "run" not in step:
+                  continue
+              print(f"::group::{step['name']}", flush=True)
+              rc = subprocess.run(["bash", "-euo", "pipefail", "-c", step["run"]]).returncode
+              print("::endgroup::", flush=True)
+              if rc:
+                  sys.exit(f"FAILED: {step['name']} (exit {rc})")
+          EOF
+```
+Run Task H6 Step 2's loop for `minimal standard full`, before touching the template. Expected: `minimal` fails at `FAILED: Run knowledge-graph unit tests (exit 2)` (`can't open file '…/scripts/knowledge/tests/test_graph_store.py'`), `standard` fails at `FAILED: Run consumption/ROI unit tests (token-roi theme) (exit 2)` (`can't open file '…/dashboard/tests/test_schema.py'`), and `full` passes.
+
+**Step 2: Implementation.** In `template/.github/workflows/ai-governance.yml`, guard the knowledge unit tests and the knowledge smoke on `scripts/knowledge`, and the dashboard and spend tests on `dashboard` and `scripts/spend`. Leave `python3 scripts/tests/test_check_brief_churn.py` unguarded.
+
+**Step 3: Verify.** Task H6 Step 2's loop for `minimal standard full` prints `E2E-OK` for each. The `minimal` log shows three `skipped:` lines for the knowledge and ROI steps, `standard` shows two for dashboard and spend, and `full` shows none. Both workflow files parse. The six-test loop is unchanged (`test_adopt` 29, `test_harness_copilot` 29). Task 12 Step 1 still finds 40 commands and prints `ALL-GREEN`, since the new step sits in `adopt-e2e`, outside its `sed` range.
+
+**Step 4: Commit, push, open a draft PR, watch the run.**
+
+```bash
+git add .github/workflows/ci.yml template/.github/workflows/ai-governance.yml CHANGELOG.md \
+        docs/roadmap/2026-10-07-phase-0-foundations-plan.md
+git commit -F - <<'EOF'
+fix(template): ai-governance.yml runs on every install profile
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+git push -u origin fix/ai-governance-profiles
+gh pr create --draft --base main
+gh run watch <id> --exit-status
+```
+Expected: `ai-governance` and `adopt-e2e` for `minimal`, `standard` and `full` all succeed.
+
+---
+
 ### Task 12: Full verification and phase close-out
 
 **Step 1: Run the whole kit CI locally**, copying every `run:` line of the `ai-governance` job in `.github/workflows/ci.yml`. The `sed` range stops at `adopt-e2e` (Task H6), whose `python3 scripts/…` lines run inside a generated clone and fail from the kit root:
@@ -2349,7 +2420,7 @@ cd ~/scratch/frq-repo && python3 scripts/harness/sync.py --check && copilot
 ```
 Expected: dry-run shows a plan without conflicts on the client's own files, `--check` passes, and Copilot CLI starts onboarding because `USER.md` is missing (design §4.0 step 2).
 
-Then prove the gate passes on a **clean checkout**, which is what CI sees. This verifies H1: before H1, `.vscode/settings.json` was gitignored, so it never reached a clone and the gate failed on every one. Kit CI's `adopt-e2e` job (Task H6) already runs this on an empty repo, for `minimal` and `standard`, on every push and PR; check that both legs are green on the latest branch run first. This step adds what that job cannot: a real FRQ repo with its own content.
+Then prove the gate passes on a **clean checkout**, which is what CI sees. This verifies H1: before H1, `.vscode/settings.json` was gitignored, so it never reached a clone and the gate failed on every one. Kit CI's `adopt-e2e` job (Task H6) already runs this on an empty repo, for `minimal`, `standard` and `full` (Task H7), on every push and PR; check that all three legs are green on the latest branch run first. This step adds what that job cannot: a real FRQ repo with its own content.
 
 ```bash
 cd ~/scratch/frq-repo && git add -A && git commit -qm "chore: adopt AI-SDLC kit (scratch)"

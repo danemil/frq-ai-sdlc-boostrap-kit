@@ -93,7 +93,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [minimal, standard]
+        profile: [minimal, standard, full]
     env:
       PROFILE: ${{ matrix.profile }}
     defaults:
@@ -148,6 +148,25 @@ jobs:
           printf '%s\n' "$out"
           if [ "$rc" -gt 1 ]; then echo "doctor failed to run (exit $rc)"; exit 1; fi
           printf '%s\n' "$out" | grep -A1 '^Generated-surface drift$' | tail -n1 | grep -q '^  none '
+
+      - name: Fresh clone runs the generated GitHub workflow (.github/workflows/ai-governance.yml)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/clone"
+          # Run each `run:` step of the generated workflow in order (`uses:` steps are skipped);
+          # stop at the first failure. Plan: Task H7.
+          python3 - <<'EOF'
+          import subprocess, sys, yaml
+          wf = yaml.safe_load(open(".github/workflows/ai-governance.yml"))
+          for step in wf["jobs"]["governance"]["steps"]:
+              if "run" not in step:
+                  continue
+              print(f"::group::{step['name']}", flush=True)
+              rc = subprocess.run(["bash", "-euo", "pipefail", "-c", step["run"]]).returncode
+              print("::endgroup::", flush=True)
+              if rc:
+                  sys.exit(f"FAILED: {step['name']} (exit {rc})")
+          EOF
 
       - name: Re-running the installer changes nothing
         run: |

@@ -32,8 +32,10 @@ jobs:
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
         run: python3 scripts/validate-frontmatter.py
 
+      # scripts/knowledge/ ships with the 'standard' and 'full' profiles; skipped on 'minimal'.
       - name: Run knowledge-graph unit tests
         run: |
+          if [ ! -d scripts/knowledge ]; then echo "skipped: scripts/knowledge/ not installed"; exit 0; fi
           python3 scripts/knowledge/tests/test_graph_store.py
           python3 scripts/knowledge/tests/test_manifest.py
           python3 scripts/knowledge/tests/test_ingest_docs.py
@@ -44,17 +46,22 @@ jobs:
           python3 scripts/knowledge/tests/test_mcp_server.py
           python3 scripts/knowledge/tests/test_end_to_end.py
 
+      # dashboard/ and scripts/spend/ ship with the 'full' profile only; the brief-churn test ships with every profile.
       - name: Run consumption/ROI unit tests (token-roi theme)
         run: |
-          python3 dashboard/tests/test_schema.py
-          python3 dashboard/tests/test_roi.py
-          python3 scripts/spend/tests/test_parse_transcript.py
-          python3 scripts/spend/tests/test_collect_usage.py
-          python3 scripts/spend/tests/test_import_invoice.py
-          python3 scripts/spend/tests/test_import_api_usage.py
-          python3 scripts/spend/tests/test_import_tickets.py
-          python3 scripts/spend/tests/test_export_sessions.py
-          python3 scripts/spend/tests/test_import_sessions.py
+          if [ -d dashboard ]; then
+            python3 dashboard/tests/test_schema.py
+            python3 dashboard/tests/test_roi.py
+          else echo "skipped: dashboard/ not installed"; fi
+          if [ -d scripts/spend ]; then
+            python3 scripts/spend/tests/test_parse_transcript.py
+            python3 scripts/spend/tests/test_collect_usage.py
+            python3 scripts/spend/tests/test_import_invoice.py
+            python3 scripts/spend/tests/test_import_api_usage.py
+            python3 scripts/spend/tests/test_import_tickets.py
+            python3 scripts/spend/tests/test_export_sessions.py
+            python3 scripts/spend/tests/test_import_sessions.py
+          else echo "skipped: scripts/spend/ not installed"; fi
           python3 scripts/tests/test_check_brief_churn.py
 
       - name: Harness-surface drift gate (derived configs must match .mcp.json)
@@ -63,7 +70,9 @@ jobs:
       - name: Brief-churn gate (token-economy rule 2)
         run: python3 scripts/check-brief-churn.py --path AGENTS.md
 
+      # scripts/knowledge/ ships with the 'standard' and 'full' profiles; skipped on 'minimal'.
       - name: Knowledge graph build + traceability smoke
         run: |
+          if [ ! -d scripts/knowledge ]; then echo "skipped: scripts/knowledge/ not installed"; exit 0; fi
           python3 scripts/knowledge/ingest.py --build
           python3 scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"
