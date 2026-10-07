@@ -87,8 +87,8 @@ jobs:
   # then run the generated project's governance gate on a FRESH CLONE (what a client's
   # CI sees; before H1 the gate failed on every clone), check doctor's drift section,
   # and prove a re-run changes nothing. Plan: Task H6 in
-  # docs/roadmap/2026-10-07-phase-0-foundations-plan.md. The extra `minimal, jenkins` leg
-  # installs only the Jenkins gate (`--ci jenkins`, Task H8); the profile legs install both.
+  # docs/roadmap/2026-10-07-phase-0-foundations-plan.md. The extra `standard, jenkins` leg
+  # installs only the Jenkins gate (`--ci jenkins`, Tasks H8/H9); the profile legs install both.
   adopt-e2e:
     runs-on: ubuntu-latest
     strategy:
@@ -99,7 +99,7 @@ jobs:
         # that only adds a new key is merged into the matching leg, not added as a job.
         ci: [default]
         include:
-          - profile: minimal
+          - profile: standard
             ci: jenkins
     env:
       PROFILE: ${{ matrix.profile }}
@@ -130,15 +130,18 @@ jobs:
           ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli \
             ${CI_GATE:+--ci "$CI_GATE"}
 
-      - name: Only the chosen CI gate is installed (H8)
+      - name: Only the chosen CI gate is installed (H8, H9)
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/proj"
           test -f ci/Jenkinsfile.ai-governance
           if [ "$CI_GATE" = jenkins ]; then
-            test ! -e .github/workflows/ai-governance.yml
+            test ! -e .github/workflows    # no GitHub workflow at all, docs check included
           else
             test -f .github/workflows/ai-governance.yml
+            # The docs link check is GitHub-only and ships from 'standard' up.
+            if [ "$PROFILE" = minimal ]; then test ! -e .github/workflows/docs.yml
+            else test -f .github/workflows/docs.yml; fi
           fi
 
       - name: Commit the adoption; generated Copilot files are tracked (H1)
@@ -148,16 +151,24 @@ jobs:
           git init -q && git add -A && git commit -qm "adopt kit"
           git ls-files --error-unmatch .vscode/settings.json .github/copilot-instructions.md
 
+      # Runs the Jenkinsfile's own sh '''...''' block with `sh -e`, as Jenkins does. On the
+      # jenkins leg an empty venv comes first on PATH, so `python3` cannot import yaml and
+      # the script must take its venv fallback (PEP 668 agents; Task H9).
       - name: Fresh clone runs the generated governance gate (ci/Jenkinsfile.ai-governance)
         run: |
           set -euo pipefail
           git clone -q "$RUNNER_TEMP/proj" "$RUNNER_TEMP/clone"
           cd "$RUNNER_TEMP/clone"
-          python3 scripts/validate-skills.py
-          python3 scripts/validate-frontmatter.py
-          [ ! -f scripts/session/moments.json ] || python3 scripts/validate-moments.py
-          [ ! -f scripts/session/seat-profiles.json ] || python3 scripts/validate-seat-profiles.py
-          python3 scripts/harness/sync.py --check
+          sed -n "/sh '''/,/'''/p" ci/Jenkinsfile.ai-governance | sed '1d;$d' > "$RUNNER_TEMP/gate.sh"
+          if [ "$CI_GATE" = jenkins ]; then
+            python3 -m venv "$RUNNER_TEMP/no-yaml"
+            export PATH="$RUNNER_TEMP/no-yaml/bin:$PATH"
+            if python3 -c 'import yaml' 2>/dev/null; then echo "no-yaml venv imports yaml"; exit 1; fi
+          fi
+          sh -e "$RUNNER_TEMP/gate.sh"
+          if [ "$CI_GATE" = jenkins ]; then test -d .venv-ai-governance
+          else test ! -e .venv-ai-governance; fi
+          test -z "$(git status --porcelain)"    # the venv is gitignored
 
       - name: Fresh clone has no generated-surface drift (doctor)
         run: |

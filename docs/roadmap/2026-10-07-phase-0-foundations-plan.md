@@ -2474,6 +2474,66 @@ Expected: `ai-governance` and the four `adopt-e2e` legs (`minimal, default`, `st
 
 ---
 
+### Task H9: Jenkins gate survives PEP 668; GitHub-only docs check follows --ci
+
+FRQ's Jenkins agents may run recent Debian or Ubuntu. H9 fixes two gaps left after H8.
+
+**(A) PEP 668.** The Jenkinsfile's first step is `python3 -m pip install --quiet --user "pyyaml>=6"`. On Debian 12 and Ubuntu 23.04+ the system Python is "externally managed", so pip refuses with `externally-managed-environment`. The same step fails when pip is not installed. Either way the stage goes red before any validator runs.
+
+**(B) docs.yml ignores `--ci`.** `.github/workflows/docs.yml` and its `mlc-config.json` are a GitHub-only Markdown link check, listed in the `standard` profile. After H8, `--ci jenkins --profile standard` still ships a `.github/workflows/` directory that never runs.
+
+**Design choice (A): probe first, then a workspace venv, in one `sh` block.** The stage becomes a single `sh '''…'''` script. It sets `PY=python3` when `python3 -c 'import yaml'` succeeds, so an agent with `python3-yaml` or pyyaml installs nothing. Otherwise it reuses `.venv-ai-governance/bin/python` if that venv already imports yaml (a re-run in the same workspace). Failing that, it creates `.venv-ai-governance` with `python3 -m venv`, installs `pyyaml>=6` into it, and sets `PY` to it. Every validator then runs as `"$PY" scripts/…`. If `python3 -m venv` fails (Debian without `python3-venv`: `ensurepip is not available`), it removes the partial directory and exits 1 with a message: install `python3-venv` or `python3-yaml` on the agent. One `sh` block was chosen over `withEnv`: `PY` is decided at run time by a shell test, which `withEnv` cannot express without a `script {}` block. `--break-system-packages` was rejected: it writes into the agent's system Python. The session-validator guards from Task 9 are kept (`[ ! -f scripts/session/moments.json ] || "$PY" scripts/validate-moments.py`). The venv sits in the workspace, so `template/.gitignore` gains `.venv-ai-governance/`. `.gitignore` is merge-class (`lines`), so an upgrade adds the line to an adopted repo too. The validators scan `docs/` and the skill roots only, so the venv's own files are never validated.
+
+The GitHub workflow needs no change: `actions/setup-python` gives a Python whose pip installs freely, so its `pip install` step stays.
+
+**Design choice (B): a gate entry may be keyed by the smallest profile that ships it.** H8's `ci` map is profile-agnostic: every pattern of a chosen gate is added to every profile. `docs.yml` must follow both the gate and the profile (`standard` and `full`, `github` chosen). A gate entry can now be either a list (every profile, as today; `jenkins` stays `["ci/**"]`) or an object whose keys are profile names:
+
+```json
+"github": {
+  "minimal":  [".github/workflows/ai-governance.yml"],
+  "standard": [".github/workflows/docs.yml", ".github/workflows/mlc-config.json"]
+}
+```
+
+A key applies when the chosen profile includes it through the existing `@` inheritance (`full` → `standard` → `minimal`). `plan.py` gains `profile_chain()` (the names `profile_patterns()` already walks), and `ci_patterns()` takes an optional `profile`. With no profile, every pattern of the gate is returned. `unselected_ci_files()` uses that form, so switching `github` → `jenkins` removes a clean `docs.yml` on any profile through H8's rule. Two alternatives were rejected. A per-profile copy of the map with `@` references repeats the profile tree inside each gate. An intersection rule (the profile lists `docs.yml`, the gate vetoes it) keeps one file in two places and needs a second "owned by gate" list.
+
+A Jenkins equivalent of the docs link check is not added. It is a possible follow-up (see "Out of scope").
+
+**Files:**
+- Modify: `template/ci/Jenkinsfile.ai-governance` (one `sh` block: probe, venv fallback, `$PY`)
+- Modify: `template/.gitignore` (`.venv-ai-governance/`)
+- Modify: `scripts/install/file-classes.json` (`github` gate keyed by profile; `docs.yml` and `mlc-config.json` out of `standard`)
+- Modify: `scripts/install/plan.py` (`profile_chain()`, `profile` argument to `ci_patterns()`, passed by `selected_files()`)
+- Modify: `scripts/install/tests/test_plan.py`, `scripts/install/tests/test_adopt.py`
+- Modify: `.github/workflows/ci.yml` (`adopt-e2e`: the Jenkins leg becomes `standard, jenkins`; the gate step runs the Jenkinsfile's own `sh` block, through the venv fallback on that leg)
+- Modify: `README.md` (Jenkins section), `CHANGELOG.md` (Unreleased, Fixed)
+
+**Step 1: Failing tests.**
+
+`test_plan.py`, `TestCiGates`:
+- `test_docs_check_follows_the_github_gate_and_the_profile`: `selected_files()` includes `docs.yml` and `mlc-config.json` for `standard` and `full` with `ci=["github"]` or no `ci`, and excludes them for `minimal` with `["github"]` and for `standard` with `["jenkins"]`.
+- `test_dropped_github_gate_lists_the_docs_check`: `unselected_ci_files(…, ["jenkins"])` lists `docs.yml` next to the governance workflow.
+- `test_jenkinsfile_survives_pep_668`: the Jenkinsfile text has the `import yaml` probe, `python3 -m venv .venv-ai-governance`, a `python3-venv` hint, runs the validators with `"$PY"`, keeps both session-validator guards, and has no `pip install --user`.
+- `test_jenkins_venv_is_gitignored`: `template/.gitignore` lists `.venv-ai-governance/`.
+
+`test_adopt.py`, `TestCiChoice`:
+- `test_ci_jenkins_standard_ships_no_github_workflows`: `--profile standard --ci jenkins` creates no `.github/workflows/`.
+- `test_standard_github_ships_the_docs_check`: `--profile standard` with no `--ci`, and with `--ci github`, installs `docs.yml` and `mlc-config.json`.
+- `test_minimal_github_has_no_docs_check`: `--profile minimal --ci github` installs the governance workflow but not `docs.yml`.
+- `test_switch_to_jenkins_removes_a_clean_docs_check`: `standard` with `github`, then `--ci jenkins`, removes both docs files and the empty `.github/workflows/`, and forgets them in the manifest.
+
+Run all six. Expected: `test_plan` fails all four new tests: `standard ci=['jenkins']` still selects `docs.yml` and `mlc-config.json`; `'.github/workflows/docs.yml' not found in ['.github/workflows/ai-governance.yml']`; `'pip install --quiet --user' unexpectedly found`; `'.venv-ai-governance/' not found`. `test_adopt` fails two of the four new tests: `--ci jenkins --profile standard` leaves `['docs.yml', 'mlc-config.json']` in `.github/workflows/`, and the switch to Jenkins keeps both files. `test_standard_github_ships_the_docs_check` and `test_minimal_github_has_no_docs_check` already pass: they pin today's behaviour.
+
+**Step 2: Implementation.** As in the design above.
+
+**Step 3: CI coverage.** In `adopt-e2e`, the extra leg becomes `{profile: standard, ci: jenkins}`, so it covers the session validators and the `docs.yml` exclusion. `ci` stays a base matrix key: `ci: jenkins` matches no base combination, so the `include` adds a fifth job rather than merging into `standard, default` (the H8 trap). The gate-files step asserts that the Jenkins leg has no `.github/workflows/`, and that the default legs have `docs.yml` on `standard` and `full` only. The fresh-clone gate step stops copying the Jenkinsfile's commands. It extracts the `sh '''…'''` block from the clone's `ci/Jenkinsfile.ai-governance` and runs it with `sh -e`, as Jenkins does. On the Jenkins leg it first puts an empty venv's `bin/` at the head of `PATH`, so `python3` cannot import yaml and the script must take the venv path. It then asserts that `.venv-ai-governance/` exists on that leg and not on the others, and that `git status --porcelain` stays empty (the venv is ignored).
+
+**Step 4: Verify.** The six-test loop: `test_adopt` 42, `test_plan` 18, the rest unchanged (`test_harness` 13, `test_harness_copilot` 29, `test_manifest` 9, `test_merge` 19). Task 12 Step 1 still finds 40 commands and prints `ALL-GREEN`. Run Task H6 Step 2's loop for `standard` + `jenkins` and for `standard`. Run the extracted `sh` block by hand in a fresh `standard` clone: once with the system `python3` (probe path, no venv created), once with an empty venv first on `PATH` (venv path; an empty venv has no site-packages, so `import yaml` fails without touching the system Python), and once with a `python3` wrapper whose `-m venv` fails as on Debian without `python3-venv` (exit 1 with the install hint, partial venv removed).
+
+**Step 5: Commit, push, open a draft PR, watch the run.** One commit, `fix(ci): Jenkins gate survives PEP 668; GitHub docs check follows --ci`. Expected: `ai-governance` and the four `adopt-e2e` legs (`minimal, default`, `standard, default`, `full, default`, `standard, jenkins`) all succeed.
+
+---
+
 ### Task 12: Full verification and phase close-out
 
 **Step 1: Run the whole kit CI locally**, copying every `run:` line of the `ai-governance` job in `.github/workflows/ci.yml`. The `sed` range stops at `adopt-e2e` (Task H6), whose `python3 scripts/…` lines run inside a generated clone and fail from the kit root:
@@ -2537,7 +2597,8 @@ Then use superpowers:requesting-code-review on the Phase 0 range, and stop for t
 Minor items deferred by the Task 12 code review (2026-10-07). Each one is known and none blocks Phase 0:
 
 - **Link rewriting in the Copilot brief** only handles `](./`. Bare relative links (`](docs/x.md)`), `](../`, and reference-style links inside §0/§3 still resolve against `.github/`.
-- **PEP 668 and pip in the Jenkinsfile**: `python3 -m pip install --user` fails on an "externally managed" system Python (Debian/Ubuntu 23.04+). It needs a venv or `--break-system-packages`, depending on the FRQ agents.
+- ~~**PEP 668 and pip in the Jenkinsfile**~~: done in Task H9 (import probe, then a workspace venv).
+- **No docs link check on Jenkins.** `docs.yml` is GitHub-only and, after H9, ships only with `--ci github`. A Jenkins stage running a Markdown link checker is a possible follow-up.
 - **A deletion-only commit skips the `harness-drift` pre-commit hook**: when the only staged change is a removed rule, `files:` matches nothing. The fix is `always_run: true` (or a `types`/`files` tweak), weighed against the cost of running the hook on every commit.
 - **`.vscode/settings.json` formatting**: `merge_json` rewrites with `indent=2` and `ensure_ascii=True`, so an operator's tab or 4-space indent, and any non-ASCII characters (escaped as `\uXXXX`), are rewritten the first time the key is added.
 - **Uninstall leaves `chat.useClaudeHooks` behind**: `.vscode/settings.json` is merge-class with no sentinel block, so uninstall keeps the file as it is, key included.

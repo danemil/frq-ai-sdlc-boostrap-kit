@@ -26,9 +26,12 @@
     ".gitignore": "lines"
   },
 
-  "$ci_comment": "Governance gates, chosen with install.sh --ci (recorded in the manifest; default: all). Added to every profile.",
+  "$ci_comment": "CI gates, chosen with install.sh --ci (recorded in the manifest; default: all). A list is added to every profile; a map is keyed by the smallest profile that ships those paths (full inherits standard inherits minimal).",
   "ci": {
-    "github": [".github/workflows/ai-governance.yml"],
+    "github": {
+      "minimal": [".github/workflows/ai-governance.yml"],
+      "standard": [".github/workflows/docs.yml", ".github/workflows/mlc-config.json"]
+    },
     "jenkins": ["ci/**"]
   },
 
@@ -48,7 +51,6 @@
     "standard": [
       "@minimal",
       "scripts/session/**", "scripts/knowledge/**",
-      ".github/workflows/docs.yml", ".github/workflows/mlc-config.json",
       "docs/knowledge/**", "docs/product/**", "docs/metrics/**"
     ],
     "full": [

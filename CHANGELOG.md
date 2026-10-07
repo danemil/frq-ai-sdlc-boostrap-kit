@@ -14,6 +14,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - The generated `.github/workflows/ai-governance.yml` runs `validate-moments.py` and `validate-seat-profiles.py` when their manifests are installed, as the Jenkinsfile already did.
 
 ### Fixed
+- The generated `ci/Jenkinsfile.ai-governance` no longer runs `pip install --user`, which PEP 668 refuses on Debian 12+ and Ubuntu 23.04+ agents. It uses the agent's pyyaml when importable, otherwise installs it into a gitignored `.venv-ai-governance/`, and fails with a clear message when `python3-venv` is missing.
+- `--ci jenkins` no longer ships the GitHub-only docs link check (`.github/workflows/docs.yml`, `mlc-config.json`); it now belongs to the `github` gate and still needs the `standard` profile or above. Switching to Jenkins removes it while unedited.
 - The generated `.github/workflows/ai-governance.yml` now runs on `minimal` and `standard` installs: steps for scripts a profile does not ship are skipped. Kit CI's `adopt-e2e` job covers all three profiles and runs the generated GitHub workflow on a fresh clone.
 
 ## [0.3.0] — 2026-10-07
