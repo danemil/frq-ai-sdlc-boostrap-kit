@@ -114,8 +114,12 @@ If any tool reports a PATH issue, **fix it** — find where it lives (`which <to
 
 ```bash
 pip install pre-commit
-pre-commit install --hook-type commit-msg   # also installs the pre-commit stage
+pre-commit install          # installs BOTH stages via default_install_hook_types
 ```
+
+Do **not** pass `--hook-type` here: an explicit `--hook-type` overrides
+`default_install_hook_types` in `.pre-commit-config.yaml`, which silently
+installs only that one stage and leaves the validators unwired.
 
 This wires up the **SKILL.md / frontmatter validators** and the **commit-message ticket check** (`scripts/git/commit_msg_ticket.py`). See `AGENTS.md` and `WORKING-AGREEMENT.md` §5.
 
@@ -205,4 +209,5 @@ Offer the seat's `first_task` from `seat-profiles.json` (e.g. Architect → an A
 ## Notes for AI harnesses
 
 - **Claude Code**: interactive prompts for questions, shell for commands, file-write for `USER.md`. The `SessionStart` hook (`scripts/session/start.sh`) reminds you of the session ritual and injects the saved seat's context.
+- **GitHub Copilot** (CLI, VS Code, IntelliJ): interactive questions in chat, shell for commands, file-write for `USER.md`. Copilot CLI runs the SessionStart hook in interactive sessions; VS Code does when `chat.useClaudeHooks` is on (set by the installer). **IntelliJ has no session hooks** (and `copilot -p` skips them) **— run `bash scripts/session/start.sh` yourself** at the start of each session (the generated `.github/copilot-instructions.md` says so too).
 - **Other agents**: use the platform's Q&A / terminal / file-write equivalents. The scripts are plain shell/Python and run anywhere.

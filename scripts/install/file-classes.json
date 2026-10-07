@@ -1,0 +1,53 @@
+{
+  "$comment": "Merge class + profile membership for every template path. Class defaults to 'own'. See docs/roadmap/2026-08-28-brownfield-adoption-design.md §4.",
+
+  "classes": {
+    "seed": [
+      "AGENTS.md", "CLAUDE.md", "ONBOARDING.md", "WORKING-AGREEMENT.md",
+      "README.md", "USER.md.example", ".pre-commit-config.yaml",
+      "docs/**/README.md",
+      "docs/methodology/*.md",
+      "docs/ai-context/*.md",
+      "docs/knowledge/schema.md",
+      "docs/architecture/**", "docs/product/**", "docs/drafts/**",
+      "docs/received/**", "docs/governance/**", "docs/onboarding/**",
+      "docs/metrics/**"
+    ],
+    "merge": [
+      ".mcp.json", ".claude/settings.json", ".gitignore",
+      "docs/knowledge/graph-manifest.json"
+    ]
+  },
+
+  "merge_formats": {
+    ".mcp.json": "json",
+    "docs/knowledge/graph-manifest.json": "json",
+    ".claude/settings.json": "json-hooks",
+    ".gitignore": "lines"
+  },
+
+  "profiles": {
+    "minimal": [
+      "AGENTS.md", "CLAUDE.md", "ONBOARDING.md", "WORKING-AGREEMENT.md",
+      "README.md", "USER.md.example", "INDEX.md", "FOLDER-INDEX.md",
+      ".gitignore", ".mcp.json", ".pre-commit-config.yaml",
+      ".claude/**", ".github/workflows/ai-governance.yml", "ci/**",
+      "scripts/validate-*.py", "scripts/check-brief-churn.py",
+      "scripts/harness/**",
+      "scripts/git/**", "scripts/tests/**",
+      "docs/ai-context/**", "docs/methodology/**", "docs/governance/**",
+      "docs/architecture/**", "docs/onboarding/**", "docs/drafts/**",
+      "docs/received/**"
+    ],
+    "standard": [
+      "@minimal",
+      "scripts/session/**", "scripts/knowledge/**",
+      ".github/workflows/docs.yml", ".github/workflows/mlc-config.json",
+      "docs/knowledge/**", "docs/product/**", "docs/metrics/**"
+    ],
+    "full": [
+      "@standard",
+      "dashboard/**", "scripts/spend/**", "scripts/jira/**"
+    ]
+  }
+}

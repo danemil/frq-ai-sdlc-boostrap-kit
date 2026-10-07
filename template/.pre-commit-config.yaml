@@ -1,5 +1,7 @@
 # Pre-commit hooks — the fast, local half of the AI-governance gate.
-# Install once per machine:  pip install pre-commit && pre-commit install --hook-type commit-msg
+# Install once per machine:  pip install pre-commit && pre-commit install
+#   (plain `install` honours default_install_hook_types below; passing an
+#    explicit --hook-type overrides it and silently skips the other stage)
 # Run on demand:             pre-commit run --all-files
 #
 # These mirror the CI gate in .github/workflows/ai-governance.yml. Local runs are
@@ -37,6 +39,13 @@ repos:
         entry: python3 scripts/validate-seat-profiles.py
         language: system
         files: ^scripts/session/seat-profiles\.json$
+        pass_filenames: false
+
+      - id: harness-drift
+        name: Harness surfaces match their sources (AGENTS.md, .claude/rules, .mcp.json)
+        entry: python3 scripts/harness/sync.py --check
+        language: system
+        files: ^(AGENTS\.md|\.mcp\.json|\.claude/(rules/.*|settings\.json)|\.github/(copilot-instructions\.md|instructions/.*)|\.vscode/settings\.json|scripts/harness/.*)$
         pass_filenames: false
 
       - id: commit-msg-ticket

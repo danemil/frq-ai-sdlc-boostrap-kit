@@ -32,9 +32,9 @@ A map of every directory in this workspace and what belongs there. When in doubt
 │       └── docs.yml                # (optional) build a docs site
 │
 ├── scripts/
-│   ├── bootstrap.sh                # initialise a new project from the kit
 │   ├── validate-skills.py          # SKILL.md conformity (agentskills.io)
 │   ├── validate-frontmatter.py     # frontmatter contract on docs
+│   ├── harness/                   # keep every AI harness wired to one brief
 │   ├── session/                    # start.sh, sync.sh, wrapup.sh, config
 │   ├── spend/                      # AI consumption collectors + ROI inputs (prices, importers)
 │   ├── git/                        # commit_msg_ticket.py (issue-key hook)

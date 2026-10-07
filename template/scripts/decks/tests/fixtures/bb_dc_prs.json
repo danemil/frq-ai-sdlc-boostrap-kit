@@ -1,0 +1,30 @@
+[
+  {
+    "size": 2, "limit": 2, "start": 0, "isLastPage": false, "nextPageStart": 2,
+    "values": [
+      {"id": 7, "title": "Recorder retention policy", "state": "MERGED",
+       "author": {"user": {"name": "jdoe", "displayName": "J. Doe"}},
+       "fromRef": {"id": "refs/heads/feature/ATM-7-retention", "displayId": "feature/ATM-7-retention"},
+       "toRef": {"id": "refs/heads/develop", "displayId": "develop"},
+       "createdDate": 1790841600000, "updatedDate": 1790931600000, "closedDate": 1790931600000,
+       "links": {"self": [{"href": "https://bitbucket.example.com/projects/ATM/repos/recorder/pull-requests/7"}]}},
+      {"id": 8, "title": "WIP: purge job", "state": "OPEN",
+       "author": {"user": {"name": "gh", "displayName": "Grace"}},
+       "fromRef": {"id": "refs/heads/feature/purge", "displayId": "feature/purge"},
+       "toRef": {"id": "refs/heads/develop", "displayId": "develop"},
+       "createdDate": 1791018000000, "updatedDate": 1791018000000,
+       "links": {"self": [{"href": "https://bitbucket.example.com/projects/ATM/repos/recorder/pull-requests/8"}]}}
+    ]
+  },
+  {
+    "size": 1, "limit": 2, "start": 2, "isLastPage": true,
+    "values": [
+      {"id": 3, "title": "Old cleanup", "state": "DECLINED",
+       "author": {"user": {"name": "jdoe", "displayName": "J. Doe"}},
+       "fromRef": {"id": "refs/heads/old", "displayId": "old"},
+       "toRef": {"id": "refs/heads/develop", "displayId": "develop"},
+       "createdDate": 1788249600000, "updatedDate": 1788336000000, "closedDate": 1788336000000,
+       "links": {"self": [{"href": "https://bitbucket.example.com/projects/ATM/repos/recorder/pull-requests/3"}]}}
+    ]
+  }
+]

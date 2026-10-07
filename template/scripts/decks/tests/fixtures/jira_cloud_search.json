@@ -1,0 +1,68 @@
+{
+  "issues": [
+    {
+      "key": "ATM-10",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "summary": "Remote tower voice failover",
+        "status": {"name": "In Progress", "statusCategory": {"key": "indeterminate"}},
+        "assignee": {"displayName": "Ada"},
+        "reporter": {"displayName": "Grace"},
+        "labels": ["vcs"],
+        "priority": {"name": "High"},
+        "resolution": null,
+        "created": "2026-09-01T09:00:00.000+0000",
+        "updated": "2026-09-30T16:00:00.000+0000",
+        "resolutiondate": null,
+        "parent": {"key": "ATM-1"},
+        "components": [{"name": "VCS"}, {"name": "Radio"}],
+        "fixVersions": [{"name": "R5.2"}],
+        "subtasks": [{"key": "ATM-11"}, {"key": "ATM-12"}],
+        "issuelinks": [
+          {"type": {"name": "Blocks", "inward": "is blocked by", "outward": "blocks"},
+           "inwardIssue": {"key": "NAV-77", "fields": {"status": {"name": "To Do", "statusCategory": {"key": "new"}}}}},
+          {"type": {"name": "Relates", "inward": "relates to", "outward": "relates to"},
+           "outwardIssue": {"key": "ATM-20", "fields": {"status": {"name": "Done", "statusCategory": {"key": "done"}}}}},
+          {"type": {"name": "Jama Trace", "inward": "is traced by", "outward": "traces"},
+           "outwardIssue": {"key": "SSR-301", "fields": {"status": {"name": "Approved", "statusCategory": {"key": "done"}}}}}
+        ],
+        "customfield_10020": [{"name": "ATM Sprint 41"}, {"name": "ATM Sprint 42"}],
+        "customfield_10016": 8.0,
+        "customfield_10500": {"type": "doc", "version": 1, "content": [
+          {"type": "paragraph", "content": [{"type": "text", "text": "Failover completes within 2 s."}]}]},
+        "customfield_10600": {"value": "Done"},
+        "description": {"type": "doc", "version": 1, "content": [
+          {"type": "paragraph", "content": [{"type": "text", "text": "Switch to the standby radio path."}]}]}
+      }
+    },
+    {
+      "key": "ATM-2",
+      "fields": {
+        "issuetype": {"name": "Story"},
+        "summary": "Controller position log export",
+        "status": {"name": "To Do", "statusCategory": {"key": "new"}},
+        "assignee": null,
+        "reporter": {"displayName": "Grace"},
+        "labels": [],
+        "priority": {"name": "Medium"},
+        "resolution": null,
+        "created": "2026-09-10T09:00:00.000+0000",
+        "updated": "2026-09-29T10:00:00.000+0000",
+        "resolutiondate": null,
+        "components": [],
+        "fixVersions": [],
+        "subtasks": [],
+        "issuelinks": [],
+        "customfield_10020": null,
+        "customfield_10016": null,
+        "customfield_10500": null,
+        "customfield_10600": null,
+        "description": {"type": "doc", "version": 1, "content": [
+          {"type": "heading", "attrs": {"level": 3}, "content": [{"type": "text", "text": "Acceptance criteria"}]},
+          {"type": "bulletList", "content": [
+            {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Export is CSV."}]}]}]}]}
+      }
+    }
+  ],
+  "isLast": true
+}

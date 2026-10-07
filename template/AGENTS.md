@@ -6,7 +6,7 @@ This is the single source of truth that **all AI tools read** — Claude (Claude
 
 > **Where this file lives.** The canonical copy is at the repo root. `CLAUDE.md` (and any other tool-specific file) is a thin pointer to this file. **Edit the brief here; don't fork it.**
 >
-> **Placeholders.** Anything in `<ANGLE_BRACKETS>` is a value you fill in when you bootstrap the project (see `scripts/bootstrap.sh`). Search for `<` to find them all.
+> **Placeholders.** Anything in `<ANGLE_BRACKETS>` is a value you fill in for this project. The installer fills the mechanical ones (name, description, ticket prefix); the rest are governance decisions and are yours. Run `install.sh --into . doctor` from the kit to list exactly which are still open.
 
 ---
 
@@ -114,7 +114,7 @@ The `docs/` tree is **additive and demand-driven** — roles create topic folder
 | Tool | Used by | Reads `AGENTS.md`? | Notes |
 |---|---|---|---|
 | **Claude** (Claude Code, claude.ai) | All seats | Yes — primary | Main agent. Skill-driven (`.claude/skills/playbook-<seat>/`). |
-| **GitHub Copilot** (IDE, chat) | All seats, in-flow | Honour this brief manually; point it here | In-document drafting; promote anything load-bearing into a governed file. |
+| **GitHub Copilot** (CLI, VS Code, IntelliJ) | All seats | Yes — natively (CLI, VS Code); IntelliJ via the generated `.github/copilot-instructions.md` | Skills from `.claude/skills/`; rules via `.github/instructions/`; hooks via `.claude/settings.json` (CLI) and `chat.useClaudeHooks` (VS Code). Generated files: never edit, run `python3 scripts/harness/sync.py --write`. |
 | **`<OTHER_AGENT>`** | `<SEATS>` | `<yes/no>` | `<notes>` |
 
 ### 4.2 Trust tiers — what an AI may rely on

@@ -20,6 +20,16 @@ jobs:
       - name: Install deps
         run: pip install --quiet "pyyaml>=6"
 
+      - name: Installer unit tests (brownfield adoption)
+        run: |
+          python3 scripts/install/tests/test_manifest.py
+          python3 scripts/install/tests/test_merge.py
+          python3 scripts/install/tests/test_harness.py
+          python3 scripts/install/tests/test_plan.py
+          python3 template/scripts/tests/test_harness_copilot.py
+      - name: Installer end-to-end (greenfield, brownfield, idempotency, uninstall)
+        run: python3 scripts/install/tests/test_adopt.py
+
       - name: Validate Agent Skills (agentskills.io)
         run: python3 template/scripts/validate-skills.py
       - name: Validate doc frontmatter contract (AGENTS.md §4.2)
@@ -72,3 +82,78 @@ jobs:
           python3 template/scripts/knowledge/ingest.py --build
           python3 template/scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"
           python3 template/scripts/knowledge/ingest.py --federated --trace issue:PROJ-1 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty issue trace'; print('issue trace OK:', len(d['nodes']), 'nodes')"
+
+  # Adopt the kit end to end, as a client would: install into an empty repo, commit,
+  # then run the generated project's governance gate on a FRESH CLONE (what a client's
+  # CI sees; before H1 the gate failed on every clone), check doctor's drift section,
+  # and prove a re-run changes nothing. Plan: Task H6 in
+  # docs/roadmap/2026-10-07-phase-0-foundations-plan.md.
+  adopt-e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [minimal, standard]
+    env:
+      PROFILE: ${{ matrix.profile }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install --quiet "pyyaml>=6"
+
+      - name: Throwaway git identity
+        run: |
+          set -euo pipefail
+          git config --global user.name "kit-ci"
+          git config --global user.email "kit-ci@users.noreply.github.com"
+          git config --global init.defaultBranch main
+
+      - name: Adopt the kit into an empty repo
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/proj"
+          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli
+
+      - name: Commit the adoption; generated Copilot files are tracked (H1)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/proj"
+          git init -q && git add -A && git commit -qm "adopt kit"
+          git ls-files --error-unmatch .vscode/settings.json .github/copilot-instructions.md
+
+      - name: Fresh clone runs the generated governance gate (ci/Jenkinsfile.ai-governance)
+        run: |
+          set -euo pipefail
+          git clone -q "$RUNNER_TEMP/proj" "$RUNNER_TEMP/clone"
+          cd "$RUNNER_TEMP/clone"
+          python3 scripts/validate-skills.py
+          python3 scripts/validate-frontmatter.py
+          [ ! -f scripts/session/moments.json ] || python3 scripts/validate-moments.py
+          [ ! -f scripts/session/seat-profiles.json ] || python3 scripts/validate-seat-profiles.py
+          python3 scripts/harness/sync.py --check
+
+      - name: Fresh clone has no generated-surface drift (doctor)
+        run: |
+          set -euo pipefail
+          # doctor exits 1 on a fresh install because the template's <PLACEHOLDERS>
+          # are unfilled by design. Allow 0 or 1, and gate on the drift section only.
+          rc=0
+          out="$(./install.sh --into "$RUNNER_TEMP/clone" doctor)" || rc=$?
+          printf '%s\n' "$out"
+          if [ "$rc" -gt 1 ]; then echo "doctor failed to run (exit $rc)"; exit 1; fi
+          printf '%s\n' "$out" | grep -A1 '^Generated-surface drift$' | tail -n1 | grep -q '^  none '
+
+      - name: Re-running the installer changes nothing
+        run: |
+          set -euo pipefail
+          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli
+          # Every run stamps the manifest's "installed_at"; that one line may change.
+          changes="$(git -C "$RUNNER_TEMP/proj" status --porcelain -- . ':!.ai-sdlc/manifest.json')"
+          if [ -n "$changes" ]; then printf 'Re-run changed the repo:\n%s\n' "$changes"; exit 1; fi
+          git -C "$RUNNER_TEMP/proj" diff --exit-code -I '"installed_at":' -- .ai-sdlc/manifest.json

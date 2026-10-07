@@ -1,0 +1,48 @@
+# Pre-commit hooks for the KIT repo itself (not for generated projects).
+# template/.pre-commit-config.yaml is the one a generated project gets; its paths
+# are relative to that project's root, so it cannot run from here.
+# This file mirrors the root .gitlab-ci.yml governance job, which validates the
+# template from the kit root.
+#
+# Install once per clone:  pre-commit install --hook-type pre-commit --hook-type commit-msg
+# Run on demand:           pre-commit run --all-files
+default_install_hook_types: [pre-commit, commit-msg]
+repos:
+  - repo: local
+    hooks:
+      - id: validate-skills
+        name: Validate template SKILL.md against agentskills.io
+        entry: python template/scripts/validate-skills.py
+        language: python
+        additional_dependencies: ["pyyaml>=6"]
+        files: ^template/.*(^|/)SKILL\.md$
+        pass_filenames: true
+
+      - id: validate-frontmatter
+        name: Validate template doc frontmatter contract (AGENTS.md §4.2)
+        entry: python template/scripts/validate-frontmatter.py
+        language: python
+        additional_dependencies: ["pyyaml>=6"]
+        files: ^template/docs/.*\.md$
+        exclude: ^template/docs/(drafts|received|knowledge)/
+        pass_filenames: true
+
+      - id: validate-moments
+        name: Validate session lifecycle-moments manifest
+        entry: python3 template/scripts/validate-moments.py
+        language: system
+        files: ^template/scripts/session/moments\.json$
+        pass_filenames: false
+
+      - id: validate-seat-profiles
+        name: Validate per-seat profiles manifest
+        entry: python3 template/scripts/validate-seat-profiles.py
+        language: system
+        files: ^template/scripts/session/seat-profiles\.json$
+        pass_filenames: false
+
+      - id: commit-msg-ticket
+        name: Commit message references an issue key (advisory)
+        entry: python template/scripts/git/commit_msg_ticket.py --mode warn
+        language: python
+        stages: [commit-msg]

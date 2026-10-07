@@ -1,0 +1,2 @@
+# Opt-in for ~/.claude/scripts/prompts: this repo commits its Claude prompt
+# history in docs/prompts/ (redacted on write). Delete this file to keep it local.
