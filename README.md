@@ -86,6 +86,12 @@ Because Copilot CLI discovers `.claude/skills/` and both Codex and Copilot read 
 > so pointing it at a populated repo destroyed existing config. `install.sh` replaces
 > it and covers both cases. `bootstrap.sh` is kept for backward compatibility only.
 
+## Versioning & upgrades
+
+The kit is versioned with SemVer (`VERSION`, history in [`CHANGELOG.md`](./CHANGELOG.md)). The installer records the version in each adopting repo's `.ai-sdlc/manifest.json`, and `./install.sh doctor --into <repo>` shows it.
+
+To upgrade a repo, run `./install.sh --into <repo> --dry-run` from the newer kit, review the plan, then run it without `--dry-run`. Files the kit owns and you never edited are replaced. Files you changed are flagged as conflicts: keep yours, take the kit's, or write the kit's copy alongside as `.kit-new` (press `d` to see the diff). With `--yes`, your version is kept. Nothing is overwritten silently.
+
 ## Verify the template locally
 
 ```bash
