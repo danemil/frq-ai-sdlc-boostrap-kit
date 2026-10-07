@@ -11,7 +11,7 @@ This repository is an **AI-augmented SDLC** workspace, bootstrapped from the [AI
 ```bash
 # 1. First-run setup (installs tooling, creates your per-user USER.md)
 #    Open this folder in Claude Code and let it run ONBOARDING.md, or do it manually:
-pip install pre-commit && pre-commit install --hook-type commit-msg
+pip install pre-commit && pre-commit install
 
 # 2. (optional) Build the knowledge index so agents can ground on project sources
 python3 scripts/knowledge/ingest.py --build
@@ -20,7 +20,17 @@ python3 scripts/knowledge/ingest.py --build
 pip install -r dashboard/requirements.txt && streamlit run dashboard/app.py
 ```
 
-If you are starting a brand-new project from the kit instead, run the bootstrap script from the kit root — see [`scripts/bootstrap.sh`](./scripts/bootstrap.sh).
+This repo was set up by the kit's installer. To pull in later kit versions, or to
+add a harness, re-run it from wherever the kit is checked out — it is idempotent
+and will not overwrite anything you have edited:
+
+```bash
+/path/to/ai-sdlc-kit/install.sh --into . --dry-run   # see what would change
+/path/to/ai-sdlc-kit/install.sh --into .             # apply, asking on conflicts
+/path/to/ai-sdlc-kit/install.sh --into . doctor      # harnesses, drift, placeholders
+```
+
+What the installer manages here is recorded in `.ai-sdlc/manifest.json`.
 
 ## What's here
 
@@ -34,7 +44,7 @@ If you are starting a brand-new project from the kit instead, run the bootstrap 
 | [`INDEX.md`](./INDEX.md) | Cross-artefact index. |
 | [`.claude/skills/`](./.claude/skills/) | Invokable role playbooks + `skill-creator`. |
 | [`.github/workflows/`](./.github/workflows/) | CI — AI-governance gates. |
-| [`scripts/`](./scripts/) | Session ritual, validators, git hooks, bootstrap, knowledge ingest. |
+| [`scripts/`](./scripts/) | Session ritual, validators, git hooks, harness sync, knowledge ingest. |
 | [`docs/`](./docs/) | The knowledge tree (architecture, governance, knowledge, methodology, ai-context). |
 | [`dashboard/`](./dashboard/) | AI-utilization dashboard (DB + web). |
 

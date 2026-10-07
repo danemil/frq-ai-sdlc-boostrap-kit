@@ -114,8 +114,12 @@ If any tool reports a PATH issue, **fix it** — find where it lives (`which <to
 
 ```bash
 pip install pre-commit
-pre-commit install --hook-type commit-msg   # also installs the pre-commit stage
+pre-commit install          # installs BOTH stages via default_install_hook_types
 ```
+
+Do **not** pass `--hook-type` here: an explicit `--hook-type` overrides
+`default_install_hook_types` in `.pre-commit-config.yaml`, which silently
+installs only that one stage and leaves the validators unwired.
 
 This wires up the **SKILL.md / frontmatter validators** and the **commit-message ticket check** (`scripts/git/commit_msg_ticket.py`). See `AGENTS.md` and `WORKING-AGREEMENT.md` §5.
 

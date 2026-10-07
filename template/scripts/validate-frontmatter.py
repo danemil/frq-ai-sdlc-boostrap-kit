@@ -15,14 +15,23 @@ Vocabularies:
 By default scans `docs/` but skips the exploratory/immutable areas
 (`docs/drafts/`, `docs/received/`) where the contract is relaxed.
 
+Adopting the kit into an existing repo means inheriting docs written before the
+contract existed. A gate that is red on day one gets switched off, so those are
+recorded once in a **baseline** and reported as known debt instead of failure;
+anything new must comply. The baseline only shrinks.
+
 Usage:
   validate-frontmatter.py                 # scan governed docs
   validate-frontmatter.py FILE [more...]  # specific files (pre-commit passes these)
+  validate-frontmatter.py --write-baseline   # record today's violations as debt
+  validate-frontmatter.py --no-baseline      # ignore the baseline; fail on everything
 
-Exit 0 if all valid, 1 otherwise.
+Exit 0 if all valid (baselined debt excepted), 1 otherwise.
 """
 from __future__ import annotations
 
+import argparse
+import subprocess
 import sys
 from pathlib import Path
 
@@ -107,31 +116,103 @@ def collect_targets(args: list[str], repo_root: Path) -> list[Path]:
     return targets
 
 
-def main() -> int:
+BASELINE_REL = ".ai-sdlc/frontmatter-baseline.txt"
+
+
+def load_baseline(repo_root: Path) -> set:
+    path = repo_root / BASELINE_REL
+    if not path.is_file():
+        return set()
+    return {line.strip() for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")}
+
+
+def write_baseline(repo_root: Path, rels) -> Path:
+    path = repo_root / BASELINE_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    header = ("# Frontmatter debt inherited when this repo adopted the AI-SDLC kit.\n"
+              "# These files are reported, not failed. Delete a line once you fix\n"
+              "# that file — the list only shrinks. Regenerate only to adopt more\n"
+              "# pre-existing docs, never to hide a new violation.\n")
+    path.write_text(header + "\n".join(sorted(rels)) + "\n", encoding="utf-8")
+    return path
+
+
+def git_ignored(repo_root: Path, paths) -> set:
+    """Paths git is told to ignore — transcripts and scratch, not deliverables."""
+    if not (repo_root / ".git").exists() or not paths:
+        return set()
+    try:
+        out = subprocess.run(
+            ["git", "check-ignore", "--stdin"], cwd=repo_root, text=True,
+            input="\n".join(str(p) for p in paths), capture_output=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    return {line.strip() for line in out.stdout.splitlines() if line.strip()}
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(add_help=True, description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("paths", nargs="*")
+    ap.add_argument("--write-baseline", action="store_true")
+    ap.add_argument("--no-baseline", action="store_true")
+    args = ap.parse_args(argv)
+
     repo_root = Path(__file__).resolve().parent.parent
-    targets = collect_targets(sys.argv[1:], repo_root)
+    targets = collect_targets(args.paths, repo_root)
     if not targets:
         print("No governed Markdown files to validate.")
         return 0
 
-    failed = 0
+    ignored = git_ignored(repo_root, targets)
+    targets = [p for p in targets
+               if str(p) not in ignored
+               and str(p.resolve()) not in ignored
+               and _rel(p, repo_root) not in ignored]
+
+    baseline = set() if args.no_baseline else load_baseline(repo_root)
+    failed, debt, fixed = 0, [], []
+
+    violations = {}
     for path in targets:
-        try:
-            rel = path.resolve().relative_to(repo_root)
-        except ValueError:
-            rel = path
+        rel = _rel(path, repo_root)
         errs = validate_file(path)
         if errs:
+            violations[rel] = errs
+            if rel in baseline:
+                debt.append(rel)
+                print(f"debt  {rel}  (baselined)")
+                continue
             failed += 1
             print(f"FAIL  {rel}")
             for e in errs:
                 print(f"  - {e}")
         else:
+            if rel in baseline:
+                fixed.append(rel)
             print(f"ok    {rel}")
 
+    if args.write_baseline:
+        path = write_baseline(repo_root, violations)
+        print(f"\nbaseline written: {path} ({len(violations)} file(s) recorded as debt)")
+        return 0
+
     total = len(targets)
-    print(f"\n{total - failed}/{total} files satisfy the frontmatter contract.")
+    print(f"\n{total - failed - len(debt)}/{total} files satisfy the frontmatter contract.")
+    if debt:
+        print(f"{len(debt)} baselined file(s) still owe frontmatter — see {BASELINE_REL}")
+    if fixed:
+        print(f"{len(fixed)} baselined file(s) now pass; drop them from "
+              f"{BASELINE_REL}: {', '.join(fixed)}")
     return 1 if failed else 0
+
+
+def _rel(path: Path, repo_root: Path) -> str:
+    try:
+        return path.resolve().relative_to(repo_root).as_posix()
+    except ValueError:
+        return str(path)
 
 
 if __name__ == "__main__":

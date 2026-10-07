@@ -1,0 +1,74 @@
+{
+  "$comment": "AI-harness adapter table. Adding a harness is a row here, not code. Surfaces verified against the shipping binaries on 2026-08-28; see docs/roadmap/2026-08-28-brownfield-adoption-design.md §2.",
+
+  "claude-code": {
+    "label": "Claude Code",
+    "detect": ["cmd:claude", "path:.claude"],
+    "brief":  {"kind": "shipped", "path": "CLAUDE.md",
+               "$note": "The template already ships CLAUDE.md as the pointer to AGENTS.md — the wiring must not overwrite it."},
+    "skills": {"kind": "canonical", "path": ".claude/skills"},
+    "mcp":    {"kind": "canonical", "path": ".mcp.json"},
+    "hooks":  {"kind": "canonical", "path": ".claude/settings.json"}
+  },
+
+  "codex-cli": {
+    "label": "Codex CLI",
+    "detect": ["cmd:codex", "path:.codex"],
+    "brief":  {"kind": "native", "path": "AGENTS.md",
+               "$note": "Codex reads AGENTS.md natively — nothing to write."},
+    "skills": {"kind": "symlink", "path": ".codex/skills", "to": ".claude/skills"},
+    "mcp":    {"kind": "generated", "path": ".codex/config.toml", "format": "toml-block",
+               "$note": "Project .codex/config.toml carries trusted-repo MCP, hooks, sandbox and model defaults."},
+    "hooks":  {"kind": "generated", "path": ".codex/hooks.json", "format": "json",
+               "pointer": {"path": ".codex/config.toml", "key": "hooks", "value": "./hooks.json"}}
+  },
+
+  "copilot-cli": {
+    "label": "GitHub Copilot CLI",
+    "detect": ["cmd:copilot", "path:.github/copilot-instructions.md"],
+    "brief":  {"kind": "native", "path": "AGENTS.md"},
+    "skills": {"kind": "native", "path": ".claude/skills",
+               "$note": "Copilot CLI discovers .github/skills, .agents/skills AND .claude/skills — the kit's skills work unchanged."},
+    "mcp":    {"kind": "generated", "path": ".copilot/mcp-config.json", "format": "copilot-mcp",
+               "invoke": "copilot --additional-mcp-config @.copilot/mcp-config.json"},
+    "hooks":  null
+  },
+
+  "cursor": {
+    "label": "Cursor",
+    "detect": ["cmd:cursor-agent", "path:.cursor", "path:.cursorrules"],
+    "brief":  {"kind": "pointer", "path": ".cursor/rules/ai-sdlc.mdc", "style": "mdc",
+               "also": [".cursorrules"],
+               "$note": "Cursor reads .cursor/rules/*.mdc; .cursorrules is the legacy path and is pointed at AGENTS.md too so it cannot hold a stale copy."},
+    "skills": null,
+    "mcp":    {"kind": "generated", "path": ".cursor/mcp.json", "format": "json"},
+    "hooks":  null
+  },
+
+  "gemini-cli": {
+    "label": "Gemini CLI",
+    "detect": ["cmd:gemini", "path:GEMINI.md"],
+    "brief":  {"kind": "pointer", "path": "GEMINI.md"},
+    "skills": null,
+    "mcp":    null,
+    "hooks":  null
+  },
+
+  "windsurf": {
+    "label": "Windsurf",
+    "detect": ["path:.windsurfrules", "path:.windsurf"],
+    "brief":  {"kind": "pointer", "path": ".windsurfrules"},
+    "skills": null,
+    "mcp":    null,
+    "hooks":  null
+  },
+
+  "opencode": {
+    "label": "opencode",
+    "detect": ["cmd:opencode", "path:.opencode.json"],
+    "brief":  {"kind": "native", "path": "AGENTS.md"},
+    "skills": null,
+    "mcp":    {"kind": "generated", "path": ".opencode.json", "format": "json"},
+    "hooks":  null
+  }
+}
