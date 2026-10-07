@@ -186,6 +186,19 @@ class TestHarnessWiring(unittest.TestCase):
             self.assertIn("AGENTS.md", legacy)
             self.assertNotIn("---", legacy.splitlines()[0])   # plain md, not .mdc
 
+    def test_vscode_settings_is_committed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            env = {"PATH": "/usr/bin:/bin", "HOME": tmp, "GIT_CONFIG_NOSYSTEM": "1"}
+
+            def git(*args):
+                return subprocess.run(["git", *args], cwd=tmp, capture_output=True,
+                                      text=True, env=env)
+
+            git("init", "-q")
+            git("add", "-A")
+            self.assertIn(".vscode/settings.json", git("ls-files", ".vscode").stdout.split())
+
 
 class TestStandaloneSync(unittest.TestCase):
     """The generated project must drift-check itself with no kit checked out."""

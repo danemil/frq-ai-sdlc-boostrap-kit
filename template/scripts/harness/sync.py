@@ -25,6 +25,7 @@ import argparse
 import json
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -215,6 +216,16 @@ def vscode_hooks_state(text: str) -> str:
     return "ok" if data[VSCODE_HOOKS_KEY] is True else "disabled"
 
 
+def _git_ignored(root, rel) -> bool:
+    """True only when git says `rel` is ignored in this repo. No git, or no repo: False."""
+    try:
+        r = subprocess.run(["git", "check-ignore", "-q", rel], cwd=root,
+                           capture_output=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
 COPILOT_FORMATS = ("copilot-brief", "copilot-instructions", "vscode-claude-hooks")
 
 
@@ -391,6 +402,8 @@ def check(root, table, harnesses) -> list[str]:
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
         path = root / rel
         if mode == "json-key":
+            if _git_ignored(root, rel):
+                continue  # kept out of git on purpose: no clone has it, so nothing to gate
             state = vscode_hooks_state(path.read_text(encoding="utf-8") if path.is_file() else "")
             if state == "missing":
                 problems.append(f'{rel} lacks "{VSCODE_HOOKS_KEY}": true')
