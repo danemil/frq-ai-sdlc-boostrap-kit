@@ -80,5 +80,47 @@ class TestBrief(unittest.TestCase):
             self.assertIn("9", str(ctx.exception))
 
 
+RULES_SPEC = {"kind": "generated", "path": ".github/instructions",
+              "format": "copilot-instructions", "from": ".claude/rules"}
+
+
+def rules(tmp, files):
+    root = Path(tmp)
+    (root / ".claude/rules").mkdir(parents=True)
+    for name, text in files.items():
+        (root / ".claude/rules" / name).write_text(text, encoding="utf-8")
+    return root
+
+
+class TestInstructions(unittest.TestCase):
+    def test_paths_become_apply_to(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"adr.md": '---\npaths:\n  - "docs/adr/**"\n  - "docs/x/**"\n---\n# ADR\nBody.\n'})
+            out = sync.render_copilot_instructions(root, RULES_SPEC)
+            text = out[".github/instructions/adr.instructions.md"]
+            self.assertTrue(text.startswith("---\napplyTo: 'docs/adr/**,docs/x/**'\n---\n"))
+            self.assertIn("# ADR\nBody.", text)
+            self.assertIn(sync.GENERATED_MARK, text)
+
+    def test_rule_without_paths_applies_everywhere(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"tokens.md": "# Token economy\nRule.\n"})
+            text = sync.render_copilot_instructions(root, RULES_SPEC)[
+                ".github/instructions/tokens.instructions.md"]
+            self.assertTrue(text.startswith("---\napplyTo: '**'\n---\n"))
+
+    def test_orphans_are_only_our_generated_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"a.md": "# A\n"})
+            out_dir = root / ".github/instructions"
+            out_dir.mkdir(parents=True)
+            (out_dir / "gone.instructions.md").write_text(
+                f"<!-- {sync.GENERATED_MARK} -->\n", encoding="utf-8")
+            (out_dir / "cartograph.instructions.md").write_text("not ours\n", encoding="utf-8")
+            wanted = sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertEqual(sync.orphan_instructions(root, RULES_SPEC, wanted),
+                             [".github/instructions/gone.instructions.md"])
+
+
 if __name__ == "__main__":
     unittest.main()

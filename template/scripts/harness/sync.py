@@ -136,6 +136,59 @@ def render_copilot_brief(root, spec: dict) -> str:
     return COPILOT_BRIEF.format(mark=GENERATED_MARK, regen=REGENERATE, sections=body)
 
 
+def _split_frontmatter(text: str) -> tuple[str, str]:
+    if text.startswith("---\n"):
+        end = text.find("\n---", 4)
+        if end != -1:
+            return text[4:end], text[end + 4:].lstrip("\n")
+    return "", text
+
+
+def _rule_paths(front: str) -> list[str]:
+    """The `paths:` list of a .claude/rules frontmatter (the only key the rules use)."""
+    out, inside = [], False
+    for line in front.splitlines():
+        if re.match(r"^paths:\s*$", line):
+            inside = True
+            continue
+        if inside:
+            m = re.match(r"""^\s+-\s+["']?([^"']+?)["']?\s*$""", line)
+            if m:
+                out.append(m.group(1))
+                continue
+            if line.strip():
+                inside = False
+    return out
+
+
+def render_copilot_instructions(root, spec: dict) -> dict:
+    """{repo-relative path: text} — one .instructions.md per .claude/rules/*.md."""
+    src_rel = spec.get("from", ".claude/rules")
+    src = Path(root) / src_rel
+    files = {}
+    for rule in sorted(src.glob("*.md")) if src.is_dir() else []:
+        front, body = _split_frontmatter(rule.read_text(encoding="utf-8"))
+        apply_to = ",".join(_rule_paths(front)) or "**"
+        rel = f"{spec['path']}/{rule.stem}.instructions.md"
+        files[rel] = (f"---\napplyTo: '{apply_to}'\n---\n"
+                      f"<!-- {GENERATED_MARK} from {src_rel}/{rule.name} — do not edit. "
+                      f"Regenerate: {REGENERATE} -->\n\n{body}")
+    return files
+
+
+def orphan_instructions(root, spec: dict, wanted: dict) -> list[str]:
+    """Generated instruction files whose source rule was deleted. Never touches files we did not write."""
+    out_dir = Path(root) / spec["path"]
+    if not out_dir.is_dir():
+        return []
+    orphans = []
+    for p in sorted(out_dir.glob("*.instructions.md")):
+        rel = f"{spec['path']}/{p.name}"
+        if rel not in wanted and GENERATED_MARK in p.read_text(encoding="utf-8"):
+            orphans.append(rel)
+    return orphans
+
+
 # --- MCP translation -------------------------------------------------------
 
 PLACEHOLDER = re.compile(r"<[A-Z][A-Z_/]{2,}>")
