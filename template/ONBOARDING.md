@@ -209,4 +209,5 @@ Offer the seat's `first_task` from `seat-profiles.json` (e.g. Architect → an A
 ## Notes for AI harnesses
 
 - **Claude Code**: interactive prompts for questions, shell for commands, file-write for `USER.md`. The `SessionStart` hook (`scripts/session/start.sh`) reminds you of the session ritual and injects the saved seat's context.
+- **GitHub Copilot** (CLI, VS Code, IntelliJ): interactive questions in chat, shell for commands, file-write for `USER.md`. Copilot CLI runs the SessionStart hook in interactive sessions; VS Code does when `chat.useClaudeHooks` is on (set by the installer). **IntelliJ has no session hooks** (and `copilot -p` skips them) **— run `bash scripts/session/start.sh` yourself** at the start of each session (the generated `.github/copilot-instructions.md` says so too).
 - **Other agents**: use the platform's Q&A / terminal / file-write equivalents. The scripts are plain shell/Python and run anywhere.

@@ -114,7 +114,7 @@ The `docs/` tree is **additive and demand-driven** — roles create topic folder
 | Tool | Used by | Reads `AGENTS.md`? | Notes |
 |---|---|---|---|
 | **Claude** (Claude Code, claude.ai) | All seats | Yes — primary | Main agent. Skill-driven (`.claude/skills/playbook-<seat>/`). |
-| **GitHub Copilot** (IDE, chat) | All seats, in-flow | Honour this brief manually; point it here | In-document drafting; promote anything load-bearing into a governed file. |
+| **GitHub Copilot** (CLI, VS Code, IntelliJ) | All seats | Yes — natively (CLI, VS Code); IntelliJ via the generated `.github/copilot-instructions.md` | Skills from `.claude/skills/`; rules via `.github/instructions/`; hooks via `.claude/settings.json` (CLI) and `chat.useClaudeHooks` (VS Code). Generated files: never edit, run `python3 scripts/harness/sync.py --write`. |
 | **`<OTHER_AGENT>`** | `<SEATS>` | `<yes/no>` | `<notes>` |
 
 ### 4.2 Trust tiers — what an AI may rely on
