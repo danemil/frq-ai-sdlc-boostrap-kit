@@ -97,6 +97,15 @@ def rules(tmp, files):
     return root
 
 
+def apply_to(front):
+    """The applyTo line generated for a rule with this frontmatter."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = rules(tmp, {"r.md": f"---\n{front}---\n# R\n"})
+        text = sync.render_copilot_instructions(root, RULES_SPEC)[
+            ".github/instructions/r.instructions.md"]
+        return text.splitlines()[1]
+
+
 class TestInstructions(unittest.TestCase):
     def test_paths_become_apply_to(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -120,11 +129,60 @@ class TestInstructions(unittest.TestCase):
             out_dir = root / ".github/instructions"
             out_dir.mkdir(parents=True)
             (out_dir / "gone.instructions.md").write_text(
-                f"<!-- {sync.GENERATED_MARK} -->\n", encoding="utf-8")
+                f"---\napplyTo: '**'\n---\n<!-- {sync.GENERATED_MARK} from "
+                ".claude/rules/gone.md — do not edit. -->\n", encoding="utf-8")
             (out_dir / "cartograph.instructions.md").write_text("not ours\n", encoding="utf-8")
             wanted = sync.render_copilot_instructions(root, RULES_SPEC)
             self.assertEqual(sync.orphan_instructions(root, RULES_SPEC, wanted),
                              [".github/instructions/gone.instructions.md"])
+
+    def test_a_copied_generated_file_is_not_an_orphan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"a.md": "# A\n"})
+            wanted = sync.render_copilot_instructions(root, RULES_SPEC)
+            out_dir = root / ".github/instructions"
+            out_dir.mkdir(parents=True)
+            (out_dir / "mine.instructions.md").write_text(       # copied to start my own
+                wanted[".github/instructions/a.instructions.md"], encoding="utf-8")
+            self.assertEqual(sync.orphan_instructions(root, RULES_SPEC, wanted), [])
+
+    def test_a_note_quoting_the_mark_is_not_an_orphan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"a.md": "# A\n"})
+            out_dir = root / ".github/instructions"
+            out_dir.mkdir(parents=True)
+            (out_dir / "notes.instructions.md").write_text(
+                "---\napplyTo: '**'\n---\n# Notes\nGenerated files start with "
+                f"`<!-- {sync.GENERATED_MARK} from .claude/rules/notes.md — do not edit.`\n",
+                encoding="utf-8")
+            wanted = sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertEqual(sync.orphan_instructions(root, RULES_SPEC, wanted), [])
+
+    def test_paths_accepts_the_yaml_shapes_rules_use(self):
+        cases = {
+            'paths:\n- "a/**"\n- b/**\n': "applyTo: 'a/**,b/**'",            # unindented
+            'paths: ["a/**", \'b/**\']\n': "applyTo: 'a/**,b/**'",           # flow list
+            "paths: a/**\n": "applyTo: 'a/**'",                               # scalar
+            '# scope\npaths:\n  # docs first\n  - "a/**"  # ADRs\n  - b/**\n':
+                "applyTo: 'a/**,b/**'",                                       # comments
+        }
+        for front, want in cases.items():
+            with self.subTest(front=front):
+                self.assertEqual(apply_to(front), want)
+
+    def test_empty_paths_is_an_error_naming_the_rule(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"r.md": "---\npaths:\n---\n# R\n"})
+            with self.assertRaises(ValueError) as ctx:
+                sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertIn(".claude/rules/r.md", str(ctx.exception))
+
+    def test_brace_glob_with_a_comma_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = rules(tmp, {"r.md": '---\npaths:\n  - "src/**/*.{ts,tsx}"\n---\n# R\n'})
+            with self.assertRaises(ValueError) as ctx:
+                sync.render_copilot_instructions(root, RULES_SPEC)
+            self.assertIn("expand brace globs into separate paths", str(ctx.exception))
 
 
 class TestVscode(unittest.TestCase):
@@ -147,6 +205,11 @@ class TestVscode(unittest.TestCase):
         self.assertEqual(sync.vscode_hooks_state('{}'), "missing")
         self.assertEqual(sync.vscode_hooks_state('{"chat.useClaudeHooks": false}'), "disabled")
         self.assertEqual(sync.vscode_hooks_state('{ // c\n}'), "unparseable")
+
+    def test_non_object_settings_are_unparseable(self):
+        for text in ("1", "[]", '"x"'):
+            with self.subTest(text=text):
+                self.assertEqual(sync.vscode_hooks_state(text), "unparseable")
 
 
 class TestCheckWrite(unittest.TestCase):
@@ -195,6 +258,13 @@ class TestCheckWrite(unittest.TestCase):
         self.assertEqual(vs.read_text(), '{ // mine\n}\n')
         self.assertTrue(any("set \"chat.useClaudeHooks\": true by hand" in p
                             for p in sync.check(self.root, self.table, ["copilot-cli"])))
+
+    def test_a_rule_with_empty_paths_is_one_problem_line(self):
+        (self.root / ".claude/rules/bad.md").write_text("---\npaths:\n---\n# Bad\n",
+                                                        encoding="utf-8")
+        self.assertIn(".github/instructions: .claude/rules/bad.md: paths: is present but"
+                      " lists no paths — fix the source or remove copilot-cli",
+                      sync.check(self.root, self.table, ["copilot-cli"]))
 
 
 def git(root, *args):

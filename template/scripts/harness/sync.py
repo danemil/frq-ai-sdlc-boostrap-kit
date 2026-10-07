@@ -148,21 +148,52 @@ def _split_frontmatter(text: str) -> tuple[str, str]:
     return "", text
 
 
-def _rule_paths(front: str) -> list[str]:
-    """The `paths:` list of a .claude/rules frontmatter (the only key the rules use)."""
-    out, inside = [], False
-    for line in front.splitlines():
-        if re.match(r"^paths:\s*$", line):
-            inside = True
+_COMMENT = re.compile(r"(?:^|\s+)#.*$")
+_BRACE_LIST = re.compile(r"\{[^{}]*,[^{}]*\}")
+
+
+def _unquote(item: str) -> str:
+    item = item.strip()
+    if len(item) >= 2 and item[0] == item[-1] and item[0] in "\"'":
+        return item[1:-1]
+    return item
+
+
+def _rule_paths(front: str, rule: str) -> list[str]:
+    """The `paths:` of a .claude/rules frontmatter (the only key the rules use).
+
+    Accepts a block list (indented or not), a one-line flow list, or one scalar,
+    with `#` comments. Raises ValueError naming `rule` when `paths:` is present but
+    yields nothing, or when a brace glob holds a comma: Copilot's applyTo is itself
+    comma-separated, so `*.{ts,tsx}` would be split in two.
+    """
+    out, inside, present = [], False, False
+    for raw in front.splitlines():
+        line = _COMMENT.sub("", raw).rstrip()
+        m = re.match(r"^paths:\s*(.*)$", line)
+        if m:
+            present, value = True, m.group(1)
+            inside = not value
+        elif inside and re.match(r"^\s*-\s", line):
+            value = line.split("-", 1)[1]
+        else:
+            inside = inside and not line      # blank and comment lines keep the list open
             continue
-        if inside:
-            m = re.match(r"""^\s+-\s+["']?([^"']+?)["']?\s*$""", line)
-            if m:
-                out.append(m.group(1))
-                continue
-            if line.strip():
-                inside = False
+        if _BRACE_LIST.search(value):
+            raise ValueError(f"{rule}: {value.strip()} — applyTo is comma-separated; "
+                             "expand brace globs into separate paths")
+        if value.startswith("[") and value.endswith("]"):
+            out += [_unquote(v) for v in value[1:-1].split(",") if v.strip()]
+        elif value.strip():
+            out.append(_unquote(value))
+    if present and not out:
+        raise ValueError(f"{rule}: paths: is present but lists no paths")
     return out
+
+
+def _instruction_header(src_rel: str, stem: str) -> str:
+    """First body line of a generated instruction file. It names its own source rule."""
+    return f"<!-- {GENERATED_MARK} from {src_rel}/{stem}.md — do not edit."
 
 
 def render_copilot_instructions(root, spec: dict) -> dict:
@@ -172,23 +203,33 @@ def render_copilot_instructions(root, spec: dict) -> dict:
     files = {}
     for rule in sorted(src.glob("*.md")) if src.is_dir() else []:
         front, body = _split_frontmatter(rule.read_text(encoding="utf-8"))
-        apply_to = ",".join(_rule_paths(front)) or "**"
+        apply_to = ",".join(_rule_paths(front, f"{src_rel}/{rule.name}")) or "**"
         rel = f"{spec['path']}/{rule.stem}.instructions.md"
         files[rel] = (f"---\napplyTo: '{apply_to}'\n---\n"
-                      f"<!-- {GENERATED_MARK} from {src_rel}/{rule.name} — do not edit. "
+                      f"{_instruction_header(src_rel, rule.stem)} "
                       f"Regenerate: {REGENERATE} -->\n\n{body}")
     return files
 
 
 def orphan_instructions(root, spec: dict, wanted: dict) -> list[str]:
-    """Generated instruction files whose source rule was deleted. Never touches files we did not write."""
+    """Generated instruction files whose source rule was deleted.
+
+    A file counts as ours only if its first body line is the header naming its own
+    source (`<stem>.instructions.md` <- `<from>/<stem>.md`). A copied or renamed
+    file, or a note that quotes the mark, is never touched.
+    """
     out_dir = Path(root) / spec["path"]
     if not out_dir.is_dir():
         return []
+    src_rel = spec.get("from", ".claude/rules")
     orphans = []
     for p in sorted(out_dir.glob("*.instructions.md")):
         rel = f"{spec['path']}/{p.name}"
-        if rel not in wanted and GENERATED_MARK in p.read_text(encoding="utf-8"):
+        if rel in wanted:
+            continue
+        stem = p.name[: -len(".instructions.md")]
+        body = _split_frontmatter(p.read_text(encoding="utf-8"))[1]
+        if body.startswith(_instruction_header(src_rel, stem)):
             orphans.append(rel)
     return orphans
 
@@ -213,6 +254,8 @@ def vscode_hooks_state(text: str) -> str:
     try:
         data = json.loads(text) if text.strip() else {}
     except json.JSONDecodeError:
+        return "unparseable"
+    if not isinstance(data, dict):
         return "unparseable"
     if VSCODE_HOOKS_KEY not in data:
         return "missing"

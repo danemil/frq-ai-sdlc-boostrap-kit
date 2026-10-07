@@ -427,16 +427,24 @@ def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> st
             manifest.record(man, rel, classes[cls], blob)
             deferred.pop(rel, None)
         changed.append(rel)
+    edited = []
     if sspec.get("format") == "copilot-instructions":
         for orphan in harness.orphan_instructions(root, sspec, {r for r, _, _ in files}):
+            if manifest.state(root, man, orphan) == manifest.MODIFIED:
+                edited.append(orphan)          # its rule is gone, your edits are not
+                continue
             if not dry_run:
                 (Path(root) / orphan).unlink()
+                manifest.forget(man, orphan)
             changed.append(f"{orphan} (removed)")
     notes = []
     if changed:
         notes.append(f"{', '.join(changed)} (generated)")
     if kept:
         notes.append(f"{', '.join(kept)} (kept yours; kit's copy in .kit-new)")
+    if edited:
+        notes.append(f"{', '.join(edited)} (source rule deleted; kept your edits — "
+                     f"delete by hand if unwanted)")
     if not notes:
         return f"{label}: {surface} -> {sspec['path']} (current)"
     return f"{label}: {surface} -> {'; '.join(notes)}"

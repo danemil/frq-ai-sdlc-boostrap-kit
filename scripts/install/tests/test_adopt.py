@@ -205,6 +205,31 @@ class TestHarnessWiring(unittest.TestCase):
             git("add", "-A")
             self.assertIn(".vscode/settings.json", git("ls-files", ".vscode").stdout.split())
 
+    def test_removed_orphan_is_forgotten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude/rules").mkdir(parents=True)
+            (root / ".claude/rules/local.md").write_text("# Local rule\n", encoding="utf-8")
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            rel = ".github/instructions/local.instructions.md"
+            self.assertIn(rel, manifest.load(tmp)["files"])
+            (root / ".claude/rules/local.md").unlink()
+            run("--into", tmp, "--yes")
+            self.assertFalse((root / rel).exists())
+            self.assertNotIn(rel, manifest.load(tmp)["files"])
+
+    def test_edited_orphan_is_kept(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".claude/rules").mkdir(parents=True)
+            (root / ".claude/rules/local.md").write_text("# Local rule\n", encoding="utf-8")
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            gen = root / ".github/instructions/local.instructions.md"
+            gen.write_text(gen.read_text() + "\nTeam note: keep me.\n", encoding="utf-8")
+            (root / ".claude/rules/local.md").unlink()
+            run("--into", tmp, "--yes")
+            self.assertIn("Team note: keep me.", gen.read_text())
+
 
 class TestStandaloneSync(unittest.TestCase):
     """The generated project must drift-check itself with no kit checked out."""
