@@ -214,7 +214,9 @@ class TestHarnessWiring(unittest.TestCase):
             rel = ".github/instructions/local.instructions.md"
             self.assertIn(rel, manifest.load(tmp)["files"])
             (root / ".claude/rules/local.md").unlink()
-            run("--into", tmp, "--yes")
+            out = run("--into", tmp, "--yes").stdout
+            self.assertIn("local.instructions.md (removed)", out)
+            self.assertNotIn("(removed) (generated)", out)
             self.assertFalse((root / rel).exists())
             self.assertNotIn(rel, manifest.load(tmp)["files"])
 
@@ -385,6 +387,16 @@ class TestDoctorAndUninstall(unittest.TestCase):
             self.assertIn("node_modules/", (root / ".gitignore").read_text())
             self.assertNotIn("ai-sdlc", (root / ".gitignore").read_text())
 
+    def test_doctor_flags_copilot_brief_drift(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run("--into", tmp, "--profile", "minimal", "--yes", "--harness", "copilot-cli")
+            agents = Path(tmp) / "AGENTS.md"
+            agents.write_text(agents.read_text().replace("No fabrication", "No fabrication, ever"),
+                              encoding="utf-8")
+            out = run("--into", tmp, "doctor")
+            self.assertIn("drift .github/copilot-instructions.md differs from its source",
+                          out.stdout)
+            self.assertEqual(out.returncode, 1)
 
 
 

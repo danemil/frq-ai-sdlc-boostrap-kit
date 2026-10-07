@@ -427,7 +427,7 @@ def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> st
             manifest.record(man, rel, classes[cls], blob)
             deferred.pop(rel, None)
         changed.append(rel)
-    edited = []
+    edited, removed = [], []
     if sspec.get("format") == "copilot-instructions":
         for orphan in harness.orphan_instructions(root, sspec, {r for r, _, _ in files}):
             if manifest.state(root, man, orphan) == manifest.MODIFIED:
@@ -436,7 +436,7 @@ def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> st
             if not dry_run:
                 (Path(root) / orphan).unlink()
                 manifest.forget(man, orphan)
-            changed.append(f"{orphan} (removed)")
+            removed.append(orphan)
     notes = []
     if changed:
         notes.append(f"{', '.join(changed)} (generated)")
@@ -445,6 +445,8 @@ def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> st
     if edited:
         notes.append(f"{', '.join(edited)} (source rule deleted; kept your edits — "
                      f"delete by hand if unwanted)")
+    if removed:
+        notes.append(f"{', '.join(removed)} (removed)")
     if not notes:
         return f"{label}: {surface} -> {sspec['path']} (current)"
     return f"{label}: {surface} -> {'; '.join(notes)}"
@@ -543,7 +545,7 @@ def doctor(root, table, spec) -> int:
     print(f"\n{paint('Generated-surface drift', 'b')}")
     drift = check_drift(root, table, man)
     if not drift:
-        print(f"  {paint('none', 'g')} — derived harness files match .mcp.json")
+        print(f"  {paint('none', 'g')} — derived harness files match their sources")
     for line in drift:
         print(f"  {paint('drift', 'r')} {line}")
         problems += 1
@@ -582,37 +584,16 @@ def doctor(root, table, spec) -> int:
 
 
 def check_drift(root, table, man) -> list[str]:
-    """Derived harness files that no longer match the canonical .mcp.json."""
-    root = Path(root)
-    mcp_path = root / ".mcp.json"
-    if not mcp_path.is_file():
-        return []
+    """Derived harness surfaces that no longer match their sources.
+
+    The same check as `scripts/harness/sync.py --check` and the CI gate: AGENTS.md
+    -> Copilot brief, .claude/rules -> path instructions, the VS Code switch, and
+    .mcp.json -> the MCP files.
+    """
     try:
-        mcp = json.loads(mcp_path.read_text(encoding="utf-8"))
+        return harness.check(root, table, man.get("harnesses", []))
     except json.JSONDecodeError:
         return [".mcp.json is not valid JSON"]
-
-    out = []
-    for name in man.get("harnesses", []):
-        hspec = table.get(name) or {}
-        mspec = hspec.get("mcp") or {}
-        if mspec.get("kind") != "generated":
-            continue
-        rel, fmt = mspec["path"], mspec.get("format")
-        path = root / rel
-        if not path.is_file():
-            out.append(f"{rel} is missing")
-            continue
-        text = path.read_text(encoding="utf-8")
-        if fmt == "copilot-mcp":
-            want = json.dumps(harness.to_copilot_mcp(mcp), indent=2) + "\n"
-            if text != want:
-                out.append(f"{rel} differs from .mcp.json")
-        elif fmt == "toml-block":
-            block = merge.extract_block(text)
-            if block is None or harness.to_codex_toml(mcp).strip() not in block:
-                out.append(f"{rel} block differs from .mcp.json")
-    return out
 
 
 # Seed files are unmanaged by design — but AGENTS.md is the one file whose

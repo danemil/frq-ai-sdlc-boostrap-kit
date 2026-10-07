@@ -2113,8 +2113,9 @@ EOF
 **Design choice:** `check_drift` becomes a thin wrapper over `harness.check(root, table, man["harnesses"])`, the function that `sync.py --check` and the CI gate already run. The MCP-only body is redundant and goes: `sync.check` does the same `copilot-mcp` whole-file and `toml-block` comparisons. The output format is unchanged (`none` / `drift <line>`, with one problem counted per line). The one behaviour that `check` lacks is surviving an invalid `.mcp.json` (`derived_surfaces` would raise), so the wrapper keeps that line. One difference to note: with `.mcp.json` deleted, the old check reported nothing, while `check` reports an MCP file that still lists servers. That matches what CI already says.
 
 **Files:**
-- Modify: `scripts/install/adopt.py` (`check_drift`, one `doctor` line)
-- Modify: `scripts/install/tests/test_adopt.py` (`TestDoctorAndUninstall.test_doctor_flags_copilot_brief_drift`)
+- Modify: `scripts/install/adopt.py` (`check_drift`, one `doctor` line, the removed-orphan note in `_generate_copilot`)
+- Modify: `scripts/install/tests/test_adopt.py` (`TestDoctorAndUninstall.test_doctor_flags_copilot_brief_drift`; two assertions in `TestHarnessWiring.test_removed_orphan_is_forgotten`)
+- Modify: this plan (Step 3b)
 
 **Step 1: Write the failing test.** Append to `class TestDoctorAndUninstall`:
 
@@ -2160,6 +2161,25 @@ def check_drift(root, table, man) -> list[str]:
         print(f"  {paint('none', 'g')} — derived harness files match their sources")
 ```
 
+**Step 3b: also fix the removed-orphan note (approved at the H4 checkpoint).** In `_generate_copilot`, a removed orphan printed `… (removed) (generated)`, because it was appended to `changed` and every `changed` entry gets ` (generated)`. Collect removals in their own list and give them their own note, after the kept and edited notes:
+
+```python
+    edited, removed = [], []
+    ...
+            removed.append(orphan)          # was: changed.append(f"{orphan} (removed)")
+    ...
+    if removed:
+        notes.append(f"{', '.join(removed)} (removed)")
+```
+
+Extend `TestHarnessWiring.test_removed_orphan_is_forgotten` (no new test, so the counts are unchanged):
+
+```python
+            out = run("--into", tmp, "--yes").stdout
+            self.assertIn("local.instructions.md (removed)", out)
+            self.assertNotIn("(removed) (generated)", out)
+```
+
 **Step 4: Run the suites**
 
 Run the loop from the top of this section.
@@ -2168,7 +2188,8 @@ Expected: `test_adopt` 29 OK · `test_harness` 13 OK · `test_manifest` 9 OK · 
 **Step 5: Commit**
 
 ```bash
-git add scripts/install/adopt.py scripts/install/tests/test_adopt.py
+git add scripts/install/adopt.py scripts/install/tests/test_adopt.py \
+        docs/roadmap/2026-10-07-phase-0-foundations-plan.md
 git commit -F - <<'EOF'
 fix(install): doctor reports drift for every generated surface
 
@@ -2176,6 +2197,7 @@ doctor's drift section only compared the MCP files with .mcp.json, so a
 stale Copilot brief, path instruction or VS Code switch passed doctor and
 failed CI. check_drift now wraps harness.check, the same check sync.py
 --check and the CI gate run.
+A removed orphan instruction now prints "(removed)", not "(removed) (generated)".
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
