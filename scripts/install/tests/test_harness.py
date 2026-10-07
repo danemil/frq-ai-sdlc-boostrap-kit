@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import harness
@@ -40,6 +41,25 @@ class TestTable(unittest.TestCase):
         table = harness.load_table()
         self.assertEqual(table["codex-cli"]["skills"]["kind"], "symlink")
         self.assertEqual(table["codex-cli"]["skills"]["to"], ".claude/skills")
+
+    def test_copilot_generates_brief_rules_and_vscode_hooks(self):
+        row = harness.load_table()["copilot-cli"]
+        self.assertEqual(row["brief"]["kind"], "generated")
+        self.assertEqual(row["brief"]["path"], ".github/copilot-instructions.md")
+        self.assertEqual(row["brief"]["format"], "copilot-brief")
+        self.assertEqual(row["brief"]["sections"], ["0", "3"])
+        self.assertEqual(row["rules"]["format"], "copilot-instructions")
+        self.assertEqual(row["rules"]["path"], ".github/instructions")
+        self.assertEqual(row["rules"]["from"], ".claude/rules")
+        self.assertEqual(row["hooks"]["format"], "vscode-claude-hooks")
+        self.assertEqual(row["hooks"]["path"], ".vscode/settings.json")
+
+    def test_copilot_is_detected_by_its_generated_brief(self):
+        table = harness.load_table()
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch("sync.shutil.which", return_value=None):
+            (Path(tmp) / ".github/instructions").mkdir(parents=True)
+            self.assertIn("copilot-cli", harness.detect(tmp, table))
 
 
 class TestMcpTranslation(unittest.TestCase):

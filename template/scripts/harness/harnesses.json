@@ -1,5 +1,5 @@
 {
-  "$comment": "AI-harness adapter table. Adding a harness is a row here, not code. Surfaces verified against the shipping binaries on 2026-08-28; see docs/roadmap/2026-08-28-brownfield-adoption-design.md §2.",
+  "$comment": "AI-harness adapter table. Adding a harness is a row here, not code. Surfaces verified against the shipping binaries on 2026-08-28; Copilot re-verified 2026-10-07; see docs/roadmap/2026-08-28-brownfield-adoption-design.md §2.",
 
   "claude-code": {
     "label": "Claude Code",
@@ -24,14 +24,20 @@
   },
 
   "copilot-cli": {
-    "label": "GitHub Copilot CLI",
-    "detect": ["cmd:copilot", "path:.github/copilot-instructions.md"],
-    "brief":  {"kind": "native", "path": "AGENTS.md"},
+    "label": "GitHub Copilot (CLI, VS Code, IntelliJ)",
+    "detect": ["cmd:copilot", "path:.github/copilot-instructions.md", "path:.github/instructions"],
+    "brief":  {"kind": "generated", "path": ".github/copilot-instructions.md",
+               "format": "copilot-brief", "sections": ["0", "3"],
+               "$note": "IntelliJ Copilot Chat does not read AGENTS.md, so the onboarding gate (§0) and hard constraints (§3) are inlined verbatim. VS Code Chat and Copilot CLI also read AGENTS.md natively."},
+    "rules":  {"kind": "generated", "path": ".github/instructions",
+               "format": "copilot-instructions", "from": ".claude/rules",
+               "$note": "One <rule>.instructions.md per .claude/rules/<rule>.md; paths: becomes applyTo:."},
     "skills": {"kind": "native", "path": ".claude/skills",
-               "$note": "Copilot CLI discovers .github/skills, .agents/skills AND .claude/skills — the kit's skills work unchanged."},
+               "$note": "Copilot discovers .github/skills, .agents/skills AND .claude/skills — the kit's skills work unchanged."},
     "mcp":    {"kind": "generated", "path": ".copilot/mcp-config.json", "format": "copilot-mcp",
                "invoke": "copilot --additional-mcp-config @.copilot/mcp-config.json"},
-    "hooks":  null
+    "hooks":  {"kind": "generated", "path": ".vscode/settings.json", "format": "vscode-claude-hooks",
+               "$note": "Copilot CLI runs .claude/settings.json hooks natively; VS Code needs chat.useClaudeHooks; IntelliJ has no session hooks (the generated brief tells the agent to run scripts/session/start.sh)."}
   },
 
   "cursor": {
