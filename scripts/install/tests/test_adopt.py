@@ -55,6 +55,12 @@ class TestGreenfield(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(before, snapshot(tmp), "installer is not idempotent")
 
+    def test_dry_run_into_an_empty_dir_wires_copilot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r = run("--into", tmp, "--dry-run", "--harness", "copilot-cli")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("would generate after AGENTS.md is installed", r.stdout)
+
 
 class TestBrownfield(unittest.TestCase):
     def setUp(self):

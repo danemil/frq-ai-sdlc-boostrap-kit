@@ -397,7 +397,10 @@ def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> st
     classes = {"own": planner.CLASS_OWN, "merge": planner.CLASS_MERGE}
     try:
         files = harness.materialize(root, sspec)
-    except ValueError as exc:          # e.g. AGENTS.md lacks a required section
+    except (ValueError, OSError) as exc:   # AGENTS.md missing or lacks a section; bad rule
+        if dry_run and not (Path(root) / "AGENTS.md").is_file():
+            return (f"{label}: {surface} -> {sspec['path']} "
+                    f"(would generate after AGENTS.md is installed)")
         return f"{label}: {surface} -> {sspec['path']} FAILED ({exc})"
     deferred = man.setdefault("deferred", {})
     changed, kept = [], []

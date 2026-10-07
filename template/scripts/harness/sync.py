@@ -131,7 +131,10 @@ def agents_sections(text: str, numbers) -> str:
 
 
 def render_copilot_brief(root, spec: dict) -> str:
-    agents = (Path(root) / "AGENTS.md").read_text(encoding="utf-8")
+    path = Path(root) / "AGENTS.md"
+    if not path.is_file():
+        raise ValueError("AGENTS.md is missing")
+    agents = path.read_text(encoding="utf-8")
     body = agents_sections(agents, spec.get("sections", ["0", "3"]))
     body = body.replace("](./", "](../")   # the brief lives in .github/
     return COPILOT_BRIEF.format(mark=GENERATED_MARK, regen=REGENERATE, sections=body)
@@ -374,6 +377,7 @@ def derived_surfaces(root, table, harnesses):
     """(rel, want_text, mode, spec) for every generated surface of the given harnesses.
 
     mode: 'whole-file' | 'block' (TOML block) | 'json-key' (VS Code switch)
+          | 'error' (render failed; want_text is the message)
     """
     root = Path(root)
     mcp_path = root / ".mcp.json"
@@ -388,7 +392,13 @@ def derived_surfaces(root, table, harnesses):
             fmt = sspec.get("format")
             if fmt in COPILOT_FORMATS:
                 mode = "json-key" if fmt == "vscode-claude-hooks" else "whole-file"
-                for rel, text, _cls in materialize(root, sspec):
+                try:
+                    files = materialize(root, sspec)
+                except (ValueError, OSError) as exc:
+                    yield (sspec["path"], f"{exc} — fix the source or remove {name}",
+                           "error", sspec)
+                    continue
+                for rel, text, _cls in files:
                     yield rel, text, mode, sspec
             elif surface == "mcp" and fmt == "copilot-mcp":
                 yield sspec["path"], json.dumps(to_copilot_mcp(mcp), indent=2) + "\n", "whole-file", sspec
@@ -401,6 +411,9 @@ def check(root, table, harnesses) -> list[str]:
     deferred = _deferred(root)
     problems = []
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
+        if mode == "error":
+            problems.append(f"{rel}: {want}")
+            continue
         path = root / rel
         if mode == "json-key":
             if _git_ignored(root, rel):
@@ -422,7 +435,10 @@ def check(root, table, harnesses) -> list[str]:
             if block is None or want.strip() not in block:
                 problems.append(f"{rel} block differs from .mcp.json")
     for rspec in _instruction_specs(table, harnesses):
-        wanted = set(render_copilot_instructions(root, rspec))
+        try:
+            wanted = set(render_copilot_instructions(root, rspec))
+        except (ValueError, OSError):
+            continue  # already one problem line; never sweep without the wanted list
         for orphan in orphan_instructions(root, rspec, wanted):
             problems.append(f"{orphan} is an orphan")
     return problems
@@ -433,6 +449,10 @@ def write(root, table, harnesses, errors: list | None = None) -> list[str]:
     deferred = _deferred(root)
     written = []
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
+        if mode == "error":
+            if errors is not None:
+                errors.append(f"{rel}: {want}")
+            continue
         path = root / rel
         if rel in deferred and path.is_file() and path.read_text(encoding="utf-8") != want:
             if errors is not None:
@@ -445,7 +465,10 @@ def write(root, table, harnesses, errors: list | None = None) -> list[str]:
             path.write_text(out, encoding="utf-8")
             written.append(rel)
     for rspec in _instruction_specs(table, harnesses):
-        wanted = set(render_copilot_instructions(root, rspec))
+        try:
+            wanted = set(render_copilot_instructions(root, rspec))
+        except (ValueError, OSError):
+            continue
         for orphan in orphan_instructions(root, rspec, wanted):
             (root / orphan).unlink()
             written.append(f"{orphan} (removed)")
