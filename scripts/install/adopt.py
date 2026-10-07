@@ -272,7 +272,7 @@ def wire_harnesses(root, names, table, man, dry_run=False) -> list[str]:
             continue
         label = spec.get("label", name)
 
-        for surface in ("brief", "skills", "mcp", "hooks"):
+        for surface in ("brief", "rules", "skills", "mcp", "hooks"):
             sspec = spec.get(surface)
             if not sspec:
                 continue
@@ -337,6 +337,8 @@ def _symlink(root, rel, to, label, surface, dry_run) -> str:
 
 
 def _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run) -> str | None:
+    if sspec.get("format") in harness.COPILOT_FORMATS:
+        return _generate_copilot(root, sspec, surface, label, man, dry_run)
     fmt = sspec.get("format")
     path = root / rel
 
@@ -378,6 +380,32 @@ def _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run) -> 
     if not fresh:
         return f"{label}: {surface} -> {rel} (current{suffix})"
     return f"{label}: {surface} -> {rel} (generated{suffix})"
+
+
+def _generate_copilot(root, sspec, surface, label, man, dry_run) -> str:
+    """Write the Copilot surfaces sync.py renders. One generator, two callers."""
+    classes = {"own": planner.CLASS_OWN, "merge": planner.CLASS_MERGE}
+    try:
+        files = harness.materialize(root, sspec)
+    except ValueError as exc:          # e.g. AGENTS.md lacks a required section
+        return f"{label}: {surface} -> {sspec['path']} FAILED ({exc})"
+    changed = []
+    for rel, text, cls in files:
+        blob = text.encode("utf-8")
+        if manifest.state(root, man, rel, blob) == manifest.IDENTICAL:
+            continue
+        if not dry_run:
+            write_file(root, rel, blob)
+            manifest.record(man, rel, classes[cls], blob)
+        changed.append(rel)
+    if sspec.get("format") == "copilot-instructions":
+        for orphan in harness.orphan_instructions(root, sspec, {r for r, _, _ in files}):
+            if not dry_run:
+                (Path(root) / orphan).unlink()
+            changed.append(f"{orphan} (removed)")
+    if not changed:
+        return f"{label}: {surface} -> {sspec['path']} (current)"
+    return f"{label}: {surface} -> {', '.join(changed)} (generated)"
 
 
 def _write_pointer_key(root, pointer, man, dry_run) -> str | None:

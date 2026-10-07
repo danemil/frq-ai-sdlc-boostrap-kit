@@ -154,6 +154,16 @@ class TestHarnessWiring(unittest.TestCase):
             copilot = json.loads((root / ".copilot/mcp-config.json").read_text())
             self.assertEqual(copilot["mcpServers"]["knowledge"]["type"], "local")
             self.assertFalse((root / ".github/skills").exists())
+            # Copilot: generated brief carries the onboarding gate + hard constraints
+            brief = (root / ".github/copilot-instructions.md").read_text()
+            self.assertIn("## 0. Startup", brief)
+            self.assertIn("## 3. Hard constraints", brief)
+            # .claude/rules -> .github/instructions with applyTo
+            adr = (root / ".github/instructions/adr-conventions.instructions.md").read_text()
+            self.assertIn("applyTo: 'docs/architecture/decisions/**'", adr)
+            # VS Code runs the kit's Claude hooks
+            vs = json.loads((root / ".vscode/settings.json").read_text())
+            self.assertIs(vs["chat.useClaudeHooks"], True)
 
     def test_wiring_does_not_overwrite_the_shipped_claude_pointer(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -206,6 +216,15 @@ class TestStandaloneSync(unittest.TestCase):
             self.assertEqual(self.sync(tmp, "--check").returncode, 0)
             self.assertIn("[mcp_servers.newthing]",
                           (Path(tmp) / ".codex/config.toml").read_text())
+            agents = Path(tmp) / "AGENTS.md"
+            agents.write_text(agents.read_text() + "\n", encoding="utf-8")
+            self.assertEqual(self.sync(tmp, "--check").returncode, 0,
+                             "trailing newline outside §0/§3 must not drift")
+            text = agents.read_text().replace("No fabrication", "No fabrication, ever")
+            agents.write_text(text, encoding="utf-8")
+            drifted = self.sync(tmp, "--check")
+            self.assertEqual(drifted.returncode, 1)
+            self.assertIn(".github/copilot-instructions.md", drifted.stderr)
 
     def test_sync_ships_with_the_project(self):
         with tempfile.TemporaryDirectory() as tmp:

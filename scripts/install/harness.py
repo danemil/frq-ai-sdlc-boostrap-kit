@@ -15,7 +15,7 @@ _TEMPLATE_HARNESS = Path(__file__).resolve().parents[2] / "template/scripts/harn
 sys.path.insert(0, str(_TEMPLATE_HARNESS))
 
 from sync import (  # noqa: E402,F401
-    POINTER_MD, POINTER_MDC, TABLE_REL,
-    check, detect, load_table, mcp_servers, pointer_text, probe,
-    to_codex_hooks, to_codex_toml, to_copilot_mcp, unconfigured,
+    COPILOT_FORMATS, POINTER_MD, POINTER_MDC, TABLE_REL,
+    check, detect, load_table, materialize, mcp_servers, orphan_instructions,
+    pointer_text, probe, to_codex_hooks, to_codex_toml, to_copilot_mcp, unconfigured,
 )
