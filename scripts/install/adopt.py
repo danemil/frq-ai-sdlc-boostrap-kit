@@ -12,6 +12,7 @@ a guess.
 
 Usage:
   install.sh --into <repo> [--profile minimal|standard|full] [--harness NAME ...]
+                           [--ci jenkins|github|none ...]
   install.sh --into <repo> --dry-run          # print the plan, change nothing
   install.sh --into <repo> --yes              # non-interactive: keep mine, write .kit-new
   install.sh --into <repo> --take-kit         # non-interactive: prefer the kit
@@ -242,6 +243,60 @@ def apply(root, actions, man, spec, resolver, dry_run=False) -> dict:
             report["merged"].append(rel + (f"  (kept yours: {', '.join(conflicts)})"
                                            if conflicts else ""))
     return report
+
+
+# --- CI gate choice --------------------------------------------------------
+
+JENKINSFILE = "ci/Jenkinsfile.ai-governance"
+JENKINS_NOTE = ("Jenkins: set the job's Script Path to ci/Jenkinsfile.ai-governance "
+                "(a Multibranch Pipeline looks for Jenkinsfile at the root by default)")
+
+
+def resolve_ci(flag, man, spec) -> list[str]:
+    """--ci beats the manifest's record, which beats the default (every gate)."""
+    if flag:
+        return [] if flag == ["none"] else sorted(set(flag))
+    if isinstance(man.get("ci"), list):   # a gate a later kit dropped is ignored
+        return [g for g in man["ci"] if g in planner.ci_gates(spec)]
+    return planner.ci_gates(spec)
+
+
+def ci_label(ci) -> str:
+    return ", ".join(ci) or "none"
+
+
+def drop_unselected_ci(root, template_root, spec, ci, man, dry_run=False) -> list[str]:
+    """Remove the kit's files of a gate that is no longer chosen — only if unedited.
+
+    The same rule as the Copilot orphan sweep: a managed file still byte-equal to what
+    the kit wrote (CLEAN) is deleted; an edited one (MODIFIED) is kept and becomes
+    yours, so it leaves the manifest and uninstall will not touch it. A gate file the
+    manifest never recorded was not written by the kit and is never touched.
+    """
+    root = Path(root)
+    notes = []
+    for rel in planner.unselected_ci_files(template_root, spec, ci):
+        if rel not in man.get("files", {}):
+            continue
+        st = manifest.state(root, man, rel)
+        if st == manifest.MODIFIED:
+            notes.append(f"{rel} (gate not chosen; kept your edits — it is yours now, "
+                         f"delete by hand if unwanted)")
+        elif st == manifest.CLEAN:
+            if not dry_run:
+                (root / rel).unlink()
+                _prune_empty_dirs(root, (root / rel).parent)
+            notes.append(f"{rel} ({'would remove' if dry_run else 'removed'}; gate not chosen)")
+        if not dry_run:
+            manifest.forget(man, rel)
+            man.get("deferred", {}).pop(rel, None)
+    return notes
+
+
+def _prune_empty_dirs(root: Path, directory: Path) -> None:
+    while directory != root and directory.is_dir() and not any(directory.iterdir()):
+        directory.rmdir()
+        directory = directory.parent
 
 
 # --- harness wiring --------------------------------------------------------
@@ -496,8 +551,13 @@ def doctor(root, table, spec) -> int:
     problems = 0
 
     print(paint(f"AI-SDLC doctor — {root}", "b"))
+    ci = resolve_ci(None, man, spec)
+    ci_note = "" if isinstance(man.get("ci"), list) else " (default)"
     print(paint(f"  kit {man.get('kit_version', '?')} · profile {man.get('profile', '-')} "
+                f"· ci {ci_label(ci)}{ci_note} "
                 f"· {len(man.get('files', {}))} managed files", "dim"))
+    if "jenkins" in ci:
+        print(paint(f"  {JENKINS_NOTE}", "dim"))
 
     print(f"\n{paint('Harnesses', 'b')}")
     detected = harness.detect(root, table)
@@ -689,6 +749,10 @@ def main(argv=None) -> int:
                     choices=["minimal", "standard", "full"])
     ap.add_argument("--harness", action="append", default=None,
                     help="harness to wire (repeatable); default: auto-detect")
+    ap.add_argument("--ci", action="append", default=None,
+                    choices=["jenkins", "github", "none"],
+                    help="CI gate to install (repeatable); default: the recorded "
+                         "choice, else all")
     ap.add_argument("--dry-run", action="store_true", help="print the plan, write nothing")
     ap.add_argument("--yes", action="store_true", help="non-interactive; keep yours on conflict")
     ap.add_argument("--take-kit", action="store_true", help="non-interactive; prefer the kit")
@@ -697,6 +761,8 @@ def main(argv=None) -> int:
     ap.add_argument("--name"), ap.add_argument("--slug")
     ap.add_argument("--desc"), ap.add_argument("--ticket"), ap.add_argument("--language")
     args = ap.parse_args(argv)
+    if args.ci and "none" in args.ci and len(set(args.ci)) > 1:
+        ap.error("--ci none cannot be combined with a gate")
 
     root = Path(args.into).resolve()
     if not root.is_dir():
@@ -721,16 +787,18 @@ def main(argv=None) -> int:
     profile = args.profile or man.get("profile") or "standard"
     project = load_project(root, args)
     names = args.harness or man.get("harnesses") or harness.detect(root, table)
+    ci = resolve_ci(args.ci, man, spec)
 
     print(paint(f"AI-SDLC kit {kit_version()} -> {root}", "b"))
-    print(paint(f"  profile {profile} · harnesses: {', '.join(names) or 'none detected'}", "dim"))
+    print(paint(f"  profile {profile} · ci {ci_label(ci)} · "
+                f"harnesses: {', '.join(names) or 'none detected'}", "dim"))
     if not (root / ".git").exists():
         print(paint("  note: not a git repo — the installer will not run git init for you.", "y"))
 
     actions = []
     if not args.sync:
         actions = planner.build(template_root, root, spec, profile, man,
-                                render=make_renderer(project))
+                                render=make_renderer(project), ci=ci)
         print_plan(actions)
         if args.dry_run:
             counts = planner.summarize(actions)
@@ -741,11 +809,20 @@ def main(argv=None) -> int:
 
     try:
         report = apply(root, actions, man, spec, resolver, dry_run=args.dry_run)
+        ci_notes = [] if args.sync else drop_unselected_ci(
+            root, template_root, spec, ci, man, dry_run=args.dry_run)
         notes = wire_harnesses(root, names, table, man, dry_run=args.dry_run,
                                resolver=resolver)
     except KeyboardInterrupt:
         print("\ninstall: aborted; nothing further written.")
         return 130
+
+    if ci_notes:
+        print(f"\n{paint('CI gate', 'b')}")
+        for note in ci_notes:
+            print(f"  {note}")
+    if JENKINSFILE in report.get("created", []):
+        print(paint(f"\n  {JENKINS_NOTE}", "dim"))
 
     print(f"\n{paint('Harness wiring', 'b')}")
     for note in notes:
@@ -764,6 +841,7 @@ def main(argv=None) -> int:
         man["kit_version"] = kit_version()
         man["profile"] = profile
         man["harnesses"] = names
+        man["ci"] = ci
         manifest.save(root, man)
         save_project(root, project)
 

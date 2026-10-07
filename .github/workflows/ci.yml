@@ -87,15 +87,21 @@ jobs:
   # then run the generated project's governance gate on a FRESH CLONE (what a client's
   # CI sees; before H1 the gate failed on every clone), check doctor's drift section,
   # and prove a re-run changes nothing. Plan: Task H6 in
-  # docs/roadmap/2026-10-07-phase-0-foundations-plan.md.
+  # docs/roadmap/2026-10-07-phase-0-foundations-plan.md. The extra `minimal, jenkins` leg
+  # installs only the Jenkins gate (`--ci jenkins`, Task H8); the profile legs install both.
   adopt-e2e:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         profile: [minimal, standard, full]
+        include:
+          - profile: minimal
+            ci: jenkins
     env:
       PROFILE: ${{ matrix.profile }}
+      # Empty on the profile legs. Not `CI`: Actions sets CI=true.
+      CI_GATE: ${{ matrix.ci }}
     defaults:
       run:
         shell: bash
@@ -118,7 +124,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/proj"
-          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli
+          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli \
+            ${CI_GATE:+--ci "$CI_GATE"}
+
+      - name: Only the chosen CI gate is installed (H8)
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/proj"
+          test -f ci/Jenkinsfile.ai-governance
+          if [ "$CI_GATE" = jenkins ]; then
+            test ! -e .github/workflows/ai-governance.yml
+          else
+            test -f .github/workflows/ai-governance.yml
+          fi
 
       - name: Commit the adoption; generated Copilot files are tracked (H1)
         run: |
@@ -150,6 +168,7 @@ jobs:
           printf '%s\n' "$out" | grep -A1 '^Generated-surface drift$' | tail -n1 | grep -q '^  none '
 
       - name: Fresh clone runs the generated GitHub workflow (.github/workflows/ai-governance.yml)
+        if: matrix.ci != 'jenkins'
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/clone"
@@ -168,6 +187,8 @@ jobs:
                   sys.exit(f"FAILED: {step['name']} (exit {rc})")
           EOF
 
+      # No --ci here: the choice recorded in the manifest must hold, so a re-added
+      # workflow on the jenkins leg would show up below (H8).
       - name: Re-running the installer changes nothing
         run: |
           set -euo pipefail

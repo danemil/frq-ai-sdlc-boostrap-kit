@@ -448,5 +448,94 @@ class TestInheritedDebt(unittest.TestCase):
             self.assertIn("Inherited doc debt", run("--into", tmp, "doctor").stdout)
 
 
+JENKINSFILE = "ci/Jenkinsfile.ai-governance"
+WORKFLOW = ".github/workflows/ai-governance.yml"
+
+
+class TestCiChoice(unittest.TestCase):
+    """--ci picks the governance gate: the Jenkinsfile, the GitHub workflow, both, or none."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.root = Path(self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def install(self, *extra):
+        return run("--into", self.tmp, "--profile", "minimal", "--yes",
+                   "--harness", "claude-code", *extra)
+
+    def gates(self):
+        return {rel for rel in (JENKINSFILE, WORKFLOW) if (self.root / rel).is_file()}
+
+    def recorded(self):
+        return json.loads((self.root / ".ai-sdlc/manifest.json").read_text())
+
+    def test_ci_jenkins_installs_only_the_jenkinsfile(self):
+        r = self.install("--ci", "jenkins")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {JENKINSFILE})
+
+    def test_ci_github_installs_only_the_workflow(self):
+        r = self.install("--ci", "github")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {WORKFLOW})
+
+    def test_ci_none_installs_neither(self):
+        r = self.install("--ci", "none")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), set())
+        self.assertEqual(self.recorded()["ci"], [])
+
+    def test_no_flag_installs_both(self):
+        r = self.install()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {JENKINSFILE, WORKFLOW})
+
+    def test_choice_persists_across_a_rerun(self):
+        self.install("--ci", "jenkins")
+        self.assertEqual(self.recorded()["ci"], ["jenkins"])
+        r = run("--into", self.tmp, "--yes")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {JENKINSFILE})
+        self.assertEqual(self.recorded()["ci"], ["jenkins"])
+
+    def test_switch_removes_the_clean_gate(self):
+        self.install("--ci", "jenkins")
+        r = self.install("--ci", "github")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {WORKFLOW})
+        self.assertFalse((self.root / "ci").exists(), "empty ci/ left behind")
+        self.assertNotIn(JENKINSFILE, self.recorded()["files"])
+
+    def test_switch_keeps_an_edited_gate(self):
+        self.install("--ci", "jenkins")
+        jf = self.root / JENKINSFILE
+        jf.write_text(jf.read_text() + "// our extra stage\n", encoding="utf-8")
+        r = self.install("--ci", "github")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.gates(), {JENKINSFILE, WORKFLOW})
+        self.assertIn("our extra stage", jf.read_text())
+        notes = [l for l in r.stdout.splitlines() if JENKINSFILE in l and "kept your edits" in l]
+        self.assertTrue(notes, r.stdout)
+        self.assertNotIn(JENKINSFILE, self.recorded()["files"])  # yours now; uninstall keeps it
+
+    def test_doctor_shows_the_choice(self):
+        self.install("--ci", "jenkins")
+        out = run("--into", self.tmp, "doctor").stdout
+        self.assertIn("ci jenkins", out)
+        self.assertIn("Script Path", out)
+
+    def test_unknown_ci_value_is_rejected(self):
+        r = self.install("--ci", "gitlab")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("argument --ci: invalid choice: 'gitlab'", r.stderr)
+        r = self.install("--ci", "none", "--ci", "jenkins")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("--ci none cannot be combined", r.stderr)
+        self.assertEqual(self.gates(), set())
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

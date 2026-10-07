@@ -106,5 +106,38 @@ class TestBuild(unittest.TestCase):
             self.assertNotIn(b"<PROJECT_NAME>", actions["AGENTS.md"].payload)
 
 
+JENKINSFILE = "ci/Jenkinsfile.ai-governance"
+WORKFLOW = ".github/workflows/ai-governance.yml"
+
+
+class TestCiGates(unittest.TestCase):
+    def setUp(self):
+        self.spec = plan.load_classes()
+        self.template = KIT / "template"
+
+    def gates(self, **kw):
+        files = plan.selected_files(self.template, self.spec, "minimal", **kw)
+        return {rel for rel in (JENKINSFILE, WORKFLOW) if rel in files}
+
+    def test_ci_gates_are_selected_by_choice(self):
+        self.assertEqual(self.gates(ci=["jenkins"]), {JENKINSFILE})
+        self.assertEqual(self.gates(ci=["github"]), {WORKFLOW})
+        self.assertEqual(self.gates(ci=[]), set())
+        self.assertEqual(self.gates(), {JENKINSFILE, WORKFLOW})
+
+    def test_unknown_ci_gate_raises(self):
+        with self.assertRaises(KeyError):
+            plan.ci_patterns(self.spec, ["gitlab"])
+
+    def test_github_workflow_runs_the_session_validators(self):
+        # Parity with the Jenkinsfile: each validator runs only when its manifest ships.
+        text = (self.template / WORKFLOW).read_text(encoding="utf-8")
+        for manifest_rel, validator in (
+                ("scripts/session/moments.json", "scripts/validate-moments.py"),
+                ("scripts/session/seat-profiles.json", "scripts/validate-seat-profiles.py")):
+            self.assertIn(f"[ ! -f {manifest_rel} ]", text)
+            self.assertIn(f"python3 {validator}", text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,7 @@
-// AI-governance gate for Jenkins — governance validators + harness drift gate; see .github/workflows/ai-governance.yml for the full set.
-// Use as a stage in your pipeline or as a standalone job on every PR.
+// AI-governance gate for Jenkins — governance validators + harness drift gate. The GitHub workflow
+// (.github/workflows/ai-governance.yml, installed with `install.sh --ci github`) also runs the unit tests.
+// Use as a stage in your pipeline or as a standalone job on every PR. A Multibranch Pipeline looks for
+// `Jenkinsfile` at the repo root by default: set the job's Script Path to ci/Jenkinsfile.ai-governance.
 // Requires python3 (3.10+) and pyyaml on the agent.
 pipeline {
   agent any

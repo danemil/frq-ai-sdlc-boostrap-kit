@@ -95,18 +95,43 @@ def template_files(template_root) -> list[str]:
     return sorted(rels)
 
 
-def selected_files(template_root, spec: dict, profile: str) -> list[str]:
-    patterns = profile_patterns(spec, profile)
+def ci_gates(spec: dict) -> list[str]:
+    """Every governance gate the kit can install (`install.sh --ci`)."""
+    return sorted(spec.get("ci", {}))
+
+
+def ci_patterns(spec: dict, ci=None) -> list[str]:
+    """Patterns of the chosen CI gates. None means every gate (the default)."""
+    gates = spec.get("ci", {})
+    out = []
+    for name in (ci_gates(spec) if ci is None else ci):
+        if name not in gates:
+            raise KeyError(f"unknown CI gate: {name}")
+        out.extend(gates[name])
+    return out
+
+
+def selected_files(template_root, spec: dict, profile: str, ci=None) -> list[str]:
+    patterns = profile_patterns(spec, profile) + ci_patterns(spec, ci)
+    return [rel for rel in template_files(template_root) if _matches(rel, patterns)]
+
+
+def unselected_ci_files(template_root, spec: dict, ci) -> list[str]:
+    """Template files that belong to a CI gate not in `ci`."""
+    dropped = [g for g in ci_gates(spec) if g not in ci]
+    if not dropped:
+        return []
+    patterns = ci_patterns(spec, dropped)
     return [rel for rel in template_files(template_root) if _matches(rel, patterns)]
 
 
 def build(template_root, target_root, spec: dict, profile: str,
-          man: dict, render=None) -> list[Action]:
+          man: dict, render=None, ci=None) -> list[Action]:
     """Decide an action for every selected template file. Reads only."""
     template_root, target_root = Path(template_root), Path(target_root)
     actions: list[Action] = []
 
-    for rel in selected_files(template_root, spec, profile):
+    for rel in selected_files(template_root, spec, profile, ci):
         cls = classify(rel, spec)
         kit_bytes = (template_root / rel).read_bytes()
         if render is not None:
