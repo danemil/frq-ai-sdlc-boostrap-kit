@@ -2398,6 +2398,82 @@ Expected: `ai-governance` and `adopt-e2e` for `minimal`, `standard` and `full` a
 
 ---
 
+### Task H8: choose the CI gate (`--ci jenkins|github|none`)
+
+FRQ hosts code on Bitbucket Data Center and runs CI on Jenkins; it uses neither GitHub Actions nor Bitbucket Pipelines. Today `minimal` (and so every profile) ships both `.github/workflows/ai-governance.yml` and `ci/Jenkinsfile.ai-governance`, so an FRQ repo gets a GitHub workflow that never runs. H8 adds an installer option so a project gets only the gate it uses.
+
+H8 also closes a parity gap found in H7: the Jenkinsfile runs `validate-moments.py` and `validate-seat-profiles.py` when their manifests exist, and the GitHub workflow does not run them at all.
+
+**Design choice: `--ci` is repeatable, with argparse `choices`.** `--ci jenkins`, `--ci github`, `--ci none`, or `--ci jenkins --ci github` for both. This matches `--harness`, which is already repeatable, and argparse rejects an unknown value with its standard `invalid choice` message and exit 2. A comma-separated form would need a custom parser for the same result. `none` cannot be combined with a gate.
+
+**Design choice: the gates are data, not profile entries.** `file-classes.json` gains a `"ci"` map, `{"github": [".github/workflows/ai-governance.yml"], "jenkins": ["ci/**"]}`, and both patterns leave the `minimal` list. `plan.selected_files()` and `plan.build()` take the chosen gates and add their patterns to the profile's. A new gate (for example GitLab) is one map entry plus its template file. `docs.yml` stays in `standard`: it is a docs link check, not the governance gate.
+
+**Default and persistence.** Without `--ci`, the installer uses the choice recorded in `.ai-sdlc/manifest.json` (`"ci": ["jenkins"]`; `[]` for `none`). With no record either (a fresh install, or a repo adopted before H8), it installs every gate in the map, which is today's behaviour. The choice is written to the manifest on every non-dry run, so an upgrade without `--ci` keeps it.
+
+**Design choice: dropping a gate reuses the H4 orphan rule.** The installer has no general mechanism for files dropped from a selection: a profile downgrade leaves them in place. The one safe removal it has is the H4 orphan sweep for Copilot instructions, which removes a managed file only while it is unedited. H8 applies the same rule to every managed file of an unselected gate, on each run. `manifest.state()` CLEAN: delete it, drop it from the manifest, and remove the directory if it is now empty. MISSING: drop it from the manifest. MODIFIED: keep it, drop it from the manifest (it is now yours, so `uninstall` leaves it), and print a note. A gate file the manifest never recorded is never touched. `--dry-run` prints what it would remove and removes nothing.
+
+**Doctor** prints the choice in its header line (`… · profile minimal · ci jenkins · …`), with `(default)` when the manifest has no record. When Jenkins is chosen it adds a note on the Script Path (below). Pre-commit is unchanged: its hooks are the same on every CI choice.
+
+**Jenkins setup.** A Multibranch Pipeline looks for `Jenkinsfile` at the repository root by default. Set the job's **Build Configuration → Script Path** to `ci/Jenkinsfile.ai-governance`, or call the stage from your existing root `Jenkinsfile`.
+
+**Files:**
+- Modify: `scripts/install/file-classes.json` (new `ci` map; CI paths out of `minimal`)
+- Modify: `scripts/install/plan.py` (`ci_patterns()`, `ci` argument to `selected_files()` and `build()`, `unselected_ci_files()`)
+- Modify: `scripts/install/adopt.py` (`--ci`, choice resolution, gate removal, manifest record, doctor)
+- Modify: `template/.github/workflows/ai-governance.yml` (two guarded session validators)
+- Modify: `template/ci/Jenkinsfile.ai-governance` (header comment: `--ci github`, Script Path)
+- Modify: `scripts/install/tests/test_plan.py`, `scripts/install/tests/test_adopt.py`
+- Modify: `.github/workflows/ci.yml` (`adopt-e2e`: a `minimal` + `jenkins` leg)
+- Modify: `README.md` (Useful flags; Jenkins note), `CHANGELOG.md` (Unreleased, Added)
+
+**Step 1: Failing tests.**
+
+`test_plan.py`, new class `TestCiGates`:
+- `test_ci_gates_are_selected_by_choice`: `selected_files(..., "minimal", ci=…)` contains only the Jenkinsfile for `["jenkins"]`, only the workflow for `["github"]`, neither for `[]`, and both when `ci` is omitted.
+- `test_unknown_ci_gate_raises`: `ci_patterns(spec, ["gitlab"])` raises `KeyError`.
+- `test_github_workflow_runs_the_session_validators`: the template workflow runs `validate-moments.py` and `validate-seat-profiles.py`, each guarded on its manifest (`[ ! -f scripts/session/moments.json ]`, `[ ! -f scripts/session/seat-profiles.json ]`).
+
+`test_adopt.py`, new class `TestCiChoice` (all on `minimal`, `--harness claude-code`):
+- `--ci jenkins` installs `ci/Jenkinsfile.ai-governance` and not `.github/workflows/ai-governance.yml`; `--ci github` is the reverse; `--ci none` installs neither; no flag installs both.
+- the choice is recorded (`"ci": ["jenkins"]`) and a re-run without `--ci` keeps it;
+- switching `jenkins` → `github` removes the clean Jenkinsfile (and the empty `ci/`), adds the workflow, and forgets the Jenkinsfile in the manifest;
+- switching keeps an edited Jenkinsfile and prints a note naming it;
+- `doctor` prints `ci jenkins`;
+- `--ci gitlab` and `--ci none --ci jenkins` exit 2.
+
+Run both files. Expected: `test_plan` fails the three new tests (`TypeError: selected_files() got an unexpected keyword argument 'ci'`, `AttributeError: module 'plan' has no attribute 'ci_patterns'`, and an `AssertionError` on the missing validator), and `test_adopt` fails eight of the nine new tests. argparse does not know `--ci` yet, so it reads the value as the positional command (`argument command: invalid choice: 'jenkins'`, exit 2). `test_no_flag_installs_both` already passes: it pins today's behaviour as the default.
+
+**Step 2: Implementation.**
+- `file-classes.json`: add the `ci` map; remove `.github/workflows/ai-governance.yml` and `ci/**` from `minimal`.
+- `plan.py`: `ci_patterns(spec, ci)` returns the patterns of the chosen gates (all gates when `ci is None`; `KeyError` on an unknown one). `selected_files()` and `build()` take `ci=None` and add those patterns. `unselected_ci_files(template_root, spec, ci)` lists the template files of the gates not chosen.
+- `adopt.py`: `--ci` (`action="append"`, `choices=["jenkins", "github", "none"]`); resolve flag → manifest → all gates; pass it to `planner.build()`; after `apply()`, run `drop_unselected_ci()` with the rule above; save `man["ci"]`; print the choice in the install header and in `doctor`.
+- `ai-governance.yml`: after the frontmatter step, two steps that skip with `skipped: … not installed` when `scripts/session/moments.json` or `scripts/session/seat-profiles.json` is absent, and otherwise run the validator.
+
+**Step 3: CI coverage.** In `adopt-e2e`, add a matrix key `ci: [default]` and one leg with `include: [{profile: minimal, ci: jenkins}]`, exported as `CI_GATE` (empty for `default`; not `CI`, which Actions sets to `true`). The `ci` key must be in the base matrix: an `include` entry that only adds a new key is merged into the matching `minimal` leg instead of adding a job, which silently turns the default `minimal` leg into the Jenkins one. The adopt step passes `--ci "$CI_GATE"` when it is set. A new step asserts the gate files: on the `jenkins` leg the Jenkinsfile is present and the workflow absent; on the three profile legs both are present. The GitHub-workflow step gets `if: matrix.ci != 'jenkins'`. The re-run step passes no `--ci`, so it also proves the choice persists: a re-added workflow would show in `git status`.
+
+**Step 4: Verify.** The six-test loop: `test_adopt` 38, `test_plan` 14, the rest unchanged (`test_harness` 13, `test_harness_copilot` 29, `test_manifest` 9, `test_merge` 19). Run Task H6 Step 2's loop for the `minimal` + `jenkins` leg (`CI_GATE=jenkins`, skipping the step whose `if:` excludes it) and for `minimal`. Expected: `E2E-OK` for both. Task 12 Step 1 still finds 40 commands and prints `ALL-GREEN`, since all changes to `ci.yml` sit in `adopt-e2e`.
+
+**Step 5: Commit, push, open a draft PR, watch the run.**
+
+```bash
+git add scripts/install/{adopt.py,plan.py,file-classes.json} \
+        scripts/install/tests/{test_adopt.py,test_plan.py} \
+        template/.github/workflows/ai-governance.yml template/ci/Jenkinsfile.ai-governance \
+        .github/workflows/ci.yml \
+        README.md CHANGELOG.md docs/roadmap/2026-10-07-phase-0-foundations-plan.md
+git commit -F - <<'EOF'
+feat(install): choose the CI gate with --ci jenkins|github|none
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+EOF
+git push -u origin feat/install-ci-choice
+gh pr create --draft --base main
+gh run watch <id> --exit-status
+```
+Expected: `ai-governance` and the four `adopt-e2e` legs (`minimal, default`, `standard, default`, `full, default`, `minimal, jenkins`) all succeed.
+
+---
+
 ### Task 12: Full verification and phase close-out
 
 **Step 1: Run the whole kit CI locally**, copying every `run:` line of the `ai-governance` job in `.github/workflows/ci.yml`. The `sed` range stops at `adopt-e2e` (Task H6), whose `python3 scripts/…` lines run inside a generated clone and fail from the kit root:

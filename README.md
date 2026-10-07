@@ -64,9 +64,19 @@ Look before you leap, and verify afterwards:
 ./install.sh --into ../my-repo uninstall    # remove kit-owned files; yours stay
 ```
 
-Useful flags: `--profile minimal|standard|full` (a small repo should not inherit a dashboard it will never run), `--yes` / `--take-kit` for CI, `--sync` to regenerate derived harness files only, `--harness NAME` to override detection.
+Useful flags: `--profile minimal|standard|full` (a small repo should not inherit a dashboard it will never run), `--yes` / `--take-kit` for CI, `--sync` to regenerate derived harness files only, `--harness NAME` to override detection, `--ci jenkins|github|none` to install only the CI governance gate you run (repeatable; `--ci jenkins --ci github` installs both). Without `--ci`, a re-run keeps the choice recorded in `.ai-sdlc/manifest.json`, and a first install ships both gates. Switching gates removes the old gate's file only if you never edited it; an edited one is kept, and the installer tells you.
 
 Then open the repo in your harness — it runs `ONBOARDING.md` to create your per-user `USER.md`, and you fill the remaining placeholders (`AGENTS.md` §1 mission, §3 constraints, §4 connectors). `doctor` lists exactly which are left.
+
+### Using Jenkins (e.g. with Bitbucket Data Center)
+
+If your CI is Jenkins rather than GitHub Actions, install only the Jenkins gate, so the repo does not carry a GitHub workflow that never runs:
+
+```bash
+./install.sh --into ../my-repo --profile standard --ci jenkins
+```
+
+This writes `ci/Jenkinsfile.ai-governance`. A Multibranch Pipeline looks for `Jenkinsfile` at the repository root by default, so set the job's **Build Configuration → Script Path** to `ci/Jenkinsfile.ai-governance`, or call its stage from your existing root `Jenkinsfile`. The agent needs `python3` 3.10+; the stage installs `pyyaml` itself. `doctor` shows the recorded choice.
 
 ### One brief, every tool
 
