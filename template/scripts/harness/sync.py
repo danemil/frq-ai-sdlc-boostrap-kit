@@ -398,6 +398,7 @@ def derived_surfaces(root, table, harnesses):
 
 def check(root, table, harnesses) -> list[str]:
     root = Path(root)
+    deferred = _deferred(root)
     problems = []
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
         path = root / rel
@@ -415,7 +416,7 @@ def check(root, table, harnesses) -> list[str]:
             continue
         have = path.read_text(encoding="utf-8")
         if mode == "whole-file" and have != want:
-            problems.append(f"{rel} differs from its source")
+            problems.append(_kept(rel) if rel in deferred else f"{rel} differs from its source")
         elif mode == "block":
             block = merge.extract_block(have)
             if block is None or want.strip() not in block:
@@ -427,11 +428,16 @@ def check(root, table, harnesses) -> list[str]:
     return problems
 
 
-def write(root, table, harnesses) -> list[str]:
+def write(root, table, harnesses, errors: list | None = None) -> list[str]:
     root = Path(root)
+    deferred = _deferred(root)
     written = []
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
         path = root / rel
+        if rel in deferred and path.is_file() and path.read_text(encoding="utf-8") != want:
+            if errors is not None:
+                errors.append(_kept(rel))         # never overwrite a file you kept
+            continue
         path.parent.mkdir(parents=True, exist_ok=True)
         have = path.read_text(encoding="utf-8") if path.is_file() else ""
         out = merge.merge_toml_block(have, want) if mode == "block" else want
@@ -457,6 +463,21 @@ def installed_harnesses(root) -> list[str]:
     return []
 
 
+def _deferred(root) -> dict:
+    """Generated files the operator kept at install time (manifest `deferred`)."""
+    man = Path(root) / ".ai-sdlc/manifest.json"
+    try:
+        data = json.loads(man.read_text(encoding="utf-8")) if man.is_file() else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+    return (data.get("deferred") or {}) if isinstance(data, dict) else {}
+
+
+def _kept(rel) -> str:
+    return (f"{rel} is your file (kit copy in {rel}.kit-new) — merge it into its source, "
+            f"delete it, then run {REGENERATE}")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -476,9 +497,12 @@ def main(argv=None) -> int:
         return 0
 
     if args.write:
-        for rel in write(root, table, harnesses):
+        errors = []
+        for rel in write(root, table, harnesses, errors):
             print(f"regenerated {rel}")
-        return 0
+        for line in errors:
+            print(f"not regenerated: {line}", file=sys.stderr)
+        return 1 if errors else 0
 
     problems = check(root, table, harnesses)
     for line in problems:

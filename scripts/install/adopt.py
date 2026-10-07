@@ -246,9 +246,10 @@ def apply(root, actions, man, spec, resolver, dry_run=False) -> dict:
 
 # --- harness wiring --------------------------------------------------------
 
-def wire_harnesses(root, names, table, man, dry_run=False) -> list[str]:
+def wire_harnesses(root, names, table, man, dry_run=False, resolver=None) -> list[str]:
     """Write each harness's surface from the canonical artefacts."""
     root = Path(root)
+    resolver = resolver or Resolver("keep")
     notes: list[str] = []
     mcp = {}
     mcp_path = root / ".mcp.json"
@@ -303,7 +304,8 @@ def wire_harnesses(root, names, table, man, dry_run=False) -> list[str]:
                 continue
 
             if kind == "generated":
-                note = _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run)
+                note = _generate(root, rel, sspec, mcp, settings, surface, label, man,
+                                 dry_run, resolver)
                 if note:
                     notes.append(note)
 
@@ -336,9 +338,10 @@ def _symlink(root, rel, to, label, surface, dry_run) -> str:
     return f"{label}: {surface} -> {rel} -> {want}"
 
 
-def _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run) -> str | None:
+def _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run,
+              resolver) -> str | None:
     if sspec.get("format") in harness.COPILOT_FORMATS:
-        return _generate_copilot(root, sspec, surface, label, man, dry_run)
+        return _generate_copilot(root, sspec, surface, label, man, dry_run, resolver)
     fmt = sspec.get("format")
     path = root / rel
 
@@ -382,30 +385,58 @@ def _generate(root, rel, sspec, mcp, settings, surface, label, man, dry_run) -> 
     return f"{label}: {surface} -> {rel} (generated{suffix})"
 
 
-def _generate_copilot(root, sspec, surface, label, man, dry_run) -> str:
-    """Write the Copilot surfaces sync.py renders. One generator, two callers."""
+def _generate_copilot(root, sspec, surface, label, man, dry_run, resolver) -> str:
+    """Write the Copilot surfaces sync.py renders. One generator, two callers.
+
+    Own-class files follow the planner's contract: a file you wrote before adopting
+    (FOREIGN) or a generated file you edited (MODIFIED) is a conflict for the
+    Resolver. Keeping yours writes the kit's copy to <rel>.kit-new, since a generated
+    file has no template to diff against, and defers it until that copy changes.
+    Merge-class files (the VS Code switch) stay a key-union where your values win.
+    """
     classes = {"own": planner.CLASS_OWN, "merge": planner.CLASS_MERGE}
     try:
         files = harness.materialize(root, sspec)
     except ValueError as exc:          # e.g. AGENTS.md lacks a required section
         return f"{label}: {surface} -> {sspec['path']} FAILED ({exc})"
-    changed = []
+    deferred = man.setdefault("deferred", {})
+    changed, kept = [], []
     for rel, text, cls in files:
         blob = text.encode("utf-8")
-        if manifest.state(root, man, rel, blob) == manifest.IDENTICAL:
+        st = manifest.state(root, man, rel, blob)
+        if st == manifest.IDENTICAL:
+            if rel in deferred and not dry_run:   # you handed it back: kit-owned again
+                deferred.pop(rel)
+                manifest.record(man, rel, classes[cls], blob)
             continue
+        if deferred.get(rel) == manifest.sha256_bytes(blob):
+            continue
+        if cls == "own" and st in (manifest.FOREIGN, manifest.MODIFIED):
+            action = planner.Action(rel, classes[cls], planner.CONFLICT, st, blob)
+            if resolver.resolve(action, root, None) != "take":
+                if not dry_run:
+                    write_file(root, rel + ".kit-new", blob)
+                    deferred[rel] = manifest.sha256_bytes(blob)
+                kept.append(rel)
+                continue
         if not dry_run:
             write_file(root, rel, blob)
             manifest.record(man, rel, classes[cls], blob)
+            deferred.pop(rel, None)
         changed.append(rel)
     if sspec.get("format") == "copilot-instructions":
         for orphan in harness.orphan_instructions(root, sspec, {r for r, _, _ in files}):
             if not dry_run:
                 (Path(root) / orphan).unlink()
             changed.append(f"{orphan} (removed)")
-    if not changed:
+    notes = []
+    if changed:
+        notes.append(f"{', '.join(changed)} (generated)")
+    if kept:
+        notes.append(f"{', '.join(kept)} (kept yours; kit's copy in .kit-new)")
+    if not notes:
         return f"{label}: {surface} -> {sspec['path']} (current)"
-    return f"{label}: {surface} -> {', '.join(changed)} (generated)"
+    return f"{label}: {surface} -> {'; '.join(notes)}"
 
 
 def _write_pointer_key(root, pointer, man, dry_run) -> str | None:
@@ -718,11 +749,12 @@ def main(argv=None) -> int:
 
     try:
         report = apply(root, actions, man, spec, resolver, dry_run=args.dry_run)
+        notes = wire_harnesses(root, names, table, man, dry_run=args.dry_run,
+                               resolver=resolver)
     except KeyboardInterrupt:
         print("\ninstall: aborted; nothing further written.")
         return 130
 
-    notes = wire_harnesses(root, names, table, man, dry_run=args.dry_run)
     print(f"\n{paint('Harness wiring', 'b')}")
     for note in notes:
         print(f"  {note}")

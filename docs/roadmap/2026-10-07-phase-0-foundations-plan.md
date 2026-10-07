@@ -2252,5 +2252,6 @@ Minor items deferred by the Task 12 code review (2026-10-07). Each one is known 
 - **"Take" on a pre-existing file records it as kit-owned, so `uninstall` deletes it.** This applies to template files through `apply()` and to generated Copilot files through H2. It needs a `preexisting` flag on the manifest entry.
 - **`uninstall` deletes MODIFIED own-class files**, so an operator's edits to a kit-owned file are lost on uninstall.
 - **`uninstall` leaves `.kit-new` sidecars behind.** They are never recorded in the manifest.
+- **False conflict after `sync --write`**: `sync --write` rewrites generated files without updating the install manifest hash, so a later `install` (after another source change) can treat the brief as user-edited and defer it with a `.kit-new`. Fix: have `sync --write` refresh the manifest hash of files it rewrites. The pre-commit drift gate makes this unlikely.
 - **`sync.py --write`'s orphan sweep relies on the header alone.** Unlike the installer after H4, it does not check the manifest hash, so an edited orphan is still removed by `--write`.
 - **The session-hook tests (`test_session*`) append to the real `template/scripts/session/.usage-errors.log`**, the relative `errlog` path in `collect-usage.sh`. The file is gitignored but grows in the kit checkout. The tests should run the hook from a temp dir.

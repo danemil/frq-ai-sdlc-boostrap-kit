@@ -227,5 +227,37 @@ class TestGitIgnoredSettings(unittest.TestCase):
                       sync.check(self.root, self.table, ["copilot-cli"]))
 
 
+class TestDeferred(unittest.TestCase):
+    """A generated file the operator kept at install time is never overwritten by sync."""
+
+    REL = ".github/copilot-instructions.md"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = repo(self.tmp.name)
+        self.table = sync.load_table()
+        (self.root / ".ai-sdlc").mkdir()
+        (self.root / ".ai-sdlc/manifest.json").write_text(json.dumps(
+            {"harnesses": ["copilot-cli"], "deferred": {self.REL: "0" * 64}}), encoding="utf-8")
+        (self.root / ".github").mkdir()
+        (self.root / self.REL).write_text("mine\n", encoding="utf-8")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_check_says_how_to_hand_the_file_back(self):
+        self.assertIn(f"{self.REL} is your file (kit copy in {self.REL}.kit-new) — merge it"
+                      f" into its source, delete it, then run {sync.REGENERATE}",
+                      sync.check(self.root, self.table, ["copilot-cli"]))
+
+    def test_write_skips_a_kept_file_and_regenerates_a_deleted_one(self):
+        errors = []
+        self.assertNotIn(self.REL, sync.write(self.root, self.table, ["copilot-cli"], errors))
+        self.assertEqual((self.root / self.REL).read_text(), "mine\n")
+        self.assertEqual(len(errors), 1)
+        (self.root / self.REL).unlink()                      # handed back to the kit
+        self.assertIn(self.REL, sync.write(self.root, self.table, ["copilot-cli"], []))
+
+
 if __name__ == "__main__":
     unittest.main()

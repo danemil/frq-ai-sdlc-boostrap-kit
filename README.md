@@ -72,14 +72,15 @@ Then open the repo in your harness — it runs `ONBOARDING.md` to create your pe
 
 `AGENTS.md`, `.claude/skills/` and `.mcp.json` are canonical; every other harness surface is derived from them, and `scripts/harness/sync.py --check` fails CI if a copy drifts.
 
-| | Claude Code | Codex CLI | Copilot CLI | Cursor · Gemini · Windsurf · opencode |
+| | Claude Code | Codex CLI | GitHub Copilot (CLI · VS Code · IntelliJ) | Cursor · Gemini · Windsurf · opencode |
 |---|---|---|---|---|
-| Brief | `CLAUDE.md` pointer | reads `AGENTS.md` natively | reads `AGENTS.md` natively | pointer files |
+| Brief | `CLAUDE.md` pointer | reads `AGENTS.md` natively | reads `AGENTS.md` natively (CLI, VS Code); generated `.github/copilot-instructions.md` with §0 + §3 inlined (IntelliJ) | pointer files |
+| Rules | `.claude/rules/` | — | generated `.github/instructions/*.instructions.md` (`paths:` → `applyTo:`) | — |
 | Skills | `.claude/skills/` | symlinked | **reads `.claude/skills/` natively** | — |
 | MCP | `.mcp.json` | generated TOML block | generated `.copilot/mcp-config.json` | merged |
-| Hooks | `.claude/settings.json` | generated `.codex/hooks.json` | *none — ritual stays manual* | — |
+| Hooks | `.claude/settings.json` | generated `.codex/hooks.json` | `.claude/settings.json` natively (CLI, interactive); `chat.useClaudeHooks` in `.vscode/settings.json` (VS Code); none in IntelliJ, where the brief says to run `scripts/session/start.sh` | — |
 
-Because Copilot CLI discovers `.claude/skills/` and both Codex and Copilot read `AGENTS.md` natively, three harnesses run off one brief and one skills tree with no duplicated files at all.
+Because Copilot discovers `.claude/skills/` and both Codex and Copilot read `AGENTS.md` natively, three harnesses run off one brief and one skills tree. The only copies are Copilot's generated brief and path instructions; `sync.py --check` keeps them in step, and the installer never overwrites one you wrote or edited (see below).
 
 > **Upgrading from `bootstrap.sh`?** That script only ever handled a *strictly empty*
 > target: it `tar`-extracted over whatever was there and ran `git init && git add -A`,
@@ -90,7 +91,7 @@ Because Copilot CLI discovers `.claude/skills/` and both Codex and Copilot read 
 
 The kit is versioned with SemVer (`VERSION`, history in [`CHANGELOG.md`](./CHANGELOG.md)). The installer records the version in each adopting repo's `.ai-sdlc/manifest.json`, and `./install.sh doctor --into <repo>` shows it.
 
-To upgrade a repo, run `./install.sh --into <repo> --dry-run` from the newer kit, review the plan, then run it without `--dry-run`. Files the kit owns and you never edited are replaced. Files you changed are flagged as conflicts: keep yours, take the kit's, or write the kit's copy alongside as `.kit-new` (press `d` to see the diff). With `--yes`, your version is kept. Nothing is overwritten silently.
+To upgrade a repo, run `./install.sh --into <repo> --dry-run` from the newer kit, review the plan, then run it without `--dry-run`. Files the kit owns and you never edited are replaced. Files you changed are flagged as conflicts: keep yours, take the kit's, or write the kit's copy alongside as `.kit-new` (press `d` to see the diff). With `--yes`, your version is kept. The generated Copilot files (`.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`) follow the same rule, including a file you had before adopting the kit. They have no template to compare against, so keeping yours always writes the kit's copy as `.kit-new`. The drift gate (`sync.py --check`) keeps failing on a kept file, and `--write` never overwrites it. To hand it back, fold what you need into its source (`AGENTS.md` or `.claude/rules/`), delete your file, and run `python3 scripts/harness/sync.py --write`. Nothing is overwritten silently.
 
 ## Verify the template locally
 
