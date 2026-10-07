@@ -154,6 +154,11 @@ Copilot already reads most of the kit unchanged. VS Code Chat and Copilot CLI re
 
 Prior art: the unmerged `feat/brownfield-installer` branch has a data-driven harness adapter (`harnesses.json`, `sync.py --check` drift gate). Its Copilot row is stale ("no hooks") and it has no Copilot Chat row. Recommended direction (decided in §4): **keep the Claude Code sources canonical and generate the Copilot files from them**, applying CLI-first only to the knowledge and connector layer.
 
+**Verified on the FRQ VM (2026-10-07, Copilot CLI 1.0.91, VS Code 1.138.0; IntelliJ IDEA 2026.2.3 + Copilot plugin 1.18.0 not tested):** 1 ✅ interactive / ❌ `copilot -p` · 2 ✅ · 3 ⏸ · 4 ⏸ · 5 ⏸
+- Copilot CLI also loads `.github/copilot-instructions.md` (the brief is read alongside AGENTS.md).
+- Org Copilot policy disables third-party MCP servers.
+- Checks 3–5 to be run in Task 12 step 2 before Phase 0 closes.
+
 ## 4. Onboarding enhancements
 
 ### 4.0 Baseline v1 flow (FRQ: Ubuntu VM, Copilot, no MCP)
