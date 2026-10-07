@@ -189,6 +189,32 @@ def orphan_instructions(root, spec: dict, wanted: dict) -> list[str]:
     return orphans
 
 
+VSCODE_HOOKS_KEY = "chat.useClaudeHooks"
+
+
+def render_vscode_settings(existing_text: str) -> str:
+    """Union the kit's one key into .vscode/settings.json. Operator values win.
+
+    VS Code settings are often JSONC (comments). We never rewrite a file we cannot
+    parse; `check` reports it and the operator sets the key by hand.
+    """
+    try:
+        text, _ = merge.merge_json(existing_text, json.dumps({VSCODE_HOOKS_KEY: True}))
+    except ValueError:
+        return existing_text
+    return text
+
+
+def vscode_hooks_state(text: str) -> str:
+    try:
+        data = json.loads(text) if text.strip() else {}
+    except json.JSONDecodeError:
+        return "unparseable"
+    if VSCODE_HOOKS_KEY not in data:
+        return "missing"
+    return "ok" if data[VSCODE_HOOKS_KEY] is True else "disabled"
+
+
 # --- MCP translation -------------------------------------------------------
 
 PLACEHOLDER = re.compile(r"<[A-Z][A-Z_/]{2,}>")

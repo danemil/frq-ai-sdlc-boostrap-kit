@@ -122,5 +122,27 @@ class TestInstructions(unittest.TestCase):
                              [".github/instructions/gone.instructions.md"])
 
 
+class TestVscode(unittest.TestCase):
+    def test_adds_the_switch_and_keeps_existing_settings(self):
+        out = sync.render_vscode_settings('{"editor.tabSize": 2}')
+        data = json.loads(out)
+        self.assertIs(data["chat.useClaudeHooks"], True)
+        self.assertEqual(data["editor.tabSize"], 2)
+
+    def test_operator_false_wins(self):
+        out = sync.render_vscode_settings('{"chat.useClaudeHooks": false}')
+        self.assertIs(json.loads(out)["chat.useClaudeHooks"], False)
+
+    def test_jsonc_is_left_untouched(self):
+        jsonc = '{\n  // my comment\n  "a": 1\n}\n'
+        self.assertEqual(sync.render_vscode_settings(jsonc), jsonc)
+
+    def test_state(self):
+        self.assertEqual(sync.vscode_hooks_state('{"chat.useClaudeHooks": true}'), "ok")
+        self.assertEqual(sync.vscode_hooks_state('{}'), "missing")
+        self.assertEqual(sync.vscode_hooks_state('{"chat.useClaudeHooks": false}'), "disabled")
+        self.assertEqual(sync.vscode_hooks_state('{ // c\n}'), "unparseable")
+
+
 if __name__ == "__main__":
     unittest.main()
