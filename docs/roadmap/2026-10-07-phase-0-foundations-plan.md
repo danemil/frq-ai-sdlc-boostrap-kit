@@ -625,7 +625,7 @@ Expected: FAIL. `check` only knows MCP surfaces, so `copilot-instructions.md` is
 
 **Step 3: Implement.** In `sync.py`:
 
-(a) Add `materialize` after the Copilot renderers:
+(a) Add `materialize` and `_instruction_specs` after the Copilot renderers:
 
 ```python
 COPILOT_FORMATS = ("copilot-brief", "copilot-instructions", "vscode-claude-hooks")
@@ -644,6 +644,14 @@ def materialize(root, sspec: dict) -> list[tuple[str, str, str]]:
         have = path.read_text(encoding="utf-8") if path.is_file() else ""
         return [(sspec["path"], render_vscode_settings(have), "merge")]
     return []
+
+
+def _instruction_specs(table, harnesses):
+    """The generated copilot-instructions spec of each harness, found even when no rules exist."""
+    for name in harnesses:
+        rspec = (table.get(name) or {}).get("rules") or {}
+        if rspec.get("kind") == "generated" and rspec.get("format") == "copilot-instructions":
+            yield rspec
 ```
 
 (b) Replace `derived_surfaces`, `check` and `write` entirely with:
@@ -680,10 +688,8 @@ def derived_surfaces(root, table, harnesses):
 
 def check(root, table, harnesses) -> list[str]:
     root = Path(root)
-    problems, wanted_rules = [], {}
+    problems = []
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
-        if sspec.get("format") == "copilot-instructions":
-            wanted_rules.setdefault(id(sspec), (sspec, set()))[1].add(rel)
         path = root / rel
         if mode == "json-key":
             state = vscode_hooks_state(path.read_text(encoding="utf-8") if path.is_file() else "")
@@ -702,18 +708,17 @@ def check(root, table, harnesses) -> list[str]:
             block = merge.extract_block(have)
             if block is None or want.strip() not in block:
                 problems.append(f"{rel} block differs from .mcp.json")
-    for sspec, rels in wanted_rules.values():
-        for orphan in orphan_instructions(root, sspec, rels):
+    for rspec in _instruction_specs(table, harnesses):
+        wanted = set(render_copilot_instructions(root, rspec))
+        for orphan in orphan_instructions(root, rspec, wanted):
             problems.append(f"{orphan} is an orphan")
     return problems
 
 
 def write(root, table, harnesses) -> list[str]:
     root = Path(root)
-    written, wanted_rules = [], {}
+    written = []
     for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
-        if sspec.get("format") == "copilot-instructions":
-            wanted_rules.setdefault(id(sspec), (sspec, set()))[1].add(rel)
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         have = path.read_text(encoding="utf-8") if path.is_file() else ""
@@ -721,8 +726,9 @@ def write(root, table, harnesses) -> list[str]:
         if out != have:
             path.write_text(out, encoding="utf-8")
             written.append(rel)
-    for sspec, rels in wanted_rules.values():
-        for orphan in orphan_instructions(root, sspec, rels):
+    for rspec in _instruction_specs(table, harnesses):
+        wanted = set(render_copilot_instructions(root, rspec))
+        for orphan in orphan_instructions(root, rspec, wanted):
             (root / orphan).unlink()
             written.append(f"{orphan} (removed)")
     return written
@@ -738,7 +744,7 @@ and the drift hint to:
         print(f"\nRegenerate with: {REGENERATE}", file=sys.stderr)
 ```
 
-Note: a rules directory with **zero** rules yields no `copilot-instructions` entries, so its orphans are not swept. That is acceptable for this phase, and the kit always ships rules.
+Orphans are swept per harness `rules` spec, so deleting the last rule still removes its generated file (decided at the Task 7 checkpoint).
 
 **Step 4: Run all harness tests**
 

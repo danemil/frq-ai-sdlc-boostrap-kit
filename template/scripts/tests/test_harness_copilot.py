@@ -144,5 +144,53 @@ class TestVscode(unittest.TestCase):
         self.assertEqual(sync.vscode_hooks_state('{ // c\n}'), "unparseable")
 
 
+class TestCheckWrite(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = repo(self.tmp.name)
+        (self.root / ".claude/rules").mkdir(parents=True)
+        (self.root / ".claude/rules/adr.md").write_text(
+            '---\npaths:\n  - "docs/adr/**"\n---\n# ADR\n', encoding="utf-8")
+        self.table = sync.load_table()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_fresh_repo_drifts_then_write_fixes_it(self):
+        problems = sync.check(self.root, self.table, ["copilot-cli"])
+        self.assertTrue(any("copilot-instructions.md" in p for p in problems))
+        written = sync.write(self.root, self.table, ["copilot-cli"])
+        self.assertIn(".github/copilot-instructions.md", written)
+        self.assertIn(".github/instructions/adr.instructions.md", written)
+        self.assertIn(".vscode/settings.json", written)
+        self.assertEqual([p for p in sync.check(self.root, self.table, ["copilot-cli"])
+                          if "mcp" not in p], [])
+
+    def test_editing_agents_md_is_drift(self):
+        sync.write(self.root, self.table, ["copilot-cli"])
+        agents = self.root / "AGENTS.md"
+        agents.write_text(agents.read_text().replace("No secrets", "No secrets, ever"),
+                          encoding="utf-8")
+        problems = sync.check(self.root, self.table, ["copilot-cli"])
+        self.assertIn(".github/copilot-instructions.md differs from its source", problems)
+
+    def test_deleted_rule_leaves_an_orphan_that_write_removes(self):
+        sync.write(self.root, self.table, ["copilot-cli"])
+        (self.root / ".claude/rules/adr.md").unlink()
+        self.assertIn(".github/instructions/adr.instructions.md is an orphan",
+                      sync.check(self.root, self.table, ["copilot-cli"]))
+        sync.write(self.root, self.table, ["copilot-cli"])
+        self.assertFalse((self.root / ".github/instructions/adr.instructions.md").exists())
+
+    def test_unparseable_vscode_settings_is_reported_not_rewritten(self):
+        vs = self.root / ".vscode/settings.json"
+        vs.parent.mkdir()
+        vs.write_text('{ // mine\n}\n', encoding="utf-8")
+        sync.write(self.root, self.table, ["copilot-cli"])
+        self.assertEqual(vs.read_text(), '{ // mine\n}\n')
+        self.assertTrue(any("set \"chat.useClaudeHooks\": true by hand" in p
+                            for p in sync.check(self.root, self.table, ["copilot-cli"])))
+
+
 if __name__ == "__main__":
     unittest.main()

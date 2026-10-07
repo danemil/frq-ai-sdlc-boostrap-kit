@@ -215,6 +215,32 @@ def vscode_hooks_state(text: str) -> str:
     return "ok" if data[VSCODE_HOOKS_KEY] is True else "disabled"
 
 
+COPILOT_FORMATS = ("copilot-brief", "copilot-instructions", "vscode-claude-hooks")
+
+
+def materialize(root, sspec: dict) -> list[tuple[str, str, str]]:
+    """(rel, text, install-class) for a generated Copilot surface. Shared by sync and the installer."""
+    fmt = sspec.get("format")
+    if fmt == "copilot-brief":
+        return [(sspec["path"], render_copilot_brief(root, sspec), "own")]
+    if fmt == "copilot-instructions":
+        return [(rel, text, "own")
+                for rel, text in render_copilot_instructions(root, sspec).items()]
+    if fmt == "vscode-claude-hooks":
+        path = Path(root) / sspec["path"]
+        have = path.read_text(encoding="utf-8") if path.is_file() else ""
+        return [(sspec["path"], render_vscode_settings(have), "merge")]
+    return []
+
+
+def _instruction_specs(table, harnesses):
+    """The generated copilot-instructions spec of each harness, found even when no rules exist."""
+    for name in harnesses:
+        rspec = (table.get(name) or {}).get("rules") or {}
+        if rspec.get("kind") == "generated" and rspec.get("format") == "copilot-instructions":
+            yield rspec
+
+
 # --- MCP translation -------------------------------------------------------
 
 PLACEHOLDER = re.compile(r"<[A-Z][A-Z_/]{2,}>")
@@ -330,60 +356,80 @@ def to_codex_hooks(settings: dict) -> dict:
 
 # --- drift check -----------------------------------------------------------
 
+SURFACES = ("brief", "rules", "mcp", "hooks")
+
+
 def derived_surfaces(root, table, harnesses):
-    """(rel, want_text, kind) for every surface derived from .mcp.json."""
+    """(rel, want_text, mode, spec) for every generated surface of the given harnesses.
+
+    mode: 'whole-file' | 'block' (TOML block) | 'json-key' (VS Code switch)
+    """
     root = Path(root)
     mcp_path = root / ".mcp.json"
-    mcp = {}
-    if mcp_path.is_file():
-        mcp = json.loads(mcp_path.read_text(encoding="utf-8"))
+    mcp = json.loads(mcp_path.read_text(encoding="utf-8")) if mcp_path.is_file() else {}
 
     for name in harnesses:
         spec = table.get(name) or {}
-        mspec = spec.get("mcp") or {}
-        if mspec.get("kind") != "generated":
-            continue
-        rel, fmt = mspec["path"], mspec.get("format")
-        if fmt == "copilot-mcp":
-            yield rel, json.dumps(to_copilot_mcp(mcp), indent=2) + "\n", "whole-file"
-        elif fmt == "toml-block":
-            yield rel, to_codex_toml(mcp), "block"
+        for surface in SURFACES:
+            sspec = spec.get(surface) or {}
+            if sspec.get("kind") != "generated":
+                continue
+            fmt = sspec.get("format")
+            if fmt in COPILOT_FORMATS:
+                mode = "json-key" if fmt == "vscode-claude-hooks" else "whole-file"
+                for rel, text, _cls in materialize(root, sspec):
+                    yield rel, text, mode, sspec
+            elif surface == "mcp" and fmt == "copilot-mcp":
+                yield sspec["path"], json.dumps(to_copilot_mcp(mcp), indent=2) + "\n", "whole-file", sspec
+            elif surface == "mcp" and fmt == "toml-block":
+                yield sspec["path"], to_codex_toml(mcp), "block", sspec
 
 
 def check(root, table, harnesses) -> list[str]:
     root = Path(root)
     problems = []
-    for rel, want, kind in derived_surfaces(root, table, harnesses):
+    for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
         path = root / rel
+        if mode == "json-key":
+            state = vscode_hooks_state(path.read_text(encoding="utf-8") if path.is_file() else "")
+            if state == "missing":
+                problems.append(f'{rel} lacks "{VSCODE_HOOKS_KEY}": true')
+            elif state == "unparseable":
+                problems.append(f'{rel} is JSONC — set "{VSCODE_HOOKS_KEY}": true by hand')
+            continue  # 'disabled' is an operator choice, not drift
         if not path.is_file():
             problems.append(f"{rel} is missing")
             continue
         have = path.read_text(encoding="utf-8")
-        if kind == "whole-file" and have != want:
-            problems.append(f"{rel} differs from .mcp.json")
-        elif kind == "block":
+        if mode == "whole-file" and have != want:
+            problems.append(f"{rel} differs from its source")
+        elif mode == "block":
             block = merge.extract_block(have)
             if block is None or want.strip() not in block:
                 problems.append(f"{rel} block differs from .mcp.json")
+    for rspec in _instruction_specs(table, harnesses):
+        wanted = set(render_copilot_instructions(root, rspec))
+        for orphan in orphan_instructions(root, rspec, wanted):
+            problems.append(f"{orphan} is an orphan")
     return problems
 
 
 def write(root, table, harnesses) -> list[str]:
     root = Path(root)
     written = []
-    for rel, want, kind in derived_surfaces(root, table, harnesses):
+    for rel, want, mode, sspec in derived_surfaces(root, table, harnesses):
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        if kind == "whole-file":
-            if not path.is_file() or path.read_text(encoding="utf-8") != want:
-                path.write_text(want, encoding="utf-8")
-                written.append(rel)
-        else:
-            have = path.read_text(encoding="utf-8") if path.is_file() else ""
-            out = merge.merge_toml_block(have, want)
-            if out != have:
-                path.write_text(out, encoding="utf-8")
-                written.append(rel)
+        have = path.read_text(encoding="utf-8") if path.is_file() else ""
+        out = merge.merge_toml_block(have, want) if mode == "block" else want
+        if out != have:
+            path.write_text(out, encoding="utf-8")
+            written.append(rel)
+    for rspec in _instruction_specs(table, harnesses):
+        wanted = set(render_copilot_instructions(root, rspec))
+        for orphan in orphan_instructions(root, rspec, wanted):
+            (root / orphan).unlink()
+            written.append(f"{orphan} (removed)")
     return written
 
 
@@ -425,9 +471,9 @@ def main(argv=None) -> int:
     for line in problems:
         print(f"drift: {line}", file=sys.stderr)
     if problems:
-        print("\nRegenerate with: python3 scripts/harness/sync.py --write", file=sys.stderr)
+        print(f"\nRegenerate with: {REGENERATE}", file=sys.stderr)
         return 1
-    print(f"harness surfaces match .mcp.json ({len(harnesses)} harness(es))")
+    print(f"harness surfaces match their sources ({len(harnesses)} harness(es))")
     return 0
 
 
