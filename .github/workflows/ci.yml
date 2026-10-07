@@ -95,13 +95,16 @@ jobs:
       fail-fast: false
       matrix:
         profile: [minimal, standard, full]
+        # `default` passes no --ci (both gates). `ci` must be a matrix key: an include
+        # that only adds a new key is merged into the matching leg, not added as a job.
+        ci: [default]
         include:
           - profile: minimal
             ci: jenkins
     env:
       PROFILE: ${{ matrix.profile }}
-      # Empty on the profile legs. Not `CI`: Actions sets CI=true.
-      CI_GATE: ${{ matrix.ci }}
+      # Empty on the default legs. Not `CI`: Actions sets CI=true.
+      CI_GATE: ${{ matrix.ci != 'default' && matrix.ci || '' }}
     defaults:
       run:
         shell: bash

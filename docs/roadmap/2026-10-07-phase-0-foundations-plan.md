@@ -2449,7 +2449,7 @@ Run both files. Expected: `test_plan` fails the three new tests (`TypeError: sel
 - `adopt.py`: `--ci` (`action="append"`, `choices=["jenkins", "github", "none"]`); resolve flag → manifest → all gates; pass it to `planner.build()`; after `apply()`, run `drop_unselected_ci()` with the rule above; save `man["ci"]`; print the choice in the install header and in `doctor`.
 - `ai-governance.yml`: after the frontmatter step, two steps that skip with `skipped: … not installed` when `scripts/session/moments.json` or `scripts/session/seat-profiles.json` is absent, and otherwise run the validator.
 
-**Step 3: CI coverage.** In `adopt-e2e`, add one leg with `include: [{profile: minimal, ci: jenkins}]`, exported as `CI_GATE` (not `CI`, which Actions sets to `true`). The adopt step passes `--ci "$CI_GATE"` when it is set. A new step asserts the gate files: on the `jenkins` leg the Jenkinsfile is present and the workflow absent; on the three profile legs both are present. The GitHub-workflow step gets `if: matrix.ci != 'jenkins'`. The re-run step passes no `--ci`, so it also proves the choice persists: a re-added workflow would show in `git status`.
+**Step 3: CI coverage.** In `adopt-e2e`, add a matrix key `ci: [default]` and one leg with `include: [{profile: minimal, ci: jenkins}]`, exported as `CI_GATE` (empty for `default`; not `CI`, which Actions sets to `true`). The `ci` key must be in the base matrix: an `include` entry that only adds a new key is merged into the matching `minimal` leg instead of adding a job, which silently turns the default `minimal` leg into the Jenkins one. The adopt step passes `--ci "$CI_GATE"` when it is set. A new step asserts the gate files: on the `jenkins` leg the Jenkinsfile is present and the workflow absent; on the three profile legs both are present. The GitHub-workflow step gets `if: matrix.ci != 'jenkins'`. The re-run step passes no `--ci`, so it also proves the choice persists: a re-added workflow would show in `git status`.
 
 **Step 4: Verify.** The six-test loop: `test_adopt` 38, `test_plan` 14, the rest unchanged (`test_harness` 13, `test_harness_copilot` 29, `test_manifest` 9, `test_merge` 19). Run Task H6 Step 2's loop for the `minimal` + `jenkins` leg (`CI_GATE=jenkins`, skipping the step whose `if:` excludes it) and for `minimal`. Expected: `E2E-OK` for both. Task 12 Step 1 still finds 40 commands and prints `ALL-GREEN`, since all changes to `ci.yml` sit in `adopt-e2e`.
 
@@ -2470,7 +2470,7 @@ git push -u origin feat/install-ci-choice
 gh pr create --draft --base main
 gh run watch <id> --exit-status
 ```
-Expected: `ai-governance` and the four `adopt-e2e` legs (`minimal`, `standard`, `full`, `minimal, jenkins`) all succeed.
+Expected: `ai-governance` and the four `adopt-e2e` legs (`minimal, default`, `standard, default`, `full, default`, `minimal, jenkins`) all succeed.
 
 ---
 
