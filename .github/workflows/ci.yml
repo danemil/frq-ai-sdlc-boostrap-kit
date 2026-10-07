@@ -26,6 +26,7 @@ jobs:
           python3 scripts/install/tests/test_merge.py
           python3 scripts/install/tests/test_harness.py
           python3 scripts/install/tests/test_plan.py
+          python3 template/scripts/tests/test_harness_copilot.py
       - name: Installer end-to-end (greenfield, brownfield, idempotency, uninstall)
         run: python3 scripts/install/tests/test_adopt.py
 

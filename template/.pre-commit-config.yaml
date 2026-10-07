@@ -41,6 +41,13 @@ repos:
         files: ^scripts/session/seat-profiles\.json$
         pass_filenames: false
 
+      - id: harness-drift
+        name: Harness surfaces match their sources (AGENTS.md, .claude/rules, .mcp.json)
+        entry: python3 scripts/harness/sync.py --check
+        language: system
+        files: ^(AGENTS\.md|\.mcp\.json|\.claude/(rules/.*|settings\.json)|\.github/(copilot-instructions\.md|instructions/.*)|\.vscode/settings\.json|scripts/harness/.*)$
+        pass_filenames: false
+
       - id: commit-msg-ticket
         name: Commit message references an issue key (advisory)
         entry: python scripts/git/commit_msg_ticket.py --mode warn

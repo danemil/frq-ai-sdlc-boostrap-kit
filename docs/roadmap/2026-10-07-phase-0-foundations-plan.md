@@ -915,10 +915,12 @@ git commit -m "feat(install): wire Copilot brief, path instructions and VS Code 
         run: python3 scripts/harness/sync.py --check
 ```
 
+Skip if the workflow already runs `sync.py --check` (it did; decided at the Task 9 checkpoint).
+
 **Step 3: Jenkins (FRQ).** Create `template/ci/Jenkinsfile.ai-governance`:
 
 ```groovy
-// AI-governance gate for Jenkins — same checks as .github/workflows/ai-governance.yml.
+// AI-governance gate for Jenkins — governance validators + harness drift gate; see .github/workflows/ai-governance.yml for the full set.
 // Use as a stage in your pipeline or as a standalone job on every PR.
 // Requires python3 (3.10+) and pyyaml on the agent.
 pipeline {
@@ -930,8 +932,9 @@ pipeline {
         sh 'python3 -m pip install --quiet --user "pyyaml>=6"'
         sh 'python3 scripts/validate-skills.py'
         sh 'python3 scripts/validate-frontmatter.py'
-        sh 'python3 scripts/validate-moments.py'
-        sh 'python3 scripts/validate-seat-profiles.py'
+        // Session manifests ship with the 'standard' profile; skip their validators when absent.
+        sh '[ ! -f scripts/session/moments.json ] || python3 scripts/validate-moments.py'
+        sh '[ ! -f scripts/session/seat-profiles.json ] || python3 scripts/validate-seat-profiles.py'
         sh 'python3 scripts/harness/sync.py --check'
       }
     }

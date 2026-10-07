@@ -31,7 +31,7 @@
       "AGENTS.md", "CLAUDE.md", "ONBOARDING.md", "WORKING-AGREEMENT.md",
       "README.md", "USER.md.example", "INDEX.md", "FOLDER-INDEX.md",
       ".gitignore", ".mcp.json", ".pre-commit-config.yaml",
-      ".claude/**", ".github/workflows/ai-governance.yml",
+      ".claude/**", ".github/workflows/ai-governance.yml", "ci/**",
       "scripts/validate-*.py", "scripts/check-brief-churn.py",
       "scripts/harness/**",
       "scripts/git/**", "scripts/tests/**",
