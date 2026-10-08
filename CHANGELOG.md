@@ -9,6 +9,9 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Added
+- `likec4-dsl` skill in the core pack (`ai-sdlc-likec4-dsl`), for every role: LikeC4 architecture-as-code (`.c4`/`.likec4` files). Upstream likec4/likec4 `skills/likec4-dsl` @4e6ee7afc526, MIT; references bundled, upstream `evals/` not bundled. Models go to `docs/architecture/`; the `likec4` CLI is optional, and Copilot asks before running it through `npx`/`bunx`/`pnpm dlx` the first time.
+
 ### Fixed
 - `update` and `setup` check that a kit copy is complete before they move it. An incomplete copy (for example one missing `template/.claude/skills/connectors/SKILL.md`) used to be moved into `.ai-sdlc/kit` and then stop with a traceback, leaving a half-updated setup (`check`: `stale-kit`). Now they refuse with "This kit copy is incomplete (missing …). Copy the whole kit folder again (without .git) and retry. Nothing was changed." `update` also prepares every file from the copy before it moves, drops an extra skill the newer kit no longer has, and a half-updated setup is finished by `python3 .ai-sdlc/kit/setup.py update` (or, if the kit folder itself is incomplete, by updating from a whole copy). `setup` replaces a kit folder left by an unfinished setup. An unexpected error prints a plain message (exit code 4) instead of a traceback; `AI_SDLC_DEBUG=1` shows the details.
 
