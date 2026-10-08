@@ -11,7 +11,7 @@ KIT = helpers.KIT
 EXPECTED = {
     "po": ("Product Owner", ["playbook-product"], "hidden"),
     "pm": ("Product Manager", ["playbook-product"], "hidden"),
-    "sm": ("Scrum Master / Team Coach (SAFe)", [], "guided"),  # playbook-sm arrives in Task 5c
+    "sm": ("Scrum Master / Team Coach (SAFe)", ["playbook-sm"], "guided"),
     "dev": ("Developer", ["playbook-dev"], "git-native"),
     "qa": ("QA", ["playbook-qa"], "guided"),
     "architect": ("Architect", ["playbook-architect"], "git-native"),
@@ -57,6 +57,14 @@ class TestRoles(unittest.TestCase):
         for pid, (_, skills, _) in EXPECTED.items():
             for skill in skills:
                 self.assertIn(f"`{packs.PREFIX}{skill}`", self.packs[pid]["instructions"], pid)
+
+    def test_the_sm_playbook_is_generic_safe_role_guidance(self):
+        text = (KIT / packs.SKILLS_REL / "playbook-sm/SKILL.md").read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("---\nname: playbook-sm\n"))
+        for topic in ("PI Planning", "PI objectives", "impediment", "ART Sync",
+                      "Scrum of Scrums", "Inspect & Adapt", "servant leader", "coach"):
+            self.assertIn(topic, text)
+        self.assertIsNone(CLIENT_WORDS.search(text))
 
     def test_all_packs_validate(self):
         self.assertEqual(packs.validate(KIT), [])

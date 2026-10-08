@@ -2026,9 +2026,13 @@ EOF
 
 **Owner decision (2026-10-08):** the client works in SAFe and no SM playbook exists, so the `sm` pack gets its own skill instead of borrowing `playbook-em`. **This task is content, not code: the human must review every line of the new playbook and of the one-sentence change to the SM instructions before the commit.** The playbook is generic role guidance for the SAFe Scrum Master / Team Coach, drawn from `docs/FRQ-Roles/Scrum Master Skills.md` (SM01–SM12) and the public SAFe role description. It may name SAFe as a framework; it names no client, product or programme. It lives with the other playbooks in the kit's skill library (`template/.claude/skills/`, `packs.SKILLS_REL`, where Tasks 5a and 5b take their skills from), follows their shape (frontmatter with `metadata`, §1 Mandate to §5 Definition of done, about 80 lines), and keeps their relative links to `AGENTS.md` and `WORKING-AGREEMENT.md`, which Task 6a rewrites when it places the file.
 
+**Owner decision, "add both" (2026-10-08, applied in the Task 5c commit):**
+1. **SAFe bullets for EM and Architect.** One bullet each, at the end of "How you work with them": `roles/em/instructions.md` gets "Prepare team capacity and risks for PI Planning, and track delivery against PI objectives."; `roles/architect/instructions.md` gets "Prepare architectural enablers, runway needs and cross-team technical dependencies for PI Planning."
+2. **SAFe wording in the existing playbooks** (`template/.claude/skills/playbook-{dev,qa,em,architect,product}/SKILL.md`), without changing their meaning: a standalone "sprint" becomes "iteration (sprint)" on first use in each file and "iteration" after that ("sprint cadence" → "iteration cadence", "sprint pull" → "iteration pull", and so on). Scope commitment that the playbooks gave to the EM ("Sprint scope commitment — owned by EM", "Commit sprint scope vs capacity | EM", "EM commits to what the team can take") becomes scope committed by the team; the EM keeps capacity and delivery practice. One-line replacements only, so every file keeps its structure and line numbers (Task 6a's link line numbers still hold). No test asserts the old words: `test_adopt`, `test_plan`, `test_harness_copilot` and the template validators stay green.
+
 **Files:**
 - Create: `template/.claude/skills/playbook-sm/SKILL.md`
-- Modify: `roles/sm/role.json` (`skills`), `roles/sm/instructions.md` (one sentence naming the skill; the SAFe text is from Task 5a), `template/.claude/skills/README.md` (one row in the role-seat table)
+- Modify: `roles/sm/role.json` (`skills`), `roles/sm/instructions.md` (one sentence naming the skill; the SAFe text is from Task 5a), `template/.claude/skills/README.md` (one row in the role-seat table), `roles/em/instructions.md` and `roles/architect/instructions.md` (one SAFe bullet each), `template/.claude/skills/playbook-{dev,qa,em,architect,product}/SKILL.md` (SAFe wording)
 - Test: `scripts/personal/tests/test_roles.py` (`EXPECTED["sm"]`, one new test)
 
 **Step 1: Extend the test.** In `scripts/personal/tests/test_roles.py`, change the `"sm"` entry of `EXPECTED` to:
@@ -2054,7 +2058,7 @@ The rest of the skill check reuses what exists: `test_all_packs_validate` (the s
 **Step 2: Run it to make sure it fails**
 
 Run: `python3 scripts/personal/tests/test_roles.py`
-Expected: `Ran 7 tests`, `FAILED (failures=2, errors=1)`: `test_label_skills_and_defaults_per_role` (role=sm) fails with `Tuples differ: ('Scrum Master / Team Coach (SAFe)', []) != ('Scrum Master / Team Coach (SAFe)', ['playbook-sm'])`, `test_instructions_name_their_skills` fails with ``'`ai-sdlc-playbook-sm`' not found``, and the new test errors with `FileNotFoundError: … playbook-sm/SKILL.md`. (Worked out by hand; see the prototype note.)
+Expected: `Ran 7 tests`, `FAILED (failures=2, errors=1)`: `test_label_skills_and_defaults_per_role` (role=sm) fails with `Tuples differ: ('Scrum Master / Team Coach (SAFe)', []) != ('Scrum Master / Team Coach (SAFe)', ['playbook-sm'])`, `test_instructions_name_their_skills` fails with ``'`ai-sdlc-playbook-sm`' not found``, and the new test errors with `FileNotFoundError: … playbook-sm/SKILL.md`. (Worked out by hand; confirmed when Task 5c ran, 2026-10-08.)
 
 **Step 3: Write the content.**
 
@@ -2177,14 +2181,21 @@ Expected: `test_roles` `Ran 7 tests`, `OK`; `test_packs` 16 OK; `ok    8 role pa
 ```bash
 git add template/.claude/skills/playbook-sm/SKILL.md \
         template/.claude/skills/README.md \
+        template/.claude/skills/playbook-{dev,qa,em,architect,product}/SKILL.md \
         roles/sm \
-        scripts/personal/tests/test_roles.py
+        roles/em/instructions.md \
+        roles/architect/instructions.md \
+        scripts/personal/tests/test_roles.py \
+        docs/roadmap/2026-10-08-personal-setup-plan.md
 git commit -F - <<'EOF'
 feat(roles): SAFe Scrum Master / Team Coach playbook for the sm pack
 
 Generic role guidance (team events, PI Planning, PI objectives, flow and
 impediments, ART Sync, Inspect & Adapt, coaching); no client names.
 Content: reviewed line by line by a human.
+EM and Architect packs gain one PI Planning bullet each; the existing
+playbooks say "iteration (sprint)" and leave scope commitment to the team
+(owner decision "add both", 2026-10-08).
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF

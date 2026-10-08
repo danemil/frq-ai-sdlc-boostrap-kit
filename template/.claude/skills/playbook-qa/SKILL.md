@@ -38,7 +38,7 @@ This is the role-seat contract for the **QA** seat on `<PROJECT_NAME>` — the s
 - **Backlog priority** — owned by Product.
 - **Implementation approach** — owned by Developer.
 - **Architecture shape** — owned by Architect.
-- **Sprint scope commitment** — owned by EM.
+- **Iteration (sprint) scope commitment** — made by the team as a whole, not by one seat (the EM owns capacity).
 
 ## §2 — Decision-rights cheat sheet
 
