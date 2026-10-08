@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from personal import packs  # noqa: E402
+from personal import packs, place  # noqa: E402
 
 KIT = Path(__file__).resolve().parents[2]
 
@@ -33,12 +33,14 @@ def skill_errors(kit) -> list[str]:
     used = sorted({s for p in packs.load(kit).values() for s in p["skills"]})
     with tempfile.TemporaryDirectory() as tmp:
         for skill in used:
-            src = kit / packs.SKILLS_REL / skill / "SKILL.md"
+            missing = []
+            _, text = place.placed_skill(kit, skill, missing)
             dest = Path(tmp) / f"{packs.PREFIX}{skill}" / "SKILL.md"
             dest.parent.mkdir()
-            dest.write_text(packs.prefixed_skill(src.read_text(encoding="utf-8"), skill),
-                            encoding="utf-8")
+            dest.write_text(text, encoding="utf-8")
             errors += [f"{packs.PREFIX}{skill}: {e}" for e in module.validate_file(dest)]
+            errors += [f"{packs.PREFIX}{skill}: link '{t}' has no target in the kit; "
+                       "it was placed unchanged" for t in missing]
     return errors
 
 
