@@ -175,6 +175,7 @@ jobs:
           # Core skills are placed as whole folders (references included).
           test -f .agents/skills/ai-sdlc-drawio/references/xml-reference.md
           test -f .agents/skills/ai-sdlc-likec4-dsl/references/cli.md
+          test ! -e .agents/skills/ai-sdlc-brainstorming       # process skills are by role: PO and SM do not get them
           printf '%s\n' "$out" | grep -qF -- "- Connectors for your roles: jira, confluence, jama (say 'connect jira')"
           test ! -e "$AI_SDLC_CONFIG_DIR"                # setup writes no login anywhere
 

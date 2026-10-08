@@ -31,9 +31,20 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 | **connectors** | Read-only facts from Jira, Confluence, Bitbucket Data Center, Jama and Jenkins through the kit's `connectors.py`, each with its link. The person connects in their own terminal (`setup.py connect <name>`); the AI never handles a secret. |
 | **deceneus** | What to remember from a chat: proposes preferences, notes or a skill, and writes only what is approved. MIT, see its `PROVENANCE.md`. |
 
-Personal setup gives all of these except skill-creator to every role (the `core` pack in `roles/core/role.json`).
+Personal setup gives the tooling skills above, except skill-creator, to every role (the `core` pack in `roles/core/role.json`); the process skills go by role.
 
-> **Generic baseline (optional).** Teams commonly also bundle `brainstorming`, `writing-plans`, `test-driven-development`, `systematic-debugging`, and `code-review` here (e.g. from the Superpowers plugin) so the whole team shares one process baseline. Add the ones your team uses via PR; the playbooks reference them where relevant.
+## Process skills
+
+| Skill | Use it for | Source |
+|---|---|---|
+| **brainstorming** | Shape an idea into an approved design before building; specs go to `docs/specs/`. | Upstream MIT, see its `PROVENANCE.md` |
+| **writing-plans** | A step-by-step implementation plan in `docs/plans/`; a person carries out or reviews each task. | Upstream MIT, see its `PROVENANCE.md` |
+| **test-driven-development** | Write the failing test first, then the code that makes it pass. | Upstream MIT, see its `PROVENANCE.md` |
+| **systematic-debugging** | Find the root cause of a bug or failing test before proposing a fix. | Upstream MIT, see its `PROVENANCE.md` |
+| **verification-before-completion** | Run the checks and show the evidence before saying work is done. | Upstream MIT, see its `PROVENANCE.md` |
+| **receiving-code-review** | Check review comments before acting on them; replies are drafted for the person to post. | Upstream MIT, see its `PROVENANCE.md` |
+
+From obra/superpowers v6.4.2, with the kit's changes listed in each `PROVENANCE.md` (none of them commits, pushes or merges on its own). Personal setup gives them by role: Developer all six; QA test-driven-development, systematic-debugging, verification-before-completion; Architect brainstorming, writing-plans, receiving-code-review; Engineering Manager writing-plans.
 
 ## Conformity to agentskills.io
 

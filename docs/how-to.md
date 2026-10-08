@@ -385,7 +385,7 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 
 ## 5. Change your preferences
 
-**(a) Copilot:** say **"change my preferences"** and say what you want: *"answer me in German"*, *"add the dev role"*, *"stop doing git for me"*, *"turn off the session summary"*, *"leave out the drawio skill"*.
+**(a) Copilot:** say **"change my preferences"** and say what you want: *"answer me in German"*, *"add the dev role"*, *"stop doing git for me"*, *"turn off the session summary"*, *"leave out the drawio skill"*, *"add the brainstorming skill"*.
 
 **(b) Terminal:** `python3 .ai-sdlc/kit/setup.py change` with one or more of these options. Only the affected files change.
 
