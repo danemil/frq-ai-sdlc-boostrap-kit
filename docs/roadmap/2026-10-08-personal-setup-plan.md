@@ -56,7 +56,27 @@
 
 ---
 
-### Task 0: VM spike — do Copilot CLI and VS Code read the personal-setup locations? (MANUAL, decision gate)
+### Task 0: VM spike — do Copilot CLI and VS Code read the personal-setup locations? (MANUAL, decision gate) — DONE 2026-10-08
+
+**Result (2026-10-08).** Run on the FRQ Ubuntu VM with Copilot CLI 1.0.93, VS Code 1.138 and Copilot Chat.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | CLI reads `.github/instructions/ai-sdlc-*.instructions.md` (git-ignored) | ✅ (German + `INSTR-OK`) |
+| 2 | VS Code reads it | ✅ |
+| 3 | CLI runs `.github/hooks/*.json` | ✅ both shapes ran (A flat and B versioned; `HOOK-A` and `HOOK-B` both logged, cwd = repo root) |
+| 4 | VS Code runs hooks | ❌ no new `HOOK` line after VS Code chats |
+| 5 | Hook output reaches the model | ❌ in both CLI and VS Code (the model quoted the user's first message, never `STATUS-*-OK`) |
+| 6 | CLI finds `.agents/skills/ai-sdlc-spike` | ✅ |
+| 7 | VS Code finds it | ✅ |
+| 8 | "do the onboarding" finds the nested kit `ONBOARDING.md`, not the decoy | ✅ CLI (read both, picked the right one); ✅ VS Code |
+| 9 | An excluded file is read by explicit path | ✅ |
+| 10 | `.claude/rules` applied (informational) | ❌ no `RULES-OK` |
+
+**Owner's decision: option A.** Drop the session hook entirely. The session-start status comes from the core instructions, which tell Copilot to run `python3 .ai-sdlc/kit/setup.py check --quiet` once at the start of a session and mention any warning (Task 4). Task 12 is removed (its heading is kept so task numbers stay stable); no hook file, hook constant, hook exclude pattern or hook test remains in Tasks 1–16. Check 10 failed, so Task 8 ships with `conflicts.TEAM_RULE_DIRS = ()` and no `.claude/rules` lines in `test_conflicts.py`. Recorded in design §2 and §4.
+
+The original steps below are kept for history.
+
 
 **Owner: the human, on the FRQ Ubuntu VM, with the client's Copilot CLI and VS Code.** No code changes. The whole layout in design §4 rests on six facts that are likely (Cartograph uses the same locations) but unproven. Check them **before** Task 1. If any required check fails, **STOP and escalate**: do not improvise around it.
 
@@ -567,7 +587,7 @@ def parser() -> argparse.ArgumentParser:
 
     sub.add_parser("update", help="run from a newer kit copy: refresh the kit and your files")
     k = sub.add_parser("check", help="files present and hidden, kit current, team overlaps")
-    k.add_argument("--quiet", action="store_true", help="one line, for the session hook")
+    k.add_argument("--quiet", action="store_true", help="one line, for the start of a session")
     a = sub.add_parser("ack", help="note that you have seen a warning")
     a.add_argument("ids", nargs="+", metavar="warning-id")
     sub.add_parser("remove", help="take the kit out; the repo ends as it was")
@@ -632,7 +652,7 @@ EOF
 
 ### Task 2: The git-exclude block
 
-**Design choices.** The block hides patterns, not a list of files: `/.ai-sdlc/`, `/.github/instructions/ai-sdlc-*`, `/.github/hooks/ai-sdlc.json*`, `/.agents/skills/ai-sdlc-*/`. Patterns also cover the `.kit-new` sidecars, crash temp files (`write_atomic` names them after their target), and `ai-sdlc*` files Copilot might write itself, so the block never needs rewriting when choices change. Phase 0's `merge.merge_block` is not reused: it adds a separating newline it cannot take back, so `remove` could not restore the file byte for byte. Here the begin line carries a note when `add()` created the file (` [created]`) or added a newline to an unterminated last line (` [newline]`), and `strip()` undoes exactly that. The file is found with `git rev-parse --git-path info/exclude`, which in a linked worktree returns the shared exclude file of the main repository. Outside git, `protect()` returns `False` and writes nothing.
+**Design choices.** The block hides patterns, not a list of files: `/.ai-sdlc/`, `/.github/instructions/ai-sdlc-*`, `/.agents/skills/ai-sdlc-*/`. Patterns also cover the `.kit-new` sidecars, crash temp files (`write_atomic` names them after their target), and `ai-sdlc*` files Copilot might write itself, so the block never needs rewriting when choices change. Phase 0's `merge.merge_block` is not reused: it adds a separating newline it cannot take back, so `remove` could not restore the file byte for byte. Here the begin line carries a note when `add()` created the file (` [created]`) or added a newline to an unterminated last line (` [newline]`), and `strip()` undoes exactly that. The file is found with `git rev-parse --git-path info/exclude`, which in a linked worktree returns the shared exclude file of the main repository. Outside git, `protect()` returns `False` and writes nothing.
 
 **Files:**
 - Create: `scripts/personal/exclude.py`
@@ -653,9 +673,9 @@ from personal import exclude
 KIT_PATHS = [".ai-sdlc/kit/setup.py", ".ai-sdlc/USER.md",
              ".github/instructions/ai-sdlc-core.instructions.md",
              ".github/instructions/ai-sdlc-po.instructions.md.kit-new",
-             ".github/hooks/ai-sdlc.json", ".agents/skills/ai-sdlc-playbook-dev/SKILL.md"]
+             ".agents/skills/ai-sdlc-playbook-dev/SKILL.md"]
 TEAM_PATHS = [".github/instructions/team.instructions.md", ".agents/skills/team/SKILL.md",
-              ".github/hooks/team.json", "AGENTS.md"]
+              "AGENTS.md"]
 
 
 class TestText(unittest.TestCase):
@@ -765,7 +785,6 @@ CREATED, NEWLINE = " [created]", " [newline]"
 PATTERNS = (
     "/.ai-sdlc/",
     "/.github/instructions/ai-sdlc-*",
-    "/.github/hooks/ai-sdlc.json*",
     "/.agents/skills/ai-sdlc-*/",
 )
 _BLOCK = re.compile(re.escape(BEGIN) + r"(?P<note>[^\n]*)\n.*?^" + re.escape(END) + r"\n?",
@@ -1046,7 +1065,7 @@ EOF
 
 **Combining roles.** Skills are the union of the core pack and every chosen role, then the person's `add_skills`, minus `drop_skills`. Each role keeps its own instructions file. Where defaults disagree, the more guided wins (`git-native` < `guided` < `hidden`; `none` < `status`), as design §5.2 says ("do git for me" wins). Note: the 2026-10-07 seat design (§4a) proposed the opposite ("most git-native"); the 2026-10-08 design is the newer, approved one. An explicit choice from `change --git-comfort` or `--rituals` beats every default.
 
-**The core pack** applies to everyone. Its `instructions.md` is the one template (`string.Template`, `$name`, `$language`, `$roles`, `$git_comfort`, `$rituals`): the language line, the USER.md gate, the git line, the session line, the kit's governing rule (a human validates everything; evidence found or not found; no judgements about individuals; no invented facts), and team rules first. Its `source` is `template/AGENTS.md`, whose §3 hard constraints it condenses. Its defaults are the least guided, so they never win over a role.
+**The core pack** applies to everyone. Its `instructions.md` is the one template (`string.Template`, `$name`, `$language`, `$roles`, `$git_comfort`, `$rituals`): the language line, the USER.md gate, the git line, the session line (with the `status` ritual, every role's default: "At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning it prints"; this replaces the session hook, dropped after Task 0), the kit's governing rule (a human validates everything; evidence found or not found; no judgements about individuals; no invented facts), and team rules first. Its `source` is `template/AGENTS.md`, whose §3 hard constraints it condenses. Its defaults are the least guided, so they never win over a role.
 
 **Validation** (`packs.validate`, stdlib) checks keys, id == folder, label, that `source` exists in the kit, that skills exist and are placeable, defaults, connectors, the instructions file, and that the core template has only known placeholders. `scripts/personal/validate_packs.py` (CI) adds the skill check: it renders each used skill exactly as setup places it and runs `validate-skills.py`'s `validate_file` on it. `setup.py` never calls either.
 
@@ -1217,6 +1236,11 @@ class TestRealKit(unittest.TestCase):
         self.assertIn("Always answer in German (Deutsch)", text)
         self.assertIn("If `.ai-sdlc/USER.md` is missing, do the onboarding first", text)
         self.assertIn("A human validates everything", text)
+        status = choices(lang="de", rituals="status")
+        _, text = packs.instructions_file(all_packs["core"], packs.core_values(
+            all_packs, status, packs.combine(all_packs, status)))
+        self.assertIn("At the start of each session, run `python3 .ai-sdlc/kit/setup.py "
+                      "check --quiet` once", text)
 
     @unittest.skipUnless(subprocess.run([sys.executable, "-c", "import yaml"]).returncode == 0,
                          "needs PyYAML")
@@ -1276,8 +1300,8 @@ GIT_TEXT = {
               "use a personal branch.",
 }
 RITUAL_TEXT = {
-    "status": "At the start of a session, if no line starting with \"AI-SDLC\" was shown to you, "
-              "run `python3 .ai-sdlc/kit/setup.py check --quiet` and tell them its result in one line.",
+    "status": "At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once "
+              "and mention any warning it prints, in the person's language. The command is read-only.",
     "none": "No session-start ritual: start working straight away.",
 }
 HEADER = ("<!-- AI-SDLC personal setup, from roles/{id}/instructions.md. If you edit this file, "
@@ -2588,12 +2612,12 @@ EOF
 | Id | Meaning |
 |---|---|
 | `missing:<path>` | a file the kit placed is gone |
-| `unknown:<path>` | an `ai-sdlc*` file in `.github/instructions`, `.github/hooks`, `.github/skills`, `.agents/skills` or `.claude/skills` that the kit did not write (Copilot may have made it) |
+| `unknown:<path>` | an `ai-sdlc*` file in `.github/instructions`, `.github/skills`, `.agents/skills` or `.claude/skills` that the kit did not write (Copilot may have made it) |
 | `unexcluded:<path>` | an `ai-sdlc*` file (or the kit folder) that git neither ignores nor tracks (`git check-ignore`) |
 | `kit-copy:<dir>` | another kit folder git does not hide: "a newer kit is waiting, say update the kit", or "delete it". Found with `git ls-files --others --exclude-standard --directory` (exactly the unprotected folders), up to two levels deep, by its `setup.py` + `VERSION` + `roles/` |
 | `stale-kit` | `.ai-sdlc/kit/VERSION` differs from `state.json` (an interrupted update) |
 
-`check` exits 1 when there is anything to look at. `check --quiet` is the session hook's one line, e.g. `AI-SDLC 0.4.0 · roles: PO, SM · de · ok`, always exits 0, and never raises (a hook must not fail a session). Team-file warnings join the list in Task 8.
+`check` exits 1 when there is anything to look at. `check --quiet` is the one line Copilot runs at the start of a session (the core instructions' session line), e.g. `AI-SDLC 0.4.0 · roles: PO, SM · de · ok`, always exits 0, and never raises (a session-start check must not derail the conversation). Team-file warnings join the list in Task 8.
 
 **Files:**
 - Create: `scripts/personal/checks.py`
@@ -2721,8 +2745,7 @@ from pathlib import Path
 
 from . import paths, place, reuse, state
 
-SCAN = (".github/instructions", ".github/hooks", ".github/skills", ".agents/skills",
-        ".claude/skills")
+SCAN = (".github/instructions", ".github/skills", ".agents/skills", ".claude/skills")
 
 
 def ai_sdlc_files(root) -> list[str]:
@@ -2831,7 +2854,7 @@ def cmd_check(args, cwd, kit):
         try:
             st, found = checks.run(root)
             return 0, [checks.quiet_line(root, st, found)]
-        except Exception as exc:  # noqa: BLE001  the session hook must never fail
+        except Exception as exc:  # noqa: BLE001  the session-start check must never fail
             return 0, [f"AI-SDLC: the check could not run ({exc})."]
     return _check_lines(root)
 ```
@@ -2869,7 +2892,7 @@ EOF
 | `team-agents-md` | the repo has an `AGENTS.md` |
 | `team-copilot-instructions` | the repo has `.github/copilot-instructions.md` |
 | `team-instructions:<path>` | a team `.github/instructions/*.instructions.md` whose `applyTo` overlaps the kit's (`**`, so any `applyTo`); one without `applyTo` is only used when attached, so it is not reported |
-| `team-rules:<path>` | a team `.claude/rules/*.md`, parsed with Phase 0's `_rule_paths` (no `paths:` means everywhere). Kept only if Task 0 check 10 passed |
+| `team-rules:<path>` | not reported in v1: Task 0 check 10 showed Copilot does not apply `.claude/rules/*.md`, so `TEAM_RULE_DIRS` is `()`. The code path stays (parsed with Phase 0's `_rule_paths`, no `paths:` means everywhere) so a directory can be added back if a future Copilot reads one |
 | `skill-clash:<dir>` | a team skill in `.claude/skills`, `.github/skills` or `.agents/skills` named like a placed kit skill, bare (`playbook-dev`) or prefixed (`ai-sdlc-playbook-dev`) |
 
 Frontmatter is split with Phase 0's `_split_frontmatter`; `applyTo` values are unquoted with `_unquote`. `overlaps()` compares the literal prefixes of two globs and errs on the side of "yes". Ids derive from paths only, so they are stable. Each warning carries the team file's sha256; `ack <id>` stores it, and the warning comes back only when that file changes. The judgement pass (real contradictions) is Copilot's job in `ONBOARDING.md`; a contradiction always sits in a team file that already has an id, so it is acknowledged with that id.
@@ -2898,7 +2921,6 @@ TEAM = {
     ".github/copilot-instructions.md": "Use British English.\n",
     ".github/instructions/docs.instructions.md": "---\napplyTo: 'docs/**'\n---\nTwo reviewers.\n",
     ".github/instructions/manual.instructions.md": "No applyTo: only used when attached.\n",
-    ".claude/rules/adr.md": '---\npaths:\n  - "docs/adr/**"\n---\nADR rules.\n',
     ".claude/skills/playbook-product/SKILL.md": "---\nname: playbook-product\n---\nTeam's.\n",
     ".github/skills/ai-sdlc-playbook-em/SKILL.md": "---\nname: ai-sdlc-playbook-em\n---\nX.\n",
     ".github/skills/release-notes/SKILL.md": "---\nname: release-notes\n---\nNo clash.\n",
@@ -2931,15 +2953,13 @@ class TestWarnings(unittest.TestCase):
             "skill-clash:.claude/skills/playbook-product",
             "skill-clash:.github/skills/ai-sdlc-playbook-em",
             "team-agents-md", "team-copilot-instructions",
-            "team-instructions:.github/instructions/docs.instructions.md",
-            "team-rules:.claude/rules/adr.md"])
+            "team-instructions:.github/instructions/docs.instructions.md"])
 
     def test_the_text_is_precise(self):
         w = self.warnings()
         self.assertEqual(w["team-instructions:.github/instructions/docs.instructions.md"],
                          "The team's .github/instructions/docs.instructions.md also applies to "
                          "docs/**, where the kit's instructions apply too.")
-        self.assertIn("applies to docs/adr/**", w["team-rules:.claude/rules/adr.md"])
         self.assertIn("the kit adds ai-sdlc-playbook-product",
                       w["skill-clash:.claude/skills/playbook-product"])
 
@@ -2998,7 +3018,7 @@ from . import packs, reuse
 
 TEAM_BRIEFS = {"AGENTS.md": "team-agents-md",
                ".github/copilot-instructions.md": "team-copilot-instructions"}
-TEAM_RULE_DIRS = (".claude/rules",)          # Claude-style rules, `paths:` frontmatter
+TEAM_RULE_DIRS = ()                          # Copilot ignores .claude/rules (Task 0 check 10)
 SKILL_DIRS = (".claude/skills", ".github/skills", ".agents/skills")
 KIT_APPLY_TO = ("**",)                       # every kit instructions file applies everywhere
 
@@ -3117,8 +3137,8 @@ git add scripts/personal/conflicts.py \
 git commit -F - <<'EOF'
 feat(personal): precise team-file warnings with stable ids, and ack
 
-AGENTS.md, copilot-instructions.md, overlapping applyTo, Claude rules and
-skill-name clashes. ack stores the team file's fingerprint; the warning
+AGENTS.md, copilot-instructions.md, overlapping applyTo and skill-name
+clashes. ack stores the team file's fingerprint; the warning
 returns only when that file changes. No team file is ever edited.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -3637,131 +3657,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
 ```
 
-**Step 6: Human review checkpoint.** Show `git show --stat HEAD` and the test output; wait for approval before Task 12.
+**Step 6: Human review checkpoint.** Show `git show --stat HEAD` and the test output; wait for approval before Task 13.
 
 ---
 
-### Task 12: The session hook, `.github/hooks/ai-sdlc.json`
+### Task 12: Removed after the spike (decision A)
 
-Placed when the effective ritual is `status` (every role's default), removed by `change --rituals none`. It runs `python3 .ai-sdlc/kit/setup.py check --quiet` from the repo root and gives Copilot one line. The format is the flat shape from the Phase 0 plan (Task 2's fallback, as Cartograph writes it): `{"hooks": {"SessionStart": [{"type": "command", "command": …, "powershell": …, "timeout": 10}]}}`. **If Task 0 found that only shape B fires**, change `hook_json()` to `{"version": 1, "hooks": {"sessionStart": [{"type": "command", "bash": HOOK_COMMAND, "powershell": …, "timeoutSec": 10}]}}` and the test's expected keys to match; nothing else changes. Where no hook runs (IntelliJ, `copilot -p`), the core instructions' session line tells Copilot to run the same command itself.
-
-**Files:**
-- Modify: `scripts/personal/place.py` (`import json`, `HOOK_REL`, `HOOK_COMMAND`, `hook_json`, `wanted_files`)
-- Modify: `scripts/personal/tests/test_place.py` (the expected file list gains the hook)
-- Test: `scripts/personal/tests/test_hook.py`
-
-**Step 1: Write the failing test.** Create `scripts/personal/tests/test_hook.py`:
-
-```python
-#!/usr/bin/env python3
-"""The session hook: placed with the status ritual, runs check --quiet, hidden from git."""
-import json
-import shlex
-import subprocess
-import tempfile
-import unittest
-from pathlib import Path
-
-import helpers
-from personal import paths, place
-
-ARGS = ["setup", "--name", "Ana", "--roles", "po", "--lang", "de"]
-
-
-class TestHook(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = helpers.make_repo(Path(self.tmp.name).resolve() / "repo", {"README.md": "x\n"})
-        self.kit = self.root / paths.KIT_REL
-        helpers.cli(self.root, helpers.copy_kit(self.root / "kit-copy"), *ARGS)
-        self.hook = self.root / place.HOOK_REL
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def test_the_hook_is_copilots_flat_session_start_format(self):
-        data = json.loads(self.hook.read_text())
-        (entry,) = data["hooks"]["SessionStart"]
-        self.assertEqual(entry["type"], "command")
-        self.assertEqual(entry["command"], "python3 .ai-sdlc/kit/setup.py check --quiet")
-        self.assertEqual(entry["powershell"], "python .ai-sdlc/kit/setup.py check --quiet")
-        self.assertEqual(entry["timeout"], 10)
-
-    def test_its_command_prints_one_status_line(self):
-        r = subprocess.run(shlex.split(place.HOOK_COMMAND), cwd=self.root,
-                           capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual(len(r.stdout.splitlines()), 1)
-        self.assertTrue(r.stdout.startswith("AI-SDLC "), r.stdout)
-        self.assertTrue(r.stdout.rstrip().endswith("· ok"), r.stdout)
-
-    def test_hidden_from_git(self):
-        self.assertEqual(helpers.git(self.root, "status", "--porcelain").stdout, "")
-
-    def test_rituals_off_removes_it_and_on_brings_it_back(self):
-        helpers.cli(self.root, self.kit, "change", "--rituals", "none")
-        self.assertFalse(self.hook.exists())
-        self.assertFalse((self.root / ".github/hooks").exists())
-        helpers.cli(self.root, self.kit, "change", "--rituals", "default")
-        self.assertTrue(self.hook.is_file())
-
-
-if __name__ == "__main__":
-    unittest.main()
-```
-
-and in `scripts/personal/tests/test_place.py`, `test_wanted_files_follow_the_choices`, replace the line `".ai-sdlc/USER.md", ".github/instructions/ai-sdlc-core.instructions.md",` with:
-
-```python
-            ".ai-sdlc/USER.md", ".github/hooks/ai-sdlc.json",
-            ".github/instructions/ai-sdlc-core.instructions.md",
-```
-
-**Step 2: Run them to make sure they fail**
-
-Run: `python3 scripts/personal/tests/test_hook.py; python3 scripts/personal/tests/test_place.py`
-Expected: `test_hook` `Ran 4 tests`, `FAILED (failures=1, errors=1)` with `FileNotFoundError: … .github/hooks/ai-sdlc.json`; `test_place` `FAILED (failures=1)`, the list missing `.github/hooks/ai-sdlc.json`.
-
-**Step 3: Implement.** In `scripts/personal/place.py`, add `import json` above `import shutil`; after `SIDECAR = ".kit-new"` add:
-
-```python
-HOOK_REL = ".github/hooks/ai-sdlc.json"
-HOOK_COMMAND = "python3 .ai-sdlc/kit/setup.py check --quiet"
-
-
-def hook_json() -> str:
-    """The session-start hook, in Copilot's flat hooks format (verified in Task 0)."""
-    hook = {"type": "command", "command": HOOK_COMMAND,
-            "powershell": HOOK_COMMAND.replace("python3", "python", 1), "timeout": 10}
-    return json.dumps({"hooks": {"SessionStart": [hook]}}, indent=2) + "\n"
-```
-
-and in `wanted_files`, just before `files[paths.USER_REL] = …`:
-
-```python
-    if combined["rituals"] == "status":
-        files[HOOK_REL] = hook_json()
-```
-
-**Step 4: Run the tests**
-
-Run: `python3 scripts/personal/tests/test_hook.py && python3 scripts/personal/tests/test_place.py`
-Expected: `test_hook` `Ran 4 tests` `OK`; `test_place` 13 OK. All other personal suites unchanged (the hook is hidden by the `/.github/hooks/ai-sdlc.json*` pattern from Task 2, so every `git status` assertion still holds).
-
-**Step 5: Commit**
-
-```bash
-git add scripts/personal/place.py \
-        scripts/personal/tests/test_place.py \
-        scripts/personal/tests/test_hook.py
-git commit -F - <<'EOF'
-feat(personal): session hook gives Copilot the one-line status
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-EOF
-```
-
-**Step 6: Human review checkpoint.** Show `git show --stat HEAD` and the test output; wait for approval before Task 13.
+This task placed a session-start hook (`.github/hooks/…`) that ran `check --quiet`. Task 0 showed that VS Code does not run hooks and that hook output never reaches the model in either the CLI or VS Code, so the owner chose option A: no hook. The status comes from the core instructions' session line (Task 4), which tells Copilot to run `python3 .ai-sdlc/kit/setup.py check --quiet` itself. Nothing to do here; the heading stays so task numbers match earlier reviews. Go from Task 11 straight to Task 13.
 
 ---
 
@@ -3956,7 +3858,7 @@ EOF
 
 ### Task 14: Kit CI — `personal-e2e` replaces `adopt-e2e`
 
-**Decision on the existing `ai-governance` job: keep all of it, add to it.** `template/` is retired as a shipped artifact, but it is still the source of every pack skill (`template/.claude/skills/`), and `scripts/install/manifest.py` plus `template/scripts/harness/{sync,merge}.py` are imported by personal setup. Its validators and tests cost seconds and guard exactly that reused code, so the 40 commands stay; dropping them would leave reused code untested. The job gains the 14 personal suites and `validate_packs.py` (55 commands; 56 after Task 15). **`adopt-e2e` is deleted**: it exercised `install.sh`, which is no longer offered, and its four legs were the slowest part of CI. Its replacement exercises what a person does.
+**Decision on the existing `ai-governance` job: keep all of it, add to it.** `template/` is retired as a shipped artifact, but it is still the source of every pack skill (`template/.claude/skills/`), and `scripts/install/manifest.py` plus `template/scripts/harness/{sync,merge}.py` are imported by personal setup. Its validators and tests cost seconds and guard exactly that reused code, so the 40 commands stay; dropping them would leave reused code untested. The job gains the 13 personal suites and `validate_packs.py` (54 commands; 55 after Task 15). **`adopt-e2e` is deleted**: it exercised `install.sh`, which is no longer offered, and its four legs were the slowest part of CI. Its replacement exercises what a person does.
 
 **`personal-e2e`** runs on Python 3.9 (the promised floor) and 3.12, without PyYAML (proving `setup.py` is stdlib only): the personal unit tests; a fake team repo with its own `AGENTS.md`, `.github/instructions/team.instructions.md` (`applyTo: 'docs/**'`) and a clashing `.claude/skills/playbook-dev`; the kit copied in with `git archive` (like a ZIP download); `setup --protect-only`, then `setup`; asserts `git status --porcelain` is empty, `git diff --exit-code HEAD` (team files unchanged) and all three warning ids; `ack`; an `update` from a modified copy (version 9.9.9, new lines in the core and PO packs) with the PO file edited by the person: the core file is refreshed, the edit kept, `.kit-new` written, status still empty; the person takes the kit's copy (`mv` + `change`), then `remove`, and the snapshot (`helpers.py snapshot`, which includes `.git/info/exclude`) must equal the one taken before the kit arrived.
 
@@ -3971,7 +3873,7 @@ Note the pipefail trap the job avoids: `check` exits 1 when it has findings, so 
 sed -n '/^  ai-governance:/,/^  personal-e2e:/p' .github/workflows/ci.yml \
   | grep -E '^\s+(run: )?python3 ' | wc -l
 ```
-Expected: `42`, not the 55 this task needs: there is no `personal-e2e:` line yet, so the range runs to the end of the file and picks up two `adopt-e2e` lines (`python3 -m venv …`, `python3 - <<'EOF'`) that fail outside a generated clone, and no personal suite is listed at all.
+Expected: `42`, not the 54 this task needs: there is no `personal-e2e:` line yet, so the range runs to the end of the file and picks up two `adopt-e2e` lines (`python3 -m venv …`, `python3 - <<'EOF'`) that fail outside a generated clone, and no personal suite is listed at all.
 
 **Step 2: Edit the workflow.** In the `ai-governance` job, after the step `Installer end-to-end (greenfield, brownfield, idempotency, uninstall)`, add:
 
@@ -3990,7 +3892,6 @@ Expected: `42`, not the 55 this task needs: there is no `personal-e2e:` line yet
           python3 scripts/personal/tests/test_change.py
           python3 scripts/personal/tests/test_update.py
           python3 scripts/personal/tests/test_remove.py
-          python3 scripts/personal/tests/test_hook.py
           python3 scripts/personal/tests/test_onboarding.py
       - name: Validate role packs (roles/*, and their skills against agentskills.io)
         run: python3 scripts/personal/validate_packs.py
@@ -4169,7 +4070,7 @@ Expected: `['ai-governance', 'personal-e2e']`, then `ALL-STEPS-OK`. (`git archiv
 **Step 4: Count the local CI commands**
 
 Run the Step 1 command again.
-Expected: `55`.
+Expected: `54`.
 
 **Step 5: Commit and push; watch the run**
 
@@ -4279,8 +4180,7 @@ You need Python 3.9 or newer. Copilot checks it first and tells you who to ask i
 │   ├── USER.md         your name, roles, language and preferences
 │   └── state.json      kit version, your choices, the files placed and their fingerprints
 ├── .github/
-│   ├── instructions/ai-sdlc-*.instructions.md   a core brief plus one file per role
-│   └── hooks/ai-sdlc.json                       session start: a one-line status check
+│   └── instructions/ai-sdlc-*.instructions.md   a core brief plus one file per role
 └── .agents/skills/ai-sdlc-*/SKILL.md            your roles' skills, prefixed so names cannot clash
 ```
 
@@ -4368,8 +4268,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - `setup.py` with `setup`, `change`, `update`, `check`, `ack` and `remove`, backed by `scripts/personal/` (stdlib only, Python 3.9+).
 - Role packs in `roles/`: core, Product Owner, Product Manager, Scrum Master, Developer, QA, Architect and Engineering Manager, with `scripts/personal/validate_packs.py`.
 - `ONBOARDING.md` at the kit root: the conversation Copilot follows (three questions: name, role(s), language).
-- Warnings with stable ids when the team's own `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/`, `.claude/rules/` or skills overlap the kit's files; `ack` silences one until that team file changes.
-- A session hook (`.github/hooks/ai-sdlc.json`) that gives Copilot a one-line status.
+- Warnings with stable ids when the team's own `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/` or skills overlap the kit's files; `ack` silences one until that team file changes.
+- A session-start line in the core instructions: Copilot runs `setup.py check --quiet` once and mentions any warning.
 
 ### Team mode, last changes: added (released in 0.4.0, now retired)
 - `install.sh --ci jenkins|github|none` installs only the CI governance gate a project runs (repeatable for both). The choice is recorded in `.ai-sdlc/manifest.json` and kept on re-run; without it, both gates ship as before. Switching removes the old gate's file only while it is unedited. `doctor` shows the choice.
@@ -4445,9 +4345,9 @@ wc -l < /tmp/ci-cmds.sh
 bash -e /tmp/ci-cmds.sh > /tmp/ci.log 2>&1 && echo ALL-GREEN || tail -30 /tmp/ci.log
 git status --porcelain
 ```
-Expected: `56` (the 40 from Phase 0, 15 personal suites, the pack validator), then `ALL-GREEN`, then no output from `git status`.
+Expected: `55` (the 40 from Phase 0, 14 personal suites, the pack validator), then `ALL-GREEN`, then no output from `git status`.
 
-Expected suite counts: `test_change` 8, `test_checks` 9, `test_cli` 10, `test_conflicts` 7, `test_exclude` 11, `test_hook` 4, `test_onboarding` 7, `test_packs` 16, `test_place` 13, `test_release` 5, `test_remove` 6, `test_roles` 6, `test_setup` 8, `test_state` 6, `test_update` 6 (122 new tests); Phase 0 unchanged: `test_adopt` 42, `test_harness` 13, `test_manifest` 9, `test_merge` 19, `test_plan` 18, `test_harness_copilot` 29.
+Expected suite counts: `test_change` 8, `test_checks` 9, `test_cli` 10, `test_conflicts` 7, `test_exclude` 11, `test_onboarding` 7, `test_packs` 16, `test_place` 13, `test_release` 5, `test_remove` 6, `test_roles` 6, `test_setup` 8, `test_state` 6, `test_update` 6 (118 new tests); Phase 0 unchanged: `test_adopt` 42, `test_harness` 13, `test_manifest` 9, `test_merge` 19, `test_plan` 18, `test_harness_copilot` 29.
 
 **Step 2: The Python floor.** With a 3.9 interpreter (macOS ships one as `/usr/bin/python3`; on the VM use whatever `python3 --version` says):
 
@@ -4476,7 +4376,7 @@ In the chat say **"do the onboarding"** and answer the three questions (e.g. "Em
 | 3 | Copilot relays "Set up AI-SDLC 0.4.0 for …" and every warning with its id; for team files it reads both sides and names only real contradictions | yes, in plain words |
 | 4 | Acknowledged warnings go quiet | `python3 .ai-sdlc/kit/setup.py check` lists none of them |
 | 5 | `git status --porcelain` | empty |
-| 6 | New chat (and `copilot` in a terminal) | the AI-SDLC status line appears, or Copilot reports it after running `check --quiet` |
+| 6 | New chat (and `copilot` in a terminal) | Copilot runs `check --quiet` once at the start and reports its AI-SDLC line and any warning |
 | 7 | "change my preferences" → "answer in German" | replies switch to German; only the core file and USER.md changed |
 | 8 | Copy a kit folder with a bumped `VERSION` in, say "update the kit" | "Updated to AI-SDLC …", status still empty |
 | 9 | "remove the kit" | Copilot asks first; afterwards `git status` and `ls -a` match the fresh clone |
@@ -4505,7 +4405,7 @@ git push
 2. **Team rules win.** The core pack says the team's instructions come first when they contradict the kit's. The design only says "warn, never edit". Confirm the precedence.
 3. **Git comfort when roles differ.** This plan follows the 2026-10-08 design ("the more guided wins"); the 2026-10-07 seat design said the opposite. Confirm.
 4. **Playbook links.** The placed playbooks keep their relative links (`../../../AGENTS.md`, `WORKING-AGREEMENT.md`, `.mcp.json`). From `.agents/skills/<name>/` they resolve to the team's repo root, where those files may not exist. Strip or rewrite them in `prefixed_skill`, or leave them as hints?
-5. **`.claude/rules` warnings.** Kept only if Task 0 check 10 shows Copilot applies them.
+5. **`.claude/rules` warnings.** ~~Kept only if Task 0 check 10 shows Copilot applies them.~~ **Resolved (2026-10-08):** check 10 failed, so there are none (`TEAM_RULE_DIRS = ()`, Task 8).
 6. **Cleanup of retired code.** When should `install.sh`, `scripts/install/adopt.py`, `plan.py` and the template CI files be deleted (after moving `manifest.py` and the two `sync.py` helpers under `scripts/personal/`)?
 
 ## Out of scope (by design §9)

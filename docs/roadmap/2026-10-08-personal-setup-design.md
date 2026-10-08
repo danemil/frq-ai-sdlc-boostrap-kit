@@ -22,6 +22,7 @@ The audience is mixed: developers, QA, architects, product owners, project manag
 | 8 | How long is the first onboarding? | **Three questions:** name, role(s), language. Everything else defaults by role; "change my preferences" any time. |
 | 9 | Team mode | **Retired.** Personal mode only, for now. |
 | — | How to build it | **Copilot runs the conversation; a small tested script does the file work.** |
+| — | Session-start hook | **Dropped after the VM spike (2026-10-08):** VS Code doesn't run hooks and their output doesn't reach the model. The core instructions make Copilot run `check --quiet` instead (§6). |
 
 ## 3. What the person does
 
@@ -42,14 +43,15 @@ Every file is new and kit-named, and every path is listed in `.git/info/exclude`
 │   ├── USER.md         name, roles, language, preferences
 │   └── state.json      kit version, packs, placed files + fingerprints, acknowledged warnings
 ├── .github/
-│   ├── instructions/ai-sdlc-*.instructions.md   core brief + one file per role
-│   └── hooks/ai-sdlc.json                       session start: status line + drift check
+│   └── instructions/ai-sdlc-*.instructions.md   core brief + one file per role
 └── .agents/skills/ai-sdlc-*/SKILL.md            the role's skills, prefixed so names cannot clash
 ```
 
 The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or `.vscode/settings.json`; the team may own them. Copilot reads the team's files and the kit's `ai-sdlc-*` files together.
 
 **To verify before building (spike):** that Copilot CLI and VS Code read `.github/instructions/*.instructions.md`, `.github/hooks/*.json` and `.agents/skills/`. Cartograph relies on the same locations, which makes it likely but not proven.
+
+**Verified on the VM (2026-10-08, Copilot CLI 1.0.93, VS Code 1.138 + Copilot Chat):** 1 ✅ · 2 ✅ · 3 ✅ (shapes A and B) · 4 ❌ · 5 ❌ · 6 ✅ · 7 ✅ · 8 ✅ · 9 ✅ · 10 ❌ (informational). Hooks: CLI ran both shapes; VS Code ran none; output never reached the model. So no hook is placed (decision A, §2 and §6).
 
 ## 5. Components
 
@@ -75,7 +77,7 @@ role.json        id, label, source document (docs/FRQ-Roles/…), skills, defaul
 instructions.md  how Copilot behaves for this role → ai-sdlc-<id>.instructions.md
 ```
 
-A **core pack** applies to everyone: the kit's working rules, the reply language, and the gate "if `.ai-sdlc/USER.md` is missing, do the onboarding first". All packs share one format, so v2 role discovery can generate packs without migration.
+A **core pack** applies to everyone: the kit's working rules, the reply language, the gate "if `.ai-sdlc/USER.md` is missing, do the onboarding first", and the session-start line "run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning". All packs share one format, so v2 role discovery can generate packs without migration.
 
 With several roles: skills are combined; each role keeps its own instructions file; where defaults disagree, the more guided one wins (e.g. "do git for me").
 
@@ -91,7 +93,7 @@ Fingerprint states (unchanged / edited / foreign), the safe orphan sweep, the fr
 
 **First time.** Copilot follows `ONBOARDING.md` → asks three questions (then speaks the chosen language) → runs `setup` → relays the summary and two kinds of warnings: precise ones from the script (the team has its own `AGENTS.md`; the team's rules also cover `docs/**`; a skill name clashes) and judgement ones from Copilot reading both sets of instructions for real contradictions → the person acknowledges each → `setup.py ack <id>`.
 
-**Every session.** The hook runs `setup.py check --quiet` and gives Copilot one line, e.g. `AI-SDLC 0.4 · roles: PO, SM · de · ok`, or a warning (a team file it overlaps changed; a kit file is missing or no longer excluded; a newer kit is waiting for `update`).
+**Every session.** The core instructions tell Copilot to run `python3 .ai-sdlc/kit/setup.py check --quiet` once at the start of a session and mention any warning. The command prints one line, e.g. `AI-SDLC 0.4 · roles: PO, SM · de · ok`, or a warning (a team file it overlaps changed; a kit file is missing or no longer excluded; a newer kit is waiting for `update`).
 
 **Change.** "Change my preferences" → Copilot asks what → `setup.py change …`.
 
@@ -118,7 +120,7 @@ The script never uses the network, never runs a git command that changes anythin
 
 ## 8. Testing
 
-1. **VM spike before building:** the three Copilot locations in §4, in VS Code and the CLI. If one fails, revisit the layout with the owner before writing code.
+1. **VM spike before building:** the Copilot locations in §4, in VS Code and the CLI. If one fails, revisit the layout with the owner before writing code. Done 2026-10-08 (results in §4).
 2. **Unit tests for `setup.py`** in temporary git repos: every command, several roles, each language, tracked-path skip, non-git folder, interrupted run, kept edits. The strictest: after `remove`, the repo is byte-for-byte what it was before setup, including `.git/info/exclude`.
 3. **End-to-end CI job** (replaces `adopt-e2e`): a fake team repo with its own `AGENTS.md`, `.github/instructions` and a clashing skill → copy the kit → `setup` → `git status` is empty, team files unchanged, warnings present → `update` from a newer copy → `remove` restores the original.
 4. **Role-pack validator:** every `role.json` is valid, its source document exists, its skills exist and pass the skill validator.
