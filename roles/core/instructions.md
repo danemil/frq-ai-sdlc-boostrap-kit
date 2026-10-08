@@ -25,4 +25,4 @@
 
 **Team rules come first.** This repo may have its own `AGENTS.md`, `.github/copilot-instructions.md` or `.github/instructions/`. Follow them. If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once.
 
-**Changing the setup.** For "change my preferences", "update the kit", "check the kit" or "remove the kit", follow `.ai-sdlc/kit/ONBOARDING.md`.
+**Changing the setup.** For "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>", follow `.ai-sdlc/kit/ONBOARDING.md`.

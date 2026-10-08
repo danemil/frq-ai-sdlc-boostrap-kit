@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 from . import checks, conflicts, exclude, packs, paths, place, state
-from .connectors import manage
+from .connectors import manage, registry
 
 
 class SetupError(Exception):
@@ -79,7 +79,32 @@ def _summary(verb, root, is_git, kit, all_packs, st, report) -> list[str]:
     skills = ", ".join(packs.PREFIX + s for s in combined["skills"]) or "none"
     lines.append(f"- Skills: {skills} · git: {combined['git_comfort']} · session summary: "
                  f"{'on' if combined['rituals'] == 'status' else 'off'}")
-    return lines
+    return lines + _connectors_line(all_packs, c["roles"])
+
+
+def _connectors_line(all_packs, roles) -> list[str]:
+    """One line: the connectors the roles usually need, each marked when already connected.
+    Names only, never a value; a connector problem never stops a setup summary."""
+    names = packs.role_connectors(all_packs, roles)
+    if not names:
+        return []
+    try:
+        found = registry.discover()
+    except Exception:  # noqa: BLE001  a broken module must not break setup
+        found = {}
+    shown, todo = [], []
+    for name in names:
+        c = found.get(name)
+        try:
+            values = registry.load_values(c) if c else None
+            connected = bool(values) and not c.missing(values)
+        except Exception:  # noqa: BLE001  an unreadable file counts as not connected
+            connected = False
+        shown.append(f"{name} (connected)" if connected else name)
+        if not connected:
+            todo.append(name)
+    hint = f" (say 'connect {todo[0]}')" if todo else ""
+    return [f"- Connectors for your roles: {', '.join(shown)}{hint}"]
 
 
 # --- commands -------------------------------------------------------------------

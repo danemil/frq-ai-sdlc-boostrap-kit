@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """`setup`: hide and move the kit first, place the files, write state last."""
 import json
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import helpers
 from personal import paths
+from personal.connectors import store
 
 ARGS = ["setup", "--name", "Ana Pop", "--roles", "po,sm", "--lang", "de"]
 
@@ -90,6 +93,25 @@ class TestSetup(unittest.TestCase):
         code, out = helpers.cli(plain, copy, *ARGS)
         self.assertEqual(code, 0, out)
         self.assertIn("not a git repo, so nothing hides these files from git", out)
+
+    def test_the_summary_names_the_roles_connectors_and_marks_connected_ones(self):
+        secret = "summary-S3CRET-token-77"
+        with mock.patch.dict(os.environ, {"AI_SDLC_CONFIG_DIR": str(Path(self.tmp.name) / "cfg")}):
+            code, out = helpers.cli(self.root, self.copy, *ARGS)          # po, sm
+            self.assertEqual(code, 0, out)
+            self.assertIn("- Connectors for your roles: jira, confluence, jama "
+                          "(say 'connect jira')", out)
+            store.save("jira", {"url": "https://jira.example.com", "token": secret})
+            code, out = helpers.cli(self.root, self.kit, "change", "--roles", "sm")
+            self.assertEqual(code, 0, out)
+            self.assertIn("- Connectors for your roles: jira (connected), confluence "
+                          "(say 'connect confluence')", out)
+            store.save("confluence", {"url": "https://wiki.example.com", "token": secret})
+            code, out = helpers.cli(self.root, self.kit, "change", "--roles", "sm")
+            self.assertIn("- Connectors for your roles: jira (connected), confluence (connected)\n",
+                          out)
+            self.assertNotIn(secret, out)
+        self.assertEqual(self.status(), "")
 
     def test_the_real_cli_from_a_copied_folder(self):
         r = subprocess.run([sys.executable, str(self.copy / "setup.py"), "setup", "--protect-only"],
