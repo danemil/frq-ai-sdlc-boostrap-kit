@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+
+## [0.5.1] — 2026-10-08
 ### Added
 - `likec4-dsl` skill in the core pack (`ai-sdlc-likec4-dsl`), for every role: LikeC4 architecture-as-code (`.c4`/`.likec4` files). Upstream likec4/likec4 `skills/likec4-dsl` @4e6ee7afc526, MIT; references bundled, upstream `evals/` not bundled. Models go to `docs/architecture/`; the `likec4` CLI is optional, and Copilot asks before running it through `npx`/`bunx`/`pnpm dlx` the first time.
 - `setup.py connect --suggested`, run by the person in their own terminal: the connectors their roles usually use, one at a time, leaving out the ones already connected (`y` connects with the same questions as `connect <name>`, `s` skips it, `a` skips all the rest; Enter skips), then any other tool by name. Skips are remembered in `state.json` (`skipped_connectors`), so the setup summary marks them "(skipped)" and stops suggesting them, and `connections` shows them as skipped; `connect <name>` clears that tool's skip, `update` drops skips for connectors the kit no longer has, and older state files load unchanged. Without a terminal it asks nothing and changes nothing.

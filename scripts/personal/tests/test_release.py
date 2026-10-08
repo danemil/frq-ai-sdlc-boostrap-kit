@@ -13,13 +13,19 @@ def read(rel):
 
 class TestRelease(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(read("VERSION").strip(), "0.5.0")
+        self.assertEqual(read("VERSION").strip(), "0.5.1")
 
     def test_the_newest_changelog_entry_is_the_version_and_unreleased_is_empty(self):
         log = read("CHANGELOG.md")
         unreleased = log.split("## [Unreleased]", 1)[1].split("\n## [", 1)
         self.assertEqual(unreleased[0].strip(), "")
         self.assertTrue(unreleased[1].startswith(read("VERSION").strip() + "] — "))
+
+    def test_changelog_0_5_1_has_likec4_connect_suggested_and_the_update_fix(self):
+        entry = read("CHANGELOG.md").split("## [0.5.1]", 1)[1].split("\n## [", 1)[0]
+        for text in ("`likec4-dsl` skill in the core pack", "`setup.py connect --suggested`",
+                     "`skipped_connectors`", "check that a kit copy is complete"):
+            self.assertIn(text, entry)
 
     def test_changelog_0_5_0_has_the_connectors_and_the_check_fix(self):
         entry = read("CHANGELOG.md").split("## [0.5.0]", 1)[1].split("\n## [", 1)[0]
