@@ -4209,9 +4209,9 @@ EOF
 
 **Decision on the existing `ai-governance` job: keep all of it, add to it.** `template/` is retired as a shipped artifact, but it is still the source of every pack skill (`template/.claude/skills/`), and `scripts/install/manifest.py` plus `template/scripts/harness/{sync,merge}.py` are imported by personal setup. Its validators and tests cost seconds and guard exactly that reused code, so the 40 commands stay; dropping them would leave reused code untested. The job already runs every personal suite (the `Personal setup unit tests` step, added early in Task 2 by owner decision: one `for t in scripts/personal/tests/test_*.py` loop line); this task adds `validate_packs.py` (42 commands: the 40, the loop line, the validator; still 42 after Task 15, whose `test_release.py` the loop picks up). **`adopt-e2e` is deleted**: it exercised `install.sh`, which is no longer offered, and its four legs were the slowest part of CI. Its replacement exercises what a person does.
 
-**`personal-e2e`** runs on Python 3.9 (the promised floor) and 3.12, without PyYAML (proving `setup.py` is stdlib only): the personal unit tests; a fake team repo with its own `AGENTS.md`, `.github/instructions/team.instructions.md` (`applyTo: 'docs/**'`) and a clashing `.claude/skills/playbook-dev`; the kit copied in with `git archive` (like a ZIP download); `setup --protect-only`, then `setup`; asserts `git status --porcelain` is empty, `git diff --exit-code HEAD` (team files unchanged) and all three warning ids; `ack`; an `update` from a modified copy (version 9.9.9, new lines in the core and PO packs) with the PO file edited by the person: the core file is refreshed, the edit kept, `.kit-new` written, status still empty; the person takes the kit's copy (`mv` + `change`), then `remove`, and the snapshot (`helpers.py snapshot`, which includes `.git/info/exclude`) must equal the one taken before the kit arrived.
+**`personal-e2e`** runs on Python 3.9 (the promised floor) and 3.12, without PyYAML (proving `setup.py` is stdlib only). The 3.9 leg runs only this job: the Phase 0 suites in `ai-governance` need `tomllib` (3.11+) and stay on 3.12. Steps: the personal unit tests on that Python; a fake team repo with its own `AGENTS.md`, `.github/instructions/team.instructions.md` (`applyTo: 'docs/**'`) and a clashing `.claude/skills/playbook-product` (the PO pack's skill), whose file hashes and snapshot are recorded; the kit copied in from the checkout without `.git` (like a ZIP download); `setup --protect-only`, then `setup --roles po,sm --lang de`; asserts `git status --porcelain` is empty, `git diff --exit-code HEAD` and the recorded hashes (team files unchanged), all three warning ids, and the core skills placed as whole folders; `ack` of one warning (it goes quiet, the others stay); `change --lang en` (only `USER.md` and the core file are rewritten); an `update` from a newer copy (version 9.9.9, one new line in the PO pack) with the PO file edited by the person: the edit kept, `.kit-new` written, status still empty; then, because `remove` keeps edited files (and the person's `ai-sdlc-personal*` files, which this job does not create), the person takes the kit's copy (`mv` + `change`), runs `remove`, and the snapshot (`helpers.py snapshot`, which includes `.git/info/exclude`) must equal the one taken before the kit arrived. Both kit copies live at the repo root and are moved away by `setup` and `update` (asserted), so the snapshots must match exactly, with no allowance for a leftover folder.
 
-Note the pipefail trap the job avoids: `check` exits 1 when it has findings, so `check | grep` fails under `set -o pipefail` even when grep matches. The job captures output first (`out="$(… check || true)"`).
+Note the pipefail trap the job avoids: `check` exits 1 when it has findings, so `check | grep` fails under `set -o pipefail` even when grep matches. The job captures output first (`out="$(… check || true)"`). And `runner.temp` is not available in a job-level `env:` (only `github`, `matrix` and a few other contexts are), so each step derives its paths from `$RUNNER_TEMP` and `$GITHUB_WORKSPACE`.
 
 **Files:**
 - Modify: `.github/workflows/ci.yml`
@@ -4287,20 +4287,23 @@ Expected: `43`, not the 42 this task needs: there is no `personal-e2e:` line yet
 Then delete the whole `adopt-e2e` job, from its comment block (`# Adopt the kit end to end, as a client would: …`) to the end of the file, and append:
 
 ```yaml
-  # Personal setup end to end, as a person would do it: a team repo with its own AI
-  # files, the kit copied in, setup as Copilot runs it from ONBOARDING.md, an update
-  # from a newer copy, then remove. Plan: Task 14 in
+  # Personal setup end to end, as a person does it: a team repo with its own AI files,
+  # the kit copied in, setup as Copilot runs it from ONBOARDING.md, ack, change, an update
+  # from a newer copy, then remove, ending byte-identical. Plan: Task 14 in
   # docs/roadmap/2026-10-08-personal-setup-plan.md. Replaces the team-mode adopt-e2e job.
+  # No pyyaml here, which proves setup.py is stdlib only. The 3.9 leg runs only this job;
+  # the Phase 0 suites (ai-governance, 3.12) need tomllib.
   personal-e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moves to 26.04 on 2026-10-19 and Python 3.9 has no 26.04 build.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        # 3.9 is the floor setup.py promises (ONBOARDING.md checks it); 3.12 matches ai-governance.
+        # 3.9 is the floor setup.py promises (ONBOARDING.md checks it); 3.12 matches
+        # ai-governance. A plain list, no `include` (the H8 trap).
         python: ['3.9', '3.12']
     env:
-      T: ${{ runner.temp }}/team
-      SNAP: python3 ${{ github.workspace }}/scripts/personal/tests/helpers.py snapshot
+      PYTHONDONTWRITEBYTECODE: '1'   # no __pycache__ in the checkout the kit is copied from
     defaults:
       run:
         shell: bash
@@ -4310,8 +4313,11 @@ Then delete the whole `adopt-e2e` job, from its comment block (`# Adopt the kit 
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Personal setup unit tests on this Python (stdlib only, no pyyaml)
-        run: for t in scripts/personal/tests/test_*.py; do python3 "$t" || exit 1; done
+      - name: Personal setup unit tests on this Python
+        run: |
+          set -euo pipefail
+          python3 --version
+          for t in scripts/personal/tests/test_*.py; do echo "== $t"; python3 "$t"; done
 
       - name: Throwaway git identity
         run: |
@@ -4323,99 +4329,134 @@ Then delete the whole `adopt-e2e` job, from its comment block (`# Adopt the kit 
       - name: A team repo with its own AI files
         run: |
           set -euo pipefail
+          T="$RUNNER_TEMP/team"
           mkdir -p "$T" && cd "$T" && git init -q
-          mkdir -p .github/instructions .claude/skills/playbook-dev docs
+          mkdir -p .github/instructions .claude/skills/playbook-product docs
           printf '# Team brief\nUse British English.\n' > AGENTS.md
           printf -- "---\napplyTo: 'docs/**'\n---\nDocs need two reviewers.\n" > .github/instructions/team.instructions.md
-          printf -- '---\nname: playbook-dev\ndescription: The team playbook.\n---\nTeam rules.\n' > .claude/skills/playbook-dev/SKILL.md
+          printf -- '---\nname: playbook-product\ndescription: The team playbook.\n---\nTeam rules.\n' > .claude/skills/playbook-product/SKILL.md
           printf 'Hello.\n' > docs/readme.md
           git add -A && git commit -qm "team repo"
-          $SNAP "$T" > "$RUNNER_TEMP/before.json"
+          for f in $(git ls-files); do echo "$(git hash-object "$f") $f"; done > "$RUNNER_TEMP/team-hashes.txt"
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/before.json"
 
       - name: Copy the kit in and set up, as Copilot does from ONBOARDING.md
         run: |
           set -euo pipefail
-          git archive HEAD --prefix=ai-sdlc-kit/ | tar -x -C "$T"
+          T="$RUNNER_TEMP/team"
+          mkdir "$T/ai-sdlc-kit"
+          tar -C "$GITHUB_WORKSPACE" --exclude=.git -cf - . | tar -xf - -C "$T/ai-sdlc-kit"
           cd "$T"
+          test ! -e ai-sdlc-kit/.git && test -f ai-sdlc-kit/setup.py
           python3 ai-sdlc-kit/setup.py setup --protect-only
           test ! -e ai-sdlc-kit && test -f .ai-sdlc/kit/setup.py
-          out="$(python3 .ai-sdlc/kit/setup.py setup --name "CI Person" --roles po,dev --lang de)"
+          out="$(python3 .ai-sdlc/kit/setup.py setup --name "CI Person" --roles po,sm --lang de)"
           printf '%s\n' "$out"
           test -z "$(git status --porcelain)"            # nothing for git to see
-          git diff --exit-code HEAD                      # team files unchanged
+          git diff --exit-code HEAD                      # team files unchanged ...
+          for f in $(git ls-files); do echo "$(git hash-object "$f") $f"; done \
+            | diff "$RUNNER_TEMP/team-hashes.txt" -     # ... byte for byte
           for id in team-agents-md 'team-instructions:.github/instructions/team.instructions.md' \
-                    'skill-clash:.claude/skills/playbook-dev'; do
+                    'skill-clash:.claude/skills/playbook-product'; do
             printf '%s\n' "$out" | grep -qF "[$id]" || { echo "missing warning $id"; exit 1; }
           done
           grep -q 'Always answer in German' .github/instructions/ai-sdlc-core.instructions.md
-          test -f .agents/skills/ai-sdlc-playbook-dev/SKILL.md
+          test -f .github/instructions/ai-sdlc-sm.instructions.md
+          test -f .agents/skills/ai-sdlc-playbook-product/SKILL.md
+          test -f .agents/skills/ai-sdlc-playbook-sm/SKILL.md
+          # Core skills are placed as whole folders (references included).
+          test -f .agents/skills/ai-sdlc-drawio/references/xml-reference.md
+
+      - name: Acknowledge one warning; it goes quiet, the others stay
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/team"
           python3 .ai-sdlc/kit/setup.py ack team-agents-md
-          line="$(python3 .ai-sdlc/kit/setup.py check --quiet)"
-          printf '%s\n' "$line" | grep -q '^AI-SDLC '
+          out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -qF '[team-agents-md]'; then echo "ack ignored"; exit 1; fi
+          printf '%s\n' "$out" | grep -qF '[skill-clash:.claude/skills/playbook-product]'
+          python3 .ai-sdlc/kit/setup.py check --quiet | grep '^AI-SDLC '
+
+      - name: Change a preference; only the core file and USER.md change
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/team"
+          out="$(python3 .ai-sdlc/kit/setup.py change --lang en)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF 'Wrote 2 file(s): .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md'
+          grep -q 'Always answer in English' .github/instructions/ai-sdlc-core.instructions.md
+          test -z "$(git status --porcelain)"
 
       - name: Update from a newer copy; an edited file is kept
         run: |
           set -euo pipefail
-          git archive HEAD --prefix=ai-sdlc-kit-new/ | tar -x -C "$T"
+          T="$RUNNER_TEMP/team"
+          mkdir "$T/ai-sdlc-kit-new"
+          tar -C "$GITHUB_WORKSPACE" --exclude=.git -cf - . | tar -xf - -C "$T/ai-sdlc-kit-new"
           cd "$T"
           echo 9.9.9 > ai-sdlc-kit-new/VERSION
-          printf '\nNewer kit line.\n' | tee -a ai-sdlc-kit-new/roles/core/instructions.md \
-            >> ai-sdlc-kit-new/roles/po/instructions.md
+          printf '\nNewer kit line.\n' >> ai-sdlc-kit-new/roles/po/instructions.md
           printf '\nMy own note.\n' >> .github/instructions/ai-sdlc-po.instructions.md
           out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
           printf '%s\n' "$out" | grep -qF '[kit-copy:ai-sdlc-kit-new]'
           python3 ai-sdlc-kit-new/setup.py update
           test "$(cat .ai-sdlc/kit/VERSION)" = 9.9.9 && test ! -e ai-sdlc-kit-new
-          grep -q 'Newer kit line' .github/instructions/ai-sdlc-core.instructions.md
           grep -q 'My own note' .github/instructions/ai-sdlc-po.instructions.md
+          if grep -q 'Newer kit line' .github/instructions/ai-sdlc-po.instructions.md; then
+            echo "edited file overwritten"; exit 1
+          fi
           grep -q 'Newer kit line' .github/instructions/ai-sdlc-po.instructions.md.kit-new
           test -z "$(git status --porcelain)"
 
+      # remove keeps edited files, so the person first takes the kit's copy (`change`
+      # records it), then removes. Nothing is left over: both kit copies lived at the repo
+      # root and were moved away by setup and update (checked above).
       - name: Take the kit's copy, then remove; the repo is byte-identical to before
         run: |
           set -euo pipefail
+          T="$RUNNER_TEMP/team"
           cd "$T"
           mv .github/instructions/ai-sdlc-po.instructions.md.kit-new .github/instructions/ai-sdlc-po.instructions.md
           python3 .ai-sdlc/kit/setup.py change
-          python3 .ai-sdlc/kit/setup.py remove
-          $SNAP "$T" > "$RUNNER_TEMP/after.json"
+          out="$(python3 .ai-sdlc/kit/setup.py remove)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF 'The repo is back to how it was before setup.'
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/after.json"
           diff "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
+          test -z "$(git status --porcelain)"
 ```
 
-**Step 3: Validate the YAML and simulate the job locally** (bash, from the kit root; the simulation runs each `run:` block of the new job in order, skipping the global git identity):
+**Step 3: Validate the YAML and simulate the job locally** (bash, from the kit root; the simulation runs every `run:` block of the new job in order, the global git identity included: `HOME` points at a scratch folder, so `git config --global` writes there). Run it once with the Python under test first on `PATH` (`PY=/usr/bin/python3` for 3.9.6 on macOS, then `PY="$(command -v python3)"`); the YAML is read with a Python that has PyYAML:
 
 ```bash
 python3 -c "import yaml; print(list(yaml.safe_load(open('.github/workflows/ci.yml'))['jobs']))"
-export RUNNER_TEMP="$(mktemp -d)" GITHUB_WORKSPACE="$PWD"
-export T="$RUNNER_TEMP/team" SNAP="python3 $PWD/scripts/personal/tests/helpers.py snapshot"
-export GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=ci GIT_AUTHOR_EMAIL=ci@example.com \
-       GIT_COMMITTER_NAME=ci GIT_COMMITTER_EMAIL=ci@example.com
-python3 - > "$RUNNER_TEMP/steps.sh" <<'EOF'
-import shlex, yaml
-for st in yaml.safe_load(open(".github/workflows/ci.yml"))["jobs"]["personal-e2e"]["steps"]:
-    if "run" in st and "git config --global" not in st["run"]:
-        print("bash -c " + shlex.quote(st["run"]) + " >/dev/null || { echo FAILED: " + shlex.quote(st["name"]) + "; exit 1; }")
-print("echo ALL-STEPS-OK")
+S="$(mktemp -d)"; mkdir -p "$S/runner_temp" "$S/home" "$S/bin"; ln -s "$PY" "$S/bin/python3"
+python3 - "$S" <<'EOF'
+import shlex, sys, yaml
+with open(sys.argv[1] + "/steps.sh", "w") as f:
+    for st in yaml.safe_load(open(".github/workflows/ci.yml"))["jobs"]["personal-e2e"]["steps"]:
+        if "run" in st:
+            f.write("bash --noprofile --norc -eo pipefail -c " + shlex.quote(st["run"])
+                    + " >/dev/null || { echo FAILED: " + shlex.quote(st["name"]) + "; exit 1; }\n")
+    f.write("echo ALL-STEPS-OK\n")
 EOF
-bash "$RUNNER_TEMP/steps.sh"
+env -u GIT_CONFIG_GLOBAL RUNNER_TEMP="$S/runner_temp" HOME="$S/home" GITHUB_WORKSPACE="$PWD" \
+    PYTHONDONTWRITEBYTECODE=1 PATH="$S/bin:$PATH" bash "$S/steps.sh"
 ```
-Expected: `['ai-governance', 'personal-e2e']`, then `ALL-STEPS-OK`. (`git archive HEAD` takes the committed tree, so commit Tasks 1–13 first, which the review flow already does.)
+Expected: `['ai-governance', 'personal-e2e']`, then `ALL-STEPS-OK` for each Python. (The kit is copied from the working tree, not `git archive HEAD`, so uncommitted changes are tested too.)
 
 **Step 4: Count the local CI commands**
 
 Run the Step 1 command again.
-Expected: `42` (the 40 from Phase 0, the personal-suites loop line from Task 2, the pack validator).
+Expected: `42` (the 40 from Phase 0, the personal-suites loop line from Task 2, the pack validator). The range stops at the `  personal-e2e:` line, so none of the new job's commands are counted.
 
 **Step 5: Commit and push; watch the run**
 
 ```bash
-git add .github/workflows/ci.yml
+git add .github/workflows/ci.yml docs/roadmap/2026-10-08-personal-setup-plan.md
 git commit -F - <<'EOF'
-ci(kit): personal-e2e replaces adopt-e2e; personal suites and pack validator gate
-
-A team repo with its own AI files, the kit copied in, setup, update from a
-newer copy, remove, and a byte-identical snapshot, on Python 3.9 and 3.12.
-The template validators stay: they guard the reused Phase 0 code.
+ci(kit): personal-e2e replaces adopt-e2e (team repo, setup, update, remove; Python 3.9 and 3.12)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
@@ -4423,7 +4464,7 @@ EOF
 ```bash
 git push
 ```
-Expected on the PR: `ai-governance` and both `personal-e2e` legs (`3.9`, `3.12`) succeed. If `actions/setup-python` cannot provide 3.9 on `ubuntu-latest`, pin that leg to `runs-on: ubuntu-22.04` rather than dropping 3.9.
+Expected on the PR: `ai-governance` and both `personal-e2e` legs (`3.9`, `3.12`) succeed. On 2026-10-08 `actions/python-versions` ships 3.9.25 for Ubuntu 22.04 and 24.04 but not for 26.04, and `ubuntu-latest` moves to 26.04 on 2026-10-19; that is why the job is pinned to `runs-on: ubuntu-24.04` rather than dropping 3.9. Check the logs: the 3.9 leg's "Set up job" step reports Ubuntu 24.04.
 
 **Step 6: Human review checkpoint.** Show `git show --stat HEAD` and the test output and the green PR checks; wait for approval before Task 15.
 
