@@ -113,6 +113,15 @@ class TestValidate(unittest.TestCase):
         errs = self.errors(qa=pack("qa", ["git-verbs"]))
         self.assertTrue(any("'git-verbs' cannot be placed" in e for e in errs), errs)
 
+    def test_core_may_have_skills(self):
+        self.assertEqual(self.errors(core=pack("core", ["skill-creator"], rituals="none")), [])
+
+    def test_personal_names_are_reserved_for_the_person(self):
+        errs = self.errors(personal=pack("personal"))
+        self.assertTrue(any("id 'personal' is reserved" in e for e in errs), errs)
+        errs = self.errors(qa=pack("qa", ["personal-notes"]))
+        self.assertTrue(any("names starting personal- are the person's own" in e for e in errs), errs)
+
     def test_bad_defaults_connectors_and_keys(self):
         bad = pack("qa", git="sometimes")
         bad["connectors"] = ["jira"]

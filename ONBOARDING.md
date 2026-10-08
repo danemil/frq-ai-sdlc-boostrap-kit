@@ -45,11 +45,11 @@ The person copied a newer kit folder into the repo; `check` names it (`kit-copy:
 Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 
 - `missing:` or `unexcluded:`: run `python3 .ai-sdlc/kit/setup.py change` with no options. It puts files back and hides them again.
-- `unknown:`: a file named like the kit's that the kit did not write. Ask before deleting it.
+- `unknown:`: a file named like the kit's that the kit did not write. Ask before deleting it. (The person's own `ai-sdlc-personal.instructions.md` and `ai-sdlc-personal-*` skills are never reported.)
 - `kit-copy:`: a newer copy means "update the kit"; an older one can be deleted, after asking.
 - `stale-kit`: run `python3 .ai-sdlc/kit/setup.py update`.
 - `team-…` and `skill-clash:…`: as in steps 6 and 7 above.
 
 ## Remove the kit
 
-Ask first: "This removes the kit and your settings from this repo. Files you edited are kept. Continue?" On yes, run `python3 .ai-sdlc/kit/setup.py remove` and relay what it removed and kept.
+Ask first: "This removes the kit and your settings from this repo. Files you edited, and your personal notes and skills, are kept. Continue?" On yes, run `python3 .ai-sdlc/kit/setup.py remove` and relay what it removed and kept.

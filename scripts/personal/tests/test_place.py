@@ -38,11 +38,14 @@ class TestPlace(unittest.TestCase):
         return place.wanted_files(KIT, self.packs, choices(**kw))
 
     def test_wanted_files_follow_the_choices(self):
-        self.assertEqual(sorted(self.wanted()), sorted([
-            ".agents/skills/ai-sdlc-playbook-dev/SKILL.md",
-            ".agents/skills/ai-sdlc-playbook-product/SKILL.md",
+        wanted = self.wanted()
+        self.assertEqual(sorted(r for r in wanted if not r.startswith(".agents/")), sorted([
             ".ai-sdlc/USER.md", ".github/instructions/ai-sdlc-core.instructions.md",
             ".github/instructions/ai-sdlc-dev.instructions.md", PO]))
+        skills = {r.split("/")[2] for r in wanted if r.startswith(".agents/")}
+        self.assertEqual(skills, {f"ai-sdlc-{s}" for s in (
+            "playbook-dev", "playbook-product", *self.packs["core"]["skills"])})
+        self.assertIn(".agents/skills/ai-sdlc-drawio/references/xml-reference.md", wanted)
         self.assertIn("- **Roles:** Product Owner, Developer", self.wanted()[".ai-sdlc/USER.md"])
 
     def test_first_apply_writes_everything_and_records_it(self):

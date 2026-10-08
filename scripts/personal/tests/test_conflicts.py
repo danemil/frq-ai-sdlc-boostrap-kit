@@ -47,6 +47,12 @@ class TestWarnings(unittest.TestCase):
             "team-agents-md", "team-copilot-instructions",
             "team-instructions:.github/instructions/docs.instructions.md"])
 
+    def test_a_placed_skill_s_subfolder_is_not_read_as_a_skill(self):
+        team = self.root / ".claude/skills/references/SKILL.md"   # drawio places references/
+        team.parent.mkdir(parents=True)
+        team.write_text("---\nname: references\n---\nTeam's.\n")
+        self.assertNotIn("skill-clash:.claude/skills/references", self.warnings())
+
     def test_the_text_is_precise(self):
         w = self.warnings()
         self.assertEqual(w["team-instructions:.github/instructions/docs.instructions.md"],
