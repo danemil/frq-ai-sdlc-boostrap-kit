@@ -30,7 +30,7 @@ CONNECTORS = {
     "architect": ["confluence", "bitbucket", "jira"],
     "em": ["jenkins", "bitbucket", "jira"],
 }
-CORE_SKILLS = ["deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
+CORE_SKILLS = ["connectors", "deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
                "visual-explainers", "visual-issue"]   # every person gets them
 CLIENT_WORDS = re.compile(r"\b(frequentis|frq|mosaix)\b", re.I)
 

@@ -13,7 +13,7 @@ The method is the same on every tracker: decide whether a diagram is warranted, 
 | **Bitbucket Data Center** (PRs, descriptions) | Depends on the server version and its plugins | You produce the text, ready to paste; the person posts it |
 | **Jira** (issues, comments) | No | You produce the text plus the diagram as an image to attach; the person posts both |
 
-Ask which tracker when it is not clear from the request or the repo (a `github.com` remote means GitHub). This kit has no Jira or Bitbucket command-line tool: never claim you filed, posted or updated anything there.
+Ask which tracker when it is not clear from the request or the repo (a `github.com` remote means GitHub). Nothing in this kit writes to Jira or Bitbucket (the connectors skill only reads them): never claim you filed, posted or updated anything there.
 
 ## When a diagram earns its place
 

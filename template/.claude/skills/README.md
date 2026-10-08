@@ -27,9 +27,10 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 | **drawio** | draw.io diagrams (Mermaid or XML), saved locally; export needs the draw.io desktop app. Upstream Apache-2.0, see its `PROVENANCE.md`. |
 | **visual-explainers** | A self-contained HTML explainer for a concept, flow or tradeoff. |
 | **visual-issue** | An issue, ticket or PR description with a compiled Mermaid diagram, for GitHub, Bitbucket or Jira. |
+| **connectors** | Read-only facts from Jira, Confluence, Bitbucket Data Center, Jama and Jenkins through the kit's `connectors.py`, each with its link. The person connects in their own terminal (`setup.py connect <name>`); the AI never handles a secret. |
 | **deceneus** | What to remember from a chat: proposes preferences, notes or a skill, and writes only what is approved. MIT, see its `PROVENANCE.md`. |
 
-Personal setup gives these four to every role (the `core` pack in `roles/core/role.json`).
+Personal setup gives all of these except skill-creator to every role (the `core` pack in `roles/core/role.json`).
 
 > **Generic baseline (optional).** Teams commonly also bundle `brainstorming`, `writing-plans`, `test-driven-development`, `systematic-debugging`, and `code-review` here (e.g. from the Superpowers plugin) so the whole team shares one process baseline. Add the ones your team uses via PR; the playbooks reference them where relevant.
 
