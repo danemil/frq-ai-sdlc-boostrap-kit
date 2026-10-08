@@ -35,6 +35,8 @@ jobs:
           for t in scripts/personal/tests/test_*.py; do echo "== $t"; python3 "$t"; done
       - name: Installer end-to-end (greenfield, brownfield, idempotency, uninstall)
         run: python3 scripts/install/tests/test_adopt.py
+      - name: Validate role packs (roles/*, and their skills against agentskills.io)
+        run: python3 scripts/personal/validate_packs.py
 
       - name: Validate Agent Skills (agentskills.io)
         run: python3 template/scripts/validate-skills.py
@@ -89,28 +91,22 @@ jobs:
           python3 template/scripts/knowledge/ingest.py --federated --trace ADR-0001 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty trace chain'; print('trace OK:', len(d.get('nodes')), 'nodes')"
           python3 template/scripts/knowledge/ingest.py --federated --trace issue:PROJ-1 | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('nodes'), 'empty issue trace'; print('issue trace OK:', len(d['nodes']), 'nodes')"
 
-  # Adopt the kit end to end, as a client would: install into an empty repo, commit,
-  # then run the generated project's governance gate on a FRESH CLONE (what a client's
-  # CI sees; before H1 the gate failed on every clone), check doctor's drift section,
-  # and prove a re-run changes nothing. Plan: Task H6 in
-  # docs/roadmap/2026-10-07-phase-0-foundations-plan.md. The extra `standard, jenkins` leg
-  # installs only the Jenkins gate (`--ci jenkins`, Tasks H8/H9); the profile legs install both.
-  adopt-e2e:
+  # Personal setup end to end, as a person does it: a team repo with its own AI files,
+  # the kit copied in, setup as Copilot runs it from ONBOARDING.md, ack, change, an update
+  # from a newer copy, then remove, ending byte-identical. Plan: Task 14 in
+  # docs/roadmap/2026-10-08-personal-setup-plan.md. Replaces the team-mode adopt-e2e job.
+  # No pyyaml here, which proves setup.py is stdlib only. The 3.9 leg runs only this job;
+  # the Phase 0 suites (ai-governance, 3.12) need tomllib.
+  personal-e2e:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        profile: [minimal, standard, full]
-        # `default` passes no --ci (both gates). `ci` must be a matrix key: an include
-        # that only adds a new key is merged into the matching leg, not added as a job.
-        ci: [default]
-        include:
-          - profile: standard
-            ci: jenkins
+        # 3.9 is the floor setup.py promises (ONBOARDING.md checks it); 3.12 matches
+        # ai-governance. A plain list, no `include` (the H8 trap).
+        python: ['3.9', '3.12']
     env:
-      PROFILE: ${{ matrix.profile }}
-      # Empty on the default legs. Not `CI`: Actions sets CI=true.
-      CI_GATE: ${{ matrix.ci != 'default' && matrix.ci || '' }}
+      PYTHONDONTWRITEBYTECODE: '1'   # no __pycache__ in the checkout the kit is copied from
     defaults:
       run:
         shell: bash
@@ -118,9 +114,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
-      - name: Install deps
-        run: pip install --quiet "pyyaml>=6"
+          python-version: ${{ matrix.python }}
+
+      - name: Personal setup unit tests on this Python
+        run: |
+          set -euo pipefail
+          python3 --version
+          for t in scripts/personal/tests/test_*.py; do echo "== $t"; python3 "$t"; done
 
       - name: Throwaway git identity
         run: |
@@ -129,91 +129,102 @@ jobs:
           git config --global user.email "kit-ci@users.noreply.github.com"
           git config --global init.defaultBranch main
 
-      - name: Adopt the kit into an empty repo
+      - name: A team repo with its own AI files
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/proj"
-          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli \
-            ${CI_GATE:+--ci "$CI_GATE"}
+          T="$RUNNER_TEMP/team"
+          mkdir -p "$T" && cd "$T" && git init -q
+          mkdir -p .github/instructions .claude/skills/playbook-product docs
+          printf '# Team brief\nUse British English.\n' > AGENTS.md
+          printf -- "---\napplyTo: 'docs/**'\n---\nDocs need two reviewers.\n" > .github/instructions/team.instructions.md
+          printf -- '---\nname: playbook-product\ndescription: The team playbook.\n---\nTeam rules.\n' > .claude/skills/playbook-product/SKILL.md
+          printf 'Hello.\n' > docs/readme.md
+          git add -A && git commit -qm "team repo"
+          for f in $(git ls-files); do echo "$(git hash-object "$f") $f"; done > "$RUNNER_TEMP/team-hashes.txt"
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/before.json"
 
-      - name: Only the chosen CI gate is installed (H8, H9)
+      - name: Copy the kit in and set up, as Copilot does from ONBOARDING.md
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/proj"
-          test -f ci/Jenkinsfile.ai-governance
-          if [ "$CI_GATE" = jenkins ]; then
-            test ! -e .github/workflows    # no GitHub workflow at all, docs check included
-          else
-            test -f .github/workflows/ai-governance.yml
-            # The docs link check is GitHub-only and ships from 'standard' up.
-            if [ "$PROFILE" = minimal ]; then test ! -e .github/workflows/docs.yml
-            else test -f .github/workflows/docs.yml; fi
-          fi
-
-      - name: Commit the adoption; generated Copilot files are tracked (H1)
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/proj"
-          git init -q && git add -A && git commit -qm "adopt kit"
-          git ls-files --error-unmatch .vscode/settings.json .github/copilot-instructions.md
-
-      # Runs the Jenkinsfile's own sh '''...''' block with `sh -e`, as Jenkins does. On the
-      # jenkins leg an empty venv comes first on PATH, so `python3` cannot import yaml and
-      # the script must take its venv fallback (PEP 668 agents; Task H9).
-      - name: Fresh clone runs the generated governance gate (ci/Jenkinsfile.ai-governance)
-        run: |
-          set -euo pipefail
-          git clone -q "$RUNNER_TEMP/proj" "$RUNNER_TEMP/clone"
-          cd "$RUNNER_TEMP/clone"
-          sed -n "/sh '''/,/'''/p" ci/Jenkinsfile.ai-governance | sed '1d;$d' > "$RUNNER_TEMP/gate.sh"
-          if [ "$CI_GATE" = jenkins ]; then
-            python3 -m venv "$RUNNER_TEMP/no-yaml"
-            export PATH="$RUNNER_TEMP/no-yaml/bin:$PATH"
-            if python3 -c 'import yaml' 2>/dev/null; then echo "no-yaml venv imports yaml"; exit 1; fi
-          fi
-          sh -e "$RUNNER_TEMP/gate.sh"
-          if [ "$CI_GATE" = jenkins ]; then test -d .venv-ai-governance
-          else test ! -e .venv-ai-governance; fi
-          test -z "$(git status --porcelain)"    # the venv is gitignored
-
-      - name: Fresh clone has no generated-surface drift (doctor)
-        run: |
-          set -euo pipefail
-          # doctor exits 1 on a fresh install because the template's <PLACEHOLDERS>
-          # are unfilled by design. Allow 0 or 1, and gate on the drift section only.
-          rc=0
-          out="$(./install.sh --into "$RUNNER_TEMP/clone" doctor)" || rc=$?
+          T="$RUNNER_TEMP/team"
+          mkdir "$T/ai-sdlc-kit"
+          tar -C "$GITHUB_WORKSPACE" --exclude=.git -cf - . | tar -xf - -C "$T/ai-sdlc-kit"
+          cd "$T"
+          test ! -e ai-sdlc-kit/.git && test -f ai-sdlc-kit/setup.py
+          python3 ai-sdlc-kit/setup.py setup --protect-only
+          test ! -e ai-sdlc-kit && test -f .ai-sdlc/kit/setup.py
+          out="$(python3 .ai-sdlc/kit/setup.py setup --name "CI Person" --roles po,sm --lang de)"
           printf '%s\n' "$out"
-          if [ "$rc" -gt 1 ]; then echo "doctor failed to run (exit $rc)"; exit 1; fi
-          printf '%s\n' "$out" | grep -A1 '^Generated-surface drift$' | tail -n1 | grep -q '^  none '
+          test -z "$(git status --porcelain)"            # nothing for git to see
+          git diff --exit-code HEAD                      # team files unchanged ...
+          for f in $(git ls-files); do echo "$(git hash-object "$f") $f"; done \
+            | diff "$RUNNER_TEMP/team-hashes.txt" -     # ... byte for byte
+          for id in team-agents-md 'team-instructions:.github/instructions/team.instructions.md' \
+                    'skill-clash:.claude/skills/playbook-product'; do
+            printf '%s\n' "$out" | grep -qF "[$id]" || { echo "missing warning $id"; exit 1; }
+          done
+          grep -q 'Always answer in German' .github/instructions/ai-sdlc-core.instructions.md
+          test -f .github/instructions/ai-sdlc-sm.instructions.md
+          test -f .agents/skills/ai-sdlc-playbook-product/SKILL.md
+          test -f .agents/skills/ai-sdlc-playbook-sm/SKILL.md
+          # Core skills are placed as whole folders (references included).
+          test -f .agents/skills/ai-sdlc-drawio/references/xml-reference.md
 
-      - name: Fresh clone runs the generated GitHub workflow (.github/workflows/ai-governance.yml)
-        if: matrix.ci != 'jenkins'
+      - name: Acknowledge one warning; it goes quiet, the others stay
         run: |
           set -euo pipefail
-          cd "$RUNNER_TEMP/clone"
-          # Run each `run:` step of the generated workflow in order (`uses:` steps are skipped);
-          # stop at the first failure. Plan: Task H7.
-          python3 - <<'EOF'
-          import subprocess, sys, yaml
-          wf = yaml.safe_load(open(".github/workflows/ai-governance.yml"))
-          for step in wf["jobs"]["governance"]["steps"]:
-              if "run" not in step:
-                  continue
-              print(f"::group::{step['name']}", flush=True)
-              rc = subprocess.run(["bash", "-euo", "pipefail", "-c", step["run"]]).returncode
-              print("::endgroup::", flush=True)
-              if rc:
-                  sys.exit(f"FAILED: {step['name']} (exit {rc})")
-          EOF
+          cd "$RUNNER_TEMP/team"
+          python3 .ai-sdlc/kit/setup.py ack team-agents-md
+          out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -qF '[team-agents-md]'; then echo "ack ignored"; exit 1; fi
+          printf '%s\n' "$out" | grep -qF '[skill-clash:.claude/skills/playbook-product]'
+          python3 .ai-sdlc/kit/setup.py check --quiet | grep '^AI-SDLC '
 
-      # No --ci here: the choice recorded in the manifest must hold, so a re-added
-      # workflow on the jenkins leg would show up below (H8).
-      - name: Re-running the installer changes nothing
+      - name: Change a preference; only the core file and USER.md change
         run: |
           set -euo pipefail
-          ./install.sh --into "$RUNNER_TEMP/proj" --profile "$PROFILE" --yes --harness copilot-cli
-          # Every run stamps the manifest's "installed_at"; that one line may change.
-          changes="$(git -C "$RUNNER_TEMP/proj" status --porcelain -- . ':!.ai-sdlc/manifest.json')"
-          if [ -n "$changes" ]; then printf 'Re-run changed the repo:\n%s\n' "$changes"; exit 1; fi
-          git -C "$RUNNER_TEMP/proj" diff --exit-code -I '"installed_at":' -- .ai-sdlc/manifest.json
+          cd "$RUNNER_TEMP/team"
+          out="$(python3 .ai-sdlc/kit/setup.py change --lang en)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF 'Wrote 2 file(s): .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md'
+          grep -q 'Always answer in English' .github/instructions/ai-sdlc-core.instructions.md
+          test -z "$(git status --porcelain)"
+
+      - name: Update from a newer copy; an edited file is kept
+        run: |
+          set -euo pipefail
+          T="$RUNNER_TEMP/team"
+          mkdir "$T/ai-sdlc-kit-new"
+          tar -C "$GITHUB_WORKSPACE" --exclude=.git -cf - . | tar -xf - -C "$T/ai-sdlc-kit-new"
+          cd "$T"
+          echo 9.9.9 > ai-sdlc-kit-new/VERSION
+          printf '\nNewer kit line.\n' >> ai-sdlc-kit-new/roles/po/instructions.md
+          printf '\nMy own note.\n' >> .github/instructions/ai-sdlc-po.instructions.md
+          out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
+          printf '%s\n' "$out" | grep -qF '[kit-copy:ai-sdlc-kit-new]'
+          python3 ai-sdlc-kit-new/setup.py update
+          test "$(cat .ai-sdlc/kit/VERSION)" = 9.9.9 && test ! -e ai-sdlc-kit-new
+          grep -q 'My own note' .github/instructions/ai-sdlc-po.instructions.md
+          if grep -q 'Newer kit line' .github/instructions/ai-sdlc-po.instructions.md; then
+            echo "edited file overwritten"; exit 1
+          fi
+          grep -q 'Newer kit line' .github/instructions/ai-sdlc-po.instructions.md.kit-new
+          test -z "$(git status --porcelain)"
+
+      # remove keeps edited files, so the person first takes the kit's copy (`change`
+      # records it), then removes. Nothing is left over: both kit copies lived at the repo
+      # root and were moved away by setup and update (checked above).
+      - name: Take the kit's copy, then remove; the repo is byte-identical to before
+        run: |
+          set -euo pipefail
+          T="$RUNNER_TEMP/team"
+          cd "$T"
+          mv .github/instructions/ai-sdlc-po.instructions.md.kit-new .github/instructions/ai-sdlc-po.instructions.md
+          python3 .ai-sdlc/kit/setup.py change
+          out="$(python3 .ai-sdlc/kit/setup.py remove)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF 'The repo is back to how it was before setup.'
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/after.json"
+          diff "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
+          test -z "$(git status --porcelain)"
