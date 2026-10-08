@@ -12,9 +12,11 @@ from pathlib import Path
 from string import Template
 
 from . import reuse
+from .connectors import registry
 
 ROLES_REL = "roles"
 SKILLS_REL = "template/.claude/skills"
+CONNECTORS_REL = "scripts/personal/connectors"
 CORE = "core"
 PREFIX = "ai-sdlc-"
 GIT_LEVELS = ("git-native", "guided", "hidden")   # least to most guided
@@ -63,6 +65,18 @@ def available_skills(kit) -> list[str]:
     root = Path(kit) / SKILLS_REL
     return sorted(p.parent.name for p in root.glob("*/SKILL.md")
                   if p.parent.name not in UNSUPPORTED_SKILLS)
+
+
+def available_connectors(kit) -> list[str]:
+    """Connector names in the kit (registry discovery: one module per connector)."""
+    folder = Path(kit) / CONNECTORS_REL
+    return registry.names(folder) if folder.is_dir() else []
+
+
+def role_connectors(all_packs, roles) -> list[str]:
+    """The connectors the chosen roles usually need, in role order, without repeats.
+    Defaults only drive suggestions: any person can connect any connector."""
+    return list(dict.fromkeys(c for r in roles for c in all_packs[r]["connectors"]))
 
 
 def _most_guided(values, order):
@@ -121,6 +135,7 @@ def validate(kit) -> list[str]:
     if not (kit / ROLES_REL / CORE / "role.json").is_file():
         errors.append(f"{ROLES_REL}/{CORE}/role.json is missing: the core pack is required")
     known = set(available_skills(kit))
+    known_connectors = available_connectors(kit)
     for f in sorted((kit / ROLES_REL).glob("*/role.json")):
         where = f.relative_to(kit).as_posix()
         try:
@@ -128,11 +143,12 @@ def validate(kit) -> list[str]:
         except json.JSONDecodeError as exc:
             errors.append(f"{where}: not valid JSON ({exc})")
             continue
-        errors += [f"{where}: {e}" for e in _pack_errors(kit, f.parent, pack, known)]
+        errors += [f"{where}: {e}" for e in _pack_errors(kit, f.parent, pack, known,
+                                                         known_connectors)]
     return errors
 
 
-def _pack_errors(kit, folder, pack, known) -> list[str]:
+def _pack_errors(kit, folder, pack, known, known_connectors=()) -> list[str]:
     if not isinstance(pack, dict):
         return ["must be a JSON object"]
     errs = [f"missing key: {k}" for k in sorted(KEYS - set(pack))]
@@ -163,8 +179,7 @@ def _pack_errors(kit, folder, pack, known) -> list[str]:
             or d["git_comfort"] not in GIT_LEVELS or d["rituals"] not in RITUALS):
         errs.append(f"defaults must be {{\"git_comfort\": {'|'.join(GIT_LEVELS)}, "
                     f"\"rituals\": {'|'.join(RITUALS)}}}")
-    if pack["connectors"] != []:
-        errs.append("connectors must be [] until connectors ship (Phase 3)")
+    errs += _connector_errors(pack["connectors"], known_connectors)
     md = folder / "instructions.md"
     text = md.read_text(encoding="utf-8") if md.is_file() else ""
     if not text.strip():
@@ -179,4 +194,15 @@ def _pack_errors(kit, folder, pack, known) -> list[str]:
             Template(text).substitute(sample)
         except (KeyError, ValueError) as exc:
             errs.append(f"instructions.md has an unknown or broken placeholder: {exc}")
+    return errs
+
+
+def _connector_errors(value, known) -> list[str]:
+    """`connectors`: a list of connector names the kit has (the role's suggested defaults)."""
+    if not isinstance(value, list) or not all(isinstance(c, str) for c in value):
+        return ["connectors must be a list of connector names"]
+    errs = [f"connector {c!r} is not in {CONNECTORS_REL} (known: "
+            f"{', '.join(known) or 'none'})" for c in value if c not in known]
+    if len(set(value)) != len(value):
+        errs.append("connectors must not repeat a name")
     return errs

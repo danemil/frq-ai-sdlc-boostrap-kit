@@ -4,5 +4,5 @@
   "source": "template/.claude/skills/playbook-dev/SKILL.md",
   "skills": ["playbook-dev"],
   "defaults": {"git_comfort": "git-native", "rituals": "status"},
-  "connectors": []
+  "connectors": ["bitbucket", "jira", "jenkins"]
 }

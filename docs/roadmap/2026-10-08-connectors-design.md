@@ -65,7 +65,7 @@ Endpoints, arguments and JSON shapes per command are in the plan (Tasks B1–B5)
 
 ## 5. Role defaults
 
-`roles/<id>/role.json` `connectors` lists the connectors a role usually needs. Onboarding mentions them once, and the connectors skill suggests them; nothing connects by itself, since only the person can type the secret. **Proposed, for the owner to confirm in Task C:**
+`roles/<id>/role.json` `connectors` lists the connectors a role usually needs. Onboarding mentions them once, the setup summary names them (marking the ones already connected), and the connectors skill suggests them; nothing connects by itself, since only the person can type the secret. **Defaults only drive suggestions: any person can connect any connector.** The pack validator (`packs.validate`) accepts only names the registry discovers in `scripts/personal/connectors/`. **Approved by the owner 2026-10-08** (it replaces the table proposed in the first draft of this design):
 
 | Role | Connectors |
 |---|---|
@@ -73,10 +73,10 @@ Endpoints, arguments and JSON shapes per command are in the plan (Tasks B1–B5)
 | po | jira, confluence, jama |
 | pm | jira, confluence, jama |
 | sm | jira, confluence |
-| dev | jira, bitbucket, jenkins, confluence |
-| qa | jira, jama, jenkins, bitbucket |
-| architect | confluence, jira, bitbucket |
-| em | jira, bitbucket, jenkins, confluence |
+| dev | bitbucket, jira, jenkins |
+| qa | jira, jama, jenkins |
+| architect | confluence, bitbucket, jira |
+| em | jenkins, bitbucket, jira |
 
 ## 6. Architecture
 
