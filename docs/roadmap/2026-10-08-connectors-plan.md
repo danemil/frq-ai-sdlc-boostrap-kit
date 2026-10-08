@@ -38,7 +38,7 @@
 
 ---
 
-### Task A: Foundation — DONE (this phase)
+### Task A: Foundation — DONE
 
 **Files (created):** `scripts/personal/connectors/{__init__,store,http,registry,manage,text}.py`, `connectors.py`, `scripts/personal/tests/fakeserver.py`, `scripts/personal/tests/stub_connector.py`, `scripts/personal/tests/test_connectors_foundation.py`. **Modified:** `setup.py` (three subparsers, docstring), `scripts/personal/commands.py` (three handlers).
 
@@ -119,7 +119,7 @@ Conventions for every command: `--limit N` (default given per command; cap 1000)
 
 ---
 
-### Tasks B1–B5: one connector each (parallel)
+### Tasks B1–B5: one connector each (parallel) — DONE, merged into `feat/connectors` by cherry-pick
 
 **Every B task has the same shape.**
 
@@ -147,7 +147,7 @@ Plain-text output (`Result.lines`) is optional: when absent, `connectors.py` pri
 
 ---
 
-### Task B1: `jira` (Data Center and Cloud) — at least 14 tests
+### Task B1: `jira` (Data Center and Cloud) — at least 14 tests — DONE (22)
 
 - `TITLE = "Jira"`. `kind(values) = http.atlassian_kind(values["url"])`.
 - `FIELDS`: `url` ("Jira URL, e.g. https://jira.example.com or https://example.atlassian.net"); `email` (identity, `when=` Cloud: "Atlassian account email"); `token` (secret: "API token (Cloud) or personal access token (Data Center)").
@@ -165,7 +165,7 @@ Plain-text output (`Result.lines`) is optional: when absent, `connectors.py` pri
 
 Notes: Cloud `/search/jql` ignores `startAt`; never mix the paging styles. A Cloud issue's description is ADF; DC's is wiki text (keep as is, clipped).
 
-### Task B2: `confluence` (Data Center and Cloud) — at least 10 tests
+### Task B2: `confluence` (Data Center and Cloud) — at least 10 tests — DONE (16)
 
 - `TITLE = "Confluence"`. `kind` as Jira. `FIELDS`: `url` ("Confluence URL, e.g. https://confluence.example.com or https://example.atlassian.net/wiki"); `email` (identity, Cloud only); `token` (secret). `auth` as Jira.
 - API root: Cloud paths are under `/wiki` unless the saved URL already ends in `/wiki`; DC paths are under the saved URL (which may carry a context path such as `/confluence`). Keep this in one helper `_root(ctx)`.
@@ -177,7 +177,7 @@ Notes: Cloud `/search/jql` ignores `startAt`; never mix the paging styles. A Clo
 | `page` | `id`; `--format` `text`\|`storage` (default `text`); `--max-chars` 20000 | Cloud `GET {root}/api/v2/pages/{id}?body-format=storage`; DC `GET /rest/api/content/{id}?expand=body.storage,version,space` | item `{id, title, space (key on DC, spaceId on Cloud), version, updated, body (text.html_to_text or raw storage, clipped), body_truncated, url}` |
 | `search` | `query`; `--space KEY`; `--limit` 25 | `query` is CQL when it contains `=`, `~`, ` AND `, ` OR `, ` ORDER BY ` or ` in (`; otherwise `text ~ "<query, quotes escaped>" AND type = page`; `--space` adds `AND space = "KEY"`. Cloud `GET {root}/rest/api/search?cql=&limit=`; DC `GET /rest/api/content/search?cql=&limit=&expand=space,version`; `LinkPaging()`, items `results` | items `{id, type, title, space, updated, excerpt (Cloud: text, clip 300; DC: null), url}` (on Cloud the content is under `results[].content`) |
 
-### Task B3: `bitbucket` (Data Center) — at least 11 tests
+### Task B3: `bitbucket` (Data Center) — at least 11 tests — DONE (18)
 
 - `TITLE = "Bitbucket"`. `kind` → `"dc"`. `FIELDS`: `url` ("Bitbucket URL, e.g. https://bitbucket.example.com"); `token` (secret: "HTTP access token (personal, project or repository)"). `auth` → `bearer(token)`.
 - `check(values)`: a `bitbucket.org` host returns "Bitbucket Cloud is not supported yet; this connector is for Bitbucket Data Center." (Cloud app passwords were removed on 2026-07-28; see design §3.)
@@ -194,7 +194,7 @@ Notes: Cloud `/search/jql` ignores `startAt`; never mix the paging styles. A Clo
 
 To confirm on a live server (note it in the test file): the `X-AUSERNAME` header for HTTP access tokens, and the raw `.diff` endpoint (Bitbucket DC 6.7+).
 
-### Task B4: `jama` (Jama Connect) — at least 11 tests
+### Task B4: `jama` (Jama Connect) — at least 11 tests — DONE (20)
 
 - `TITLE = "Jama"`. `kind` → `""`. `FIELDS`: `url` ("Jama URL, e.g. https://example.jamacloud.com"); `client_id` (identity: "API client ID"); `client_secret` (secret: "API client secret"). `auth` → `oauth_client_credentials(client_id, client_secret)` (token from `<url>/rest/oauth/token`). Tests must show the token request is made once and reused.
 - REST root `/rest/v1`. Lists: `Offset(start="startAt", size="maxResults", total="meta.pageInfo.totalResults")`, items `data`, `page_size=50` (Jama's maximum). Item URL: `web_url(f"perspective.req#/items/{id}?projectId={project}")`.
@@ -209,7 +209,7 @@ To confirm on a live server (note it in the test file): the `X-AUSERNAME` header
 
 To confirm on a live instance (note it in the test file): the test-run field names, which can be renamed per Jama configuration.
 
-### Task B5: `jenkins` — at least 11 tests
+### Task B5: `jenkins` — at least 11 tests — DONE (19)
 
 - `TITLE = "Jenkins"`. `kind` → `""`. `FIELDS`: `url` ("Jenkins URL, e.g. https://jenkins.example.com"); `username` (identity); `token` (secret: "API token (your name → Security → API Token)"). `auth` → `basic(username, token)`.
 - A job path `a/b/c` (or `job/a/job/b/job/c`) becomes `/job/a/job/b/job/c`, each segment quoted with `urllib.parse.quote(seg, safe="")`. A build ref is a number or `last` / `lastSuccessful` / `lastFailed` (→ `lastBuild`, `lastSuccessfulBuild`, `lastFailedBuild`). Times: `text.iso_from_ms`; durations in seconds.
@@ -224,7 +224,7 @@ To confirm on a live instance (note it in the test file): the test-run field nam
 
 ---
 
-### Task C: Integration (after B1–B5 are merged into `feat/connectors`)
+### Task C: Integration (after B1–B5 are merged into `feat/connectors`) — DONE (see the record below)
 
 **Files:**
 - Create: `template/.claude/skills/connectors/SKILL.md` (placed as `ai-sdlc-connectors`; generic, no client or product names): when to use; run `connectors.py … --json` and cite each item's `url`; read-only; on exit code 3 or a 401, tell the person the exact `setup.py connect <name>` command to run **in their own terminal** and never ask for, accept or repeat a token, password or secret in the chat; never set `AI_SDLC_*` secret variables on the person's behalf; summarise, never invent fields.
@@ -232,3 +232,17 @@ To confirm on a live instance (note it in the test file): the test-run field nam
 - Modify: `roles/core/role.json` (`skills` += `connectors`); `roles/*/role.json` `connectors` per design §5 (after the owner confirms the table); `scripts/personal/packs.py` (`connectors` must be a list of names from `registry.names()`, replacing "must be [] until Phase 3"); `scripts/personal/tests/test_packs.py` and `test_roles.py` for that rule; `scripts/personal/commands.py` `_summary` (one line: "Connectors for your roles: … — connect each in your own terminal: python3 .ai-sdlc/kit/setup.py connect <name>"); `ONBOARDING.md` (one line: connectors are set up by the person in their own terminal; never paste a secret into the chat); `README.md` (a short "Connectors" section: the four commands, where credentials live, env vars, proxy and CA bundle); `CHANGELOG.md` (an entry; version bump to 0.5.0 only if the owner agrees, then `VERSION` and `test_release.py`); `.github/workflows/ci.yml` `personal-e2e` (one step: run `test_connectors_e2e.py` by name, so a failure is visible on its own; the loop already runs it too).
 
 **Steps:** test first (the e2e suite and the pack rule fail), implement, both Pythons, `validate_packs.py`, the forbidden-names grep, commit `feat(connectors): skill, role defaults, onboarding, docs and CI`, push, open the PR to `main` with the review checklist. **Review checkpoint.**
+
+#### Task C record (2026-10-08)
+
+Done on `feat/connectors`: the five B commits cherry-picked onto Task A, then six commits (auth-by-kind fix; role defaults and validator; the connectors skill; setup summary and onboarding; end-to-end tests and CI; docs). Tests: foundation 60, jira 22, confluence 16, bitbucket 18, jama 20, jenkins 19, e2e 4, and every other personal suite, on `python3` and `/usr/bin/python3` (3.9.6); `validate_packs.py`; the `personal-e2e` job replayed locally on both.
+
+**Deviations from the steps above (owner instructions take precedence):**
+
+- **Role defaults** come from the owner's approval in chat on 2026-10-08, not the table first proposed in design §5: po and pm jira, confluence, jama; sm jira, confluence; dev bitbucket, jira, jenkins; qa jira, jama, jenkins; architect confluence, bitbucket, jira; em jenkins, bitbucket, jira; core none. Design §5 now holds that table. They only drive suggestions; anyone can connect any connector. The pack rule checks names with `registry.names()` on the kit's own `scripts/personal/connectors/` (a fake kit in tests has its own folder).
+- **Auth by kind (foundation fix).** Two B tasks found that `open_context(kind="cloud")` set `ctx.kind` but built the auth from the URL, so a forced Cloud context on 127.0.0.1 got Data Center auth and their tests swapped the auth by hand. `open_context` now passes the kind to the connector's `auth(values, kind=None)` (a module whose `auth` takes only the values is called as before); `jira` and `confluence` accept it, `ConnectorTestCase.context` forces it through `open_context`, and the two workarounds are gone. Covered by `test_a_forced_kind_reaches_auth_not_only_the_context`.
+- **Summary line** reads "Connectors for your roles: jira (connected), confluence (say 'connect confluence')" (the owner's wording), not a line with the full command; the command is in `ONBOARDING.md` "Connect a tool" and in the skill.
+- **ONBOARDING.md** gets more than one line: step 8 names the role's connectors without asking for credentials, and a "Connect a tool" section runs `connections`, gives the person the `connect` command to run in their own terminal, and runs `connect <name> --test` only when asked (it reads the saved values and asks nothing, so Copilot may run it).
+- **CI.** Instead of one step that runs `test_connectors_e2e.py` by name (the loop runs it anyway), the `personal-e2e` job gets a step that starts `tests/fake_tools.py` and runs the real CLIs in the team repo: `connect jira` from env with no terminal, `connections`, `connectors.py jira search --json`, `disconnect`, with a random token that must appear in no output and no repo file, logins in `$RUNNER_TEMP/ai-sdlc-config`, and a clean `git status`; setup writes no login and `remove` leaves the config folder unchanged.
+- **Test helpers** point `AI_SDLC_CONFIG_DIR` at an empty temporary path and drop `AI_SDLC_*` variables on import, so a developer's own logins never reach a test.
+- **Not done:** no version bump (`VERSION` stays 0.4.0; the CHANGELOG lines are under Unreleased until the owner agrees on 0.5.0).

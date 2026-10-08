@@ -78,6 +78,16 @@ Endpoints, arguments and JSON shapes per command are in the plan (Tasks B1–B5)
 | architect | confluence, bitbucket, jira |
 | em | jenkins, bitbucket, jira |
 
+## 5.1 Needs live confirmation
+
+Built and tested against canned answers in each vendor's documented shape; these points could not be checked without a live server (collected from the B task reports). Until confirmed, treat a surprise here as a likely cause before suspecting the person's setup:
+
+- **Bitbucket Data Center:** that the `X-AUSERNAME` response header (used by `whoami`) is sent for HTTP access tokens; and the raw `pull-requests/{id}.diff` endpoint (Bitbucket 6.7+) used by `pr --diff`.
+- **Jama Connect:** the test-run field names (`testRunStatus`, `testCase`, `testCycle`, `executionDate`, `assignedTo`), which a Jama configuration can rename; and the item URL format `perspective.req#/items/<id>?projectId=<project>` (test runs may have their own view); also that `include` is accepted as a repeated parameter (`include=data.fromItem&include=data.toItem`).
+- **Jenkins:** test reports that put their results under `childReports` rather than `suites` (multi-configuration and some aggregated jobs; `tests` reads `suites` only); and the host of the `url` Jenkins returns for jobs and builds, which the connector uses as each item's link: it comes from the Jenkins root URL setting and may differ from the saved URL.
+- **Confluence Cloud:** that `expand=content.space,content.version` on `/wiki/rest/api/search` returns the space key and version; and the highlight markers (`@@@hl@@@` … `@@@endhl@@@`) stripped from excerpts.
+- **Jira:** on Data Center, that `issue --changelog` (`expand=changelog`) returns every history entry, uncapped (Cloud pages it through its own endpoint); on Cloud, the people URL (`/jira/people/<accountId>`) and the board/sprint URL (`secure/RapidBoard.jspa?rapidView=<board>&sprint=<id>`).
+
 ## 6. Architecture
 
 ```
