@@ -522,6 +522,32 @@ class TestRemoveKeepsCredentials(Base):
         self.assertTrue(path.is_file())
         self.assertEqual(json.loads(path.read_text())["values"]["token"], SECRET)
 
+    def test_remove_never_touches_the_default_home_folder(self):
+        home = self.base / "home"
+        home.mkdir()
+        env = {"HOME": str(home)}
+        with mock.patch.dict(os.environ, env):
+            for k in ("AI_SDLC_CONFIG_DIR", "XDG_CONFIG_HOME"):
+                os.environ.pop(k, None)
+            path = self.save_stub("https://x.example")
+            folder = home / ".config/ai-sdlc/connectors"
+            self.assertEqual(path.parent, folder)
+
+            def snap():   # every entry's bytes, mtime and mode, the folder's own included
+                return {p.name: (p.read_bytes() if p.is_file() else None, p.stat().st_mtime_ns,
+                                 stat.S_IMODE(p.stat().st_mode))
+                        for p in [folder, *folder.iterdir()]}
+            before = snap()
+            root = helpers.make_repo(self.base / "repo", {"README.md": "team\n"})
+            copy = helpers.copy_kit(root / "ai-sdlc-kit")
+            kit = root / ".ai-sdlc/kit"
+            helpers.cli(root, copy, "setup", "--protect-only")
+            helpers.cli(root, kit, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
+            code, out = helpers.cli(root, kit, "remove")
+            self.assertEqual(code, 0, out)
+            self.assertEqual(snap(), before)
+            self.assertNotIn(SECRET, out)
+
 
 # --- connectors.py --------------------------------------------------------------------------
 
