@@ -5,7 +5,8 @@ does not start with `_`) is a connector. Adding one touches no shared file. It d
 
     TITLE = "Jira"                         # shown to the person
     FIELDS = [Field("url", "Jira URL"), Field("token", "Token", secret=True), ...]
-    def auth(values) -> http.Auth          # from the saved values
+    def auth(values) -> http.Auth          # from the saved values; may also take
+                                           # kind=None (a forced kind, see open_context)
     def kind(values) -> str                # optional: "cloud", "dc" or "" (default "")
     def check(values) -> str | None        # optional: a plain reason the values are unusable
     WHOAMI = Command("who you are signed in as", run=...)   # read-only identity call
@@ -20,6 +21,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import inspect
 import re
 import sys
 from argparse import Namespace
@@ -80,7 +82,7 @@ class Connector:
     name: str
     title: str
     fields: tuple
-    auth: Callable[[dict], http.Auth]
+    auth: Callable[..., http.Auth]           # auth(values, kind=None)
     kind: Callable[[dict], str]
     check: Callable[[dict], Optional[str]]
     whoami: Command
@@ -133,12 +135,26 @@ def _module_errors(name, mod) -> list[str]:
     return [f"connector {name}: {e}" for e in errs]
 
 
+def _auth_taking_kind(auth):
+    """auth(values, kind=None) whatever the module's own signature: a module whose auth
+    accepts `kind` gets the forced kind; one that does not is called with the values only."""
+    try:
+        takes_kind = "kind" in inspect.signature(auth).parameters
+    except (TypeError, ValueError):
+        takes_kind = False
+
+    def call(values, kind=None):
+        return auth(values, kind=kind) if takes_kind else auth(values)
+    return call
+
+
 def from_module(name, mod) -> Connector:
     errs = _module_errors(name, mod)
     if errs:
         raise ValueError("; ".join(errs))
     return Connector(
-        name=name, title=mod.TITLE, fields=tuple(mod.FIELDS) + (CA_FIELD,), auth=mod.auth,
+        name=name, title=mod.TITLE, fields=tuple(mod.FIELDS) + (CA_FIELD,),
+        auth=_auth_taking_kind(mod.auth),
         kind=getattr(mod, "kind", None) or (lambda values: ""),
         check=getattr(mod, "check", None) or (lambda values: None),
         whoami=mod.WHOAMI, commands=dict(mod.COMMANDS), module=mod)
@@ -171,11 +187,15 @@ def discover(extra=()) -> dict[str, Connector]:
     return dict(sorted(out.items()))
 
 
-def open_context(connector, values, **client_kwargs) -> Context:
-    """A Context with a client for the saved `values` (raises http.ConnectorError)."""
-    client = http.Client(values.get("url", ""), connector.auth(values),
+def open_context(connector, values, kind=None, **client_kwargs) -> Context:
+    """A Context with a client for the saved `values` (raises http.ConnectorError).
+
+    `kind` forces "cloud" or "dc" instead of the one the URL gives (tests against a
+    127.0.0.1 server); the auth then follows the forced kind too."""
+    kind = kind or connector.kind(values) or ""
+    client = http.Client(values.get("url", ""), connector.auth(values, kind=kind or None),
                          ca_bundle=values.get(CA_FIELD_KEY) or None, **client_kwargs)
-    return Context(connector.name, client, dict(values), connector.kind(values) or "")
+    return Context(connector.name, client, dict(values), kind)
 
 
 def load_values(connector) -> dict | None:

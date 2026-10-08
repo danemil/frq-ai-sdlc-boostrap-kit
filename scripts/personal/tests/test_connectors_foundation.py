@@ -372,6 +372,31 @@ class TestRegistry(Base):
         for words in ("first field must be 'url'", "auth(values)", "WHOAMI", "COMMANDS"):
             self.assertIn(words, str(cm.exception))
 
+    def test_a_forced_kind_reaches_auth_not_only_the_context(self):
+        seen = []
+        mod = type(sys)("kinded")
+        mod.TITLE, mod.WHOAMI, mod.COMMANDS = "Kinded", self.stub.whoami, {}
+        mod.FIELDS = [registry.Field("url", "URL"), registry.Field("token", "T", secret=True)]
+        mod.kind = lambda values: "dc"                      # what the URL rule says
+
+        def auth(values, kind=None):
+            seen.append(kind)
+            return http.basic("me", values["token"]) if kind == "cloud" else \
+                http.bearer(values["token"])
+        mod.auth = auth
+        c = registry.from_module("kinded", mod)
+        values = {"url": "http://127.0.0.1:1", "token": SECRET}
+        forced = registry.open_context(c, values, kind="cloud")
+        self.assertEqual((forced.kind, seen[-1]), ("cloud", "cloud"))
+        self.assertTrue(forced.client.auth.headers(None)["Authorization"].startswith("Basic "))
+        plain = registry.open_context(c, values)
+        self.assertEqual((plain.kind, seen[-1]), ("dc", "dc"))
+        self.assertEqual(plain.client.auth.headers(None)["Authorization"], f"Bearer {SECRET}")
+        # A module whose auth takes only the values still works with a forced kind.
+        ctx = registry.open_context(self.stub, values, kind="cloud")
+        self.assertEqual(ctx.kind, "cloud")
+        self.assertEqual(ctx.client.auth.headers(None)["Authorization"], f"Bearer {SECRET}")
+
 
 # --- setup.py connect / connections / disconnect -----------------------------------------
 

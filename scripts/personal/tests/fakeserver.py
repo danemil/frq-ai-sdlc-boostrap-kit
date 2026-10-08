@@ -188,12 +188,11 @@ class ConnectorTestCase(unittest.TestCase):
         return registry.from_module(name, importlib.import_module(f"personal.connectors.{name}"))
 
     def context(self, connector, values, kind=None, **client_kwargs):
-        """A Context for `values`; `kind` forces "cloud"/"dc" (the fake server is 127.0.0.1)."""
+        """A Context for `values`; `kind` forces "cloud"/"dc", auth included (the fake server
+        is 127.0.0.1, which the URL rule calls Data Center)."""
         from personal.connectors import registry
-        ctx = registry.open_context(connector, values, sleep=lambda s: None, **client_kwargs)
-        if kind is not None:
-            ctx.kind = kind
-        return ctx
+        return registry.open_context(connector, values, kind=kind, sleep=lambda s: None,
+                                     **client_kwargs)
 
     def run_command(self, connector, ctx, argv):
         """Parse `argv` with connectors.py's real parser, then run the command: a Result."""

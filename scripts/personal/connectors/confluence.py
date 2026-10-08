@@ -32,8 +32,9 @@ def kind(values) -> str:
     return http.atlassian_kind(values.get("url", ""))
 
 
-def auth(values) -> http.Auth:
-    if kind(values) == "cloud":
+def auth(values, kind=None) -> http.Auth:
+    """Cloud: Basic email:token; Data Center: Bearer token. A forced `kind` wins over the URL."""
+    if (kind or http.atlassian_kind(values.get("url", ""))) == "cloud":
         return http.basic(values.get("email", ""), values["token"])
     return http.bearer(values["token"])
 

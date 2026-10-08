@@ -80,13 +80,8 @@ class ConfluenceTestCase(ConnectorTestCase):
         return srv, self.cloud_context(srv.url + url_suffix)
 
     def cloud_context(self, url):
-        """A Cloud context against the fake server. Auth is chosen from the URL when the
-        client is made, so the 127.0.0.1 URL gives Bearer; swap in the Cloud auth (Basic)
-        that a *.atlassian.net URL gives, so the recorded request shows it."""
-        ctx = self.context(self.c, {"url": url, "email": EMAIL, "token": SECRET}, kind="cloud")
-        ctx.client.auth = self.c.auth({"url": "https://example.atlassian.net/wiki",
-                                       "email": EMAIL, "token": SECRET})
-        return ctx
+        """A Cloud context against the fake server; the forced kind gives Cloud auth (Basic)."""
+        return self.context(self.c, {"url": url, "email": EMAIL, "token": SECRET}, kind="cloud")
 
     def dc(self, routes, context_path=""):
         srv = self.server(routes)

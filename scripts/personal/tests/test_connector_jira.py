@@ -71,10 +71,7 @@ class Base(ConnectorTestCase):
     def cloud(self, routes):
         srv = self.server(routes)
         values = {"url": srv.url, "email": EMAIL, "token": SECRET}
-        ctx = self.context(self.jira, values, kind="cloud")
-        # The fake server is 127.0.0.1, so use the auth a *.atlassian.net URL would get.
-        ctx.client.auth = self.jira.auth({**values, "url": "https://example.atlassian.net"})
-        return srv, ctx
+        return srv, self.context(self.jira, values, kind="cloud")   # Cloud auth too
 
     def cmd(self, ctx, *argv):
         return self.run_command(self.jira, ctx, list(argv))
