@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import checks, exclude, packs, paths, place, state
+from . import checks, conflicts, exclude, packs, paths, place, state
 
 
 class SetupError(Exception):
@@ -123,6 +123,20 @@ def cmd_check(args, cwd, kit):
     return _check_lines(root)
 
 
+def cmd_ack(args, cwd, kit):
+    root, _ = paths.repo_root(cwd)
+    st = _need_state(root)
+    current = {wid: fp for wid, _, fp in conflicts.warnings(root, st)}
+    unknown = [wid for wid in args.ids if wid not in current]
+    if unknown:
+        raise SetupError(f"No current warning has the id {', '.join(unknown)}. "
+                         "Run check to see the ids.")
+    for wid in args.ids:
+        st["acks"][wid] = current[wid]
+    state.save(root, st)
+    return 0, [f"Noted {wid}. It comes back only if that team file changes." for wid in args.ids]
+
+
 def not_built(args, cwd, kit):
     return 3, [f"setup.py {args.command}: not built yet"]
 
@@ -130,6 +144,7 @@ def not_built(args, cwd, kit):
 HANDLERS = {
     "setup": cmd_setup,
     "check": cmd_check,
+    "ack": cmd_ack,
 }
 
 

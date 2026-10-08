@@ -6,12 +6,13 @@ Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fix
     unexcluded:<path>  an ai-sdlc* file git does not hide
     stale-kit          the kit folder and state.json disagree on the version
     kit-copy:<dir>     another kit folder in the repo that git does not hide
+    and the team-file warnings from conflicts.py that are not acknowledged.
 """
 from __future__ import annotations
 
 from pathlib import Path
 
-from . import paths, place, reuse, state
+from . import conflicts, paths, place, reuse, state
 
 SCAN = (".github/instructions", ".github/skills", ".agents/skills", ".claude/skills")
 
@@ -87,7 +88,7 @@ def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
     if kv != st["kit_version"]:
         found.append(("stale-kit", f"The kit folder is {kv} but this setup is {st['kit_version']}. "
                                    'Say "update the kit".'))
-    return st, found
+    return st, found + conflicts.active(root, st)
 
 
 def quiet_line(root, st, found) -> str:
