@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 import helpers
-from personal import paths
+from personal import packs, paths
 
 ARGS = ["setup", "--name", "Ana", "--roles", "po", "--lang", "en"]
 CORE = ".github/instructions/ai-sdlc-core.instructions.md"
@@ -49,7 +49,16 @@ class TestChange(unittest.TestCase):
     def test_skills_can_be_added_and_dropped(self):
         self.change("--add-skill", "skill-creator", "--drop-skill", "playbook-product")
         skills = sorted(p.name for p in (self.root / ".agents/skills").iterdir())
-        self.assertEqual(skills, ["ai-sdlc-skill-creator"])
+        core = [f"ai-sdlc-{s}" for s in packs.load(self.kit)["core"]["skills"]]
+        self.assertEqual(skills, sorted(core + ["ai-sdlc-skill-creator"]))
+
+    def test_a_core_skill_can_be_dropped_and_added_back(self):
+        self.change("--drop-skill", "drawio")
+        self.assertFalse((self.root / ".agents/skills/ai-sdlc-drawio").exists())
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-visual-issue/SKILL.md").is_file())
+        self.change("--add-skill", "drawio")
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-drawio/references/xml-reference.md")
+                        .is_file())
 
     def test_unknown_or_unsupported_skills_are_refused(self):
         code, out = helpers.cli(self.root, self.kit, "change", "--add-skill", "nope")

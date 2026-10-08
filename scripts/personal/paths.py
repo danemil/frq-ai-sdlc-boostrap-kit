@@ -15,6 +15,16 @@ HOME_REL = ".ai-sdlc"
 KIT_REL = ".ai-sdlc/kit"
 USER_REL = ".ai-sdlc/USER.md"
 STATE_REL = ".ai-sdlc/state.json"
+# The person's own files, named like the kit's so git hides them, but never written,
+# replaced or deleted by the kit (the deceneus skill writes them, with approval).
+PERSONAL_NOTES_REL = ".github/instructions/ai-sdlc-personal.instructions.md"
+PERSONAL_SKILLS_REL = ".agents/skills/ai-sdlc-personal-"
+
+
+def is_personal(rel: str) -> bool:
+    """Is `rel` the person's own notes file, or inside one of their personal skills?"""
+    return rel == PERSONAL_NOTES_REL or (rel.startswith(PERSONAL_SKILLS_REL) and "/" in
+                                         rel[len(PERSONAL_SKILLS_REL):])
 
 
 def git(root, *args):

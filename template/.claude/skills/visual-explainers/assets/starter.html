@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REPLACE — concrete artifact title</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  :root {
+    --ivory: #FAF9F5; --slate: #141413; --clay: #D97757; --oat: #E3DACC;
+    --olive: #788C5D; --rust: #B04A3F; --white: #FFFFFF;
+    --gray-150: #F0EEE6; --gray-300: #D1CFC5; --gray-500: #87867F; --gray-700: #3D3D3A;
+    --serif: ui-serif, Georgia, 'Times New Roman', serif;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, Monaco, monospace;
+  }
+  body {
+    background: var(--ivory); color: var(--gray-700); font-family: var(--sans);
+    font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+    padding: 52px 28px 100px;
+  }
+  .page { max-width: 980px; margin: 0 auto; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 500; letter-spacing: -0.01em; color: var(--slate); }
+  h1 { font-size: 34px; line-height: 1.2; margin-bottom: 12px; }
+  h2 { font-size: 23px; margin-bottom: 14px; }
+  h1 em { font-style: italic; color: var(--clay); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--gray-500); margin-bottom: 14px;
+  }
+  .sub { color: var(--gray-500); max-width: 640px; margin-bottom: 8px; }
+  header { margin-bottom: 48px; }
+  section { margin-bottom: 56px; }
+  .sec-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .num {
+    font-family: var(--mono); font-size: 12px; background: var(--oat); color: var(--slate);
+    padding: 2px 8px; border-radius: 8px;
+  }
+  .card { background: var(--white); border: 1.5px solid var(--gray-300); border-radius: 12px; padding: 22px; }
+  .callout {
+    background: var(--white); border: 1.5px solid var(--gray-300);
+    border-left: 4px solid var(--clay); border-radius: 0 12px 12px 0; padding: 18px 22px;
+  }
+  .prompt-box {
+    background: var(--gray-150); border-radius: 12px; padding: 14px 18px; margin-top: 18px;
+  }
+  .prompt-box .label {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--gray-500); margin-bottom: 6px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; font-family: var(--mono); font-size: 12px;
+    background: var(--gray-150); border: 1.5px solid var(--gray-300);
+    border-radius: 8px; padding: 3px 9px;
+  }
+  .badge {
+    display: inline-flex; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em; border-radius: 999px; padding: 2px 10px;
+  }
+  .badge.good { background: #E4E9DC; color: #4B5C39; }
+  .badge.warn { background: #F3D9CC; color: #8A3B1E; }
+  .badge.neutral { background: var(--oat); color: var(--slate); }
+  .code { background: var(--slate); border-radius: 12px; padding: 16px 20px; overflow-x: auto; }
+  .code pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.65; color: #E8E6DE; }
+  .code .kw { color: var(--clay); } .code .str { color: #A8BC8C; }
+  .code .cm { color: var(--gray-500); } .code .fn { color: #C9B98A; }
+  code { font-family: var(--mono); font-size: 0.92em; background: var(--gray-150); padding: 1px 5px; border-radius: 4px; }
+  strong { color: var(--slate); font-weight: 600; }
+  svg { display: block; width: 100%; height: auto; }
+  .caption { font-size: 12px; color: var(--gray-500); margin-top: 10px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="eyebrow">Topic / subtopic</div>
+    <h1>Concrete declarative title</h1>
+    <p class="sub">One supporting sentence, gray, max ~640px wide.</p>
+    <div class="prompt-box">
+      <div class="label">Prompt</div>
+      <div>The user's request, paraphrased in their voice.</div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head"><span class="num">01</span><h2>First section</h2></div>
+    <!-- content -->
+  </section>
+</div>
+<script>
+  // vanilla only, keep small; prefer native <details>, :checked, anchors first
+</script>
+</body>
+</html>

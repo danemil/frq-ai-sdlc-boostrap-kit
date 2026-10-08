@@ -2,7 +2,8 @@
 
 Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fixes:
     missing:<path>     a file the kit placed is gone
-    unknown:<path>     an ai-sdlc* file the kit did not write (Copilot may have made it)
+    unknown:<path>     an ai-sdlc* file the kit did not write (Copilot may have made it);
+                       the person's own notes and personal skills (paths.is_personal) are not
     unexcluded:<path>  an ai-sdlc* file git does not hide
     stale-kit          the kit folder and state.json disagree on the version
     kit-copy:<dir>     another kit folder in the repo that git does not hide
@@ -66,7 +67,7 @@ def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
             found.append((f"missing:{rel}", f"{rel} is missing."))
     present = ai_sdlc_files(root)
     for rel in present:
-        if rel not in st["files"] and not rel.endswith(".tmp"):
+        if rel not in st["files"] and not rel.endswith(".tmp") and not paths.is_personal(rel):
             found.append((f"unknown:{rel}", f"{rel} looks like a kit file, but the kit did not write it."))
     if paths.repo_root(root)[1]:
         on_disk = sorted(set(present) | {r for r in st["files"] if (root / r).is_file()})

@@ -70,6 +70,44 @@ class TestRemove(unittest.TestCase):
                       f"don't need them): {CORE}", out)
         self.assertFalse((root / paths.HOME_REL).exists())
 
+    def test_a_multi_file_skill_is_placed_hidden_and_removed_byte_for_byte(self):
+        src = helpers.copy_kit(self.base / "src-kit")
+        skill = src / "template/.claude/skills/notes"
+        files = {"SKILL.md": "---\nname: notes\ndescription: Use for notes.\n---\n\nNotes.\n",
+                 "references/guide.md": "# Guide\n", "assets/starter.html": "<!doctype html>\n"}
+        for rel, text in files.items():
+            (skill / rel).parent.mkdir(parents=True, exist_ok=True)
+            (skill / rel).write_text(text, encoding="utf-8")
+        root = helpers.make_repo(self.base / "repo", TEAM)
+        before = helpers.snapshot(root)
+        helpers.cli(root, helpers.copy_kit(root / "ai-sdlc-kit", src=src), *ARGS)
+        kit = root / paths.KIT_REL
+        self.assertEqual(helpers.cli(root, kit, "change", "--add-skill", "notes")[0], 0)
+        for rel in files:
+            self.assertTrue((root / ".agents/skills/ai-sdlc-notes" / rel).is_file(), rel)
+        self.assertEqual(helpers.git(root, "status", "--porcelain").stdout, "")
+        self.assertEqual(helpers.cli(root, kit, "ack", "team-agents-md")[0], 0)
+        code, out = helpers.cli(root, kit, "remove")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(helpers.snapshot(root), before)
+
+    def test_personal_notes_and_skills_are_kept_and_listed(self):
+        def write_personal(r):
+            (r / paths.PERSONAL_NOTES_REL).write_text("---\napplyTo: '**'\n---\nMine.\n")
+            skill = r / ".agents/skills/ai-sdlc-personal-release/SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("mine\n")
+        root = helpers.make_repo(self.base / "repo", TEAM)
+        _, after, out = self.round_trip(root, edit=write_personal)
+        self.assertIn("Kept your personal notes and skills (git now shows them; delete them if "
+                      f"you don't need them): {paths.PERSONAL_NOTES_REL}, "
+                      ".agents/skills/ai-sdlc-personal-release/SKILL.md", out)
+        self.assertNotIn("The repo is back to how it was", out)
+        self.assertEqual((root / paths.PERSONAL_NOTES_REL).read_text(), "---\napplyTo: '**'\n---\nMine.\n")
+        mine = {".agents/skills/ai-sdlc-personal-release/SKILL.md", paths.PERSONAL_NOTES_REL}
+        status = helpers.git(root, "status", "--porcelain", "-uall").stdout
+        self.assertEqual(sorted(line[3:] for line in status.splitlines()), sorted(mine))
+
     def test_remove_before_setup_is_a_plain_error(self):
         root = helpers.make_repo(self.base / "repo")
         code, out = helpers.cli(root, helpers.KIT, "remove")

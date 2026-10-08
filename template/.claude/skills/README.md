@@ -24,6 +24,12 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 | Skill | Use it for |
 |---|---|
 | **skill-creator** | Create new skills, and improve / evaluate existing ones. Use it to add a team skill or sharpen one's triggering. |
+| **drawio** | draw.io diagrams (Mermaid or XML), saved locally; export needs the draw.io desktop app. Upstream Apache-2.0, see its `PROVENANCE.md`. |
+| **visual-explainers** | A self-contained HTML explainer for a concept, flow or tradeoff. |
+| **visual-issue** | An issue, ticket or PR description with a compiled Mermaid diagram, for GitHub, Bitbucket or Jira. |
+| **deceneus** | What to remember from a chat: proposes preferences, notes or a skill, and writes only what is approved. MIT, see its `PROVENANCE.md`. |
+
+Personal setup gives these four to every role (the `core` pack in `roles/core/role.json`).
 
 > **Generic baseline (optional).** Teams commonly also bundle `brainstorming`, `writing-plans`, `test-driven-development`, `systematic-debugging`, and `code-review` here (e.g. from the Superpowers plugin) so the whole team shares one process baseline. Add the ones your team uses via PR; the playbooks reference them where relevant.
 

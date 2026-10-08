@@ -23,6 +23,7 @@ LANGUAGES = {"en": "English", "ro": "Romanian (română)", "de": "German (Deutsc
 KEYS = {"id", "label", "source", "skills", "defaults", "connectors"}
 UNSUPPORTED_SKILLS = {"git-verbs": "it drives the team-mode session scripts, which personal setup does not place"}
 MAX_LINES = 60
+RESERVED = "personal"                             # paths.is_personal: the person's own files
 _ID = re.compile(r"^[a-z][a-z0-9-]*$")
 
 GIT_TEXT = {
@@ -140,6 +141,9 @@ def _pack_errors(kit, folder, pack, known) -> list[str]:
         return errs
     if pack["id"] != folder.name or not _ID.match(str(pack["id"])):
         errs.append(f"id {pack['id']!r} must be lowercase and equal its folder name")
+    elif pack["id"] == RESERVED:
+        errs.append(f"id {RESERVED!r} is reserved: ai-sdlc-{RESERVED}.instructions.md "
+                    "is the person's own notes file")
     if not isinstance(pack["label"], str) or not pack["label"].strip():
         errs.append("label must be a non-empty string")
     if not isinstance(pack["source"], str) or not (kit / pack["source"]).is_file():
@@ -148,7 +152,9 @@ def _pack_errors(kit, folder, pack, known) -> list[str]:
         errs.append("skills must be a list")
     else:
         for s in pack["skills"]:
-            if s in UNSUPPORTED_SKILLS:
+            if str(s).startswith(RESERVED + "-"):
+                errs.append(f"skill {s!r}: names starting {RESERVED}- are the person's own skills")
+            elif s in UNSUPPORTED_SKILLS:
                 errs.append(f"skill {s!r} cannot be placed: {UNSUPPORTED_SKILLS[s]}")
             elif s not in known:
                 errs.append(f"skill {s!r} is not in {SKILLS_REL}")

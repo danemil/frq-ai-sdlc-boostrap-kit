@@ -4742,6 +4742,10 @@ git push
 5. **`.claude/rules` warnings.** ~~Kept only if Task 0 check 10 shows Copilot applies them.~~ **Decided 2026-10-08:** check 10 failed, so there are none (`TEAM_RULE_DIRS = ()`, Task 8).
 6. **Cleanup of retired code.** **Decided 2026-10-08:** after a successful pilot, propose deleting the retired team-mode code (`install.sh`, `scripts/install/` outside what personal setup imports, the template CI files, `--ci`), but delete nothing without the owner's explicit approval in that moment (Global constraints; follow-ups in Tasks 15 and 16).
 
+## Follow-up (2026-10-08, owner decision): core skills
+
+Every person gets four skills whatever their roles: `roles/core/role.json` lists `deceneus`, `drawio`, `visual-explainers` and `visual-issue`, so a future role inherits them with no skills of its own (a person can still leave one out with `change --drop-skill`). `drawio` is the upstream Copilot variant (jgraph/drawio-mcp `plugins/copilot/skills/drawio` @1da785068fde, Apache-2.0) with its references bundled, no URL or upload mode, diagrams in `docs/diagrams/`; `visual-explainers` and `visual-issue` are the owner's own, adapted for Copilot; `deceneus` is the owner's own (danemil/deceneus @01de547, MIT), limited to personal, git-hidden destinations. Each skill folder has a `PROVENANCE.md`. To support them, `place.placed_skill_files` places a skill's whole folder, file by file in `state.json`, and the person's own notes file (`.github/instructions/ai-sdlc-personal.instructions.md`) and `ai-sdlc-personal-*` skills are never reported by `check` and are kept and listed by `remove`. This supersedes the "`drawio` = vendored skill #6, Phase 4" item of the 2026-10-07 onboarding design.
+
 ## Out of scope (by design §9)
 
 RTE/SAFe pack (the SAFe Scrum Master playbook is in v1, Task 5c); connectors (Phase 3); role discovery (v2); languages beyond en/ro/de; rituals beyond the one-line session summary; promoting a personal setup to a team setup; a fixed install location as a second kit source; local git hooks (accepted limit: `git add -f` bypasses the exclude block).

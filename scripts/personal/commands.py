@@ -212,6 +212,7 @@ def cmd_update(args, cwd, kit):
 def cmd_remove(args, cwd, kit):
     root, is_git = paths.repo_root(cwd)
     st = _need_state(root)
+    personal = [r for r in checks.ai_sdlc_files(root) if paths.is_personal(r)]
     report = place.apply(root, st, {})            # deletes unedited files, keeps edited ones
     kit_dir = root / paths.KIT_REL
     if place.is_kit(kit_dir):
@@ -226,7 +227,10 @@ def cmd_remove(args, cwd, kit):
     if report["kept"]:
         lines.append("Kept, because you edited them (git now shows them; delete them if you "
                      "don't need them): " + ", ".join(report["kept"]))
-    elif is_git:
+    if personal:
+        lines.append("Kept your personal notes and skills (git now shows them; delete them if "
+                     "you don't need them): " + ", ".join(personal))
+    if is_git and not report["kept"] and not personal:
         lines.append("The repo is back to how it was before setup.")
     return 0, lines
 

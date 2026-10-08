@@ -38,11 +38,14 @@ class TestPlace(unittest.TestCase):
         return place.wanted_files(KIT, self.packs, choices(**kw))
 
     def test_wanted_files_follow_the_choices(self):
-        self.assertEqual(sorted(self.wanted()), sorted([
-            ".agents/skills/ai-sdlc-playbook-dev/SKILL.md",
-            ".agents/skills/ai-sdlc-playbook-product/SKILL.md",
+        wanted = self.wanted()
+        self.assertEqual(sorted(r for r in wanted if not r.startswith(".agents/")), sorted([
             ".ai-sdlc/USER.md", ".github/instructions/ai-sdlc-core.instructions.md",
             ".github/instructions/ai-sdlc-dev.instructions.md", PO]))
+        skills = {r.split("/")[2] for r in wanted if r.startswith(".agents/")}
+        self.assertEqual(skills, {f"ai-sdlc-{s}" for s in (
+            "playbook-dev", "playbook-product", *self.packs["core"]["skills"])})
+        self.assertIn(".agents/skills/ai-sdlc-drawio/references/xml-reference.md", wanted)
         self.assertIn("- **Roles:** Product Owner, Developer", self.wanted()[".ai-sdlc/USER.md"])
 
     def test_first_apply_writes_everything_and_records_it(self):
@@ -114,7 +117,70 @@ class TestPlace(unittest.TestCase):
         self.assertEqual((self.root / PO).read_text(), "someone else's\n")
 
 
-SKILL_DIR = "template/.claude/skills/playbook-dev"     # where the skill lives in the kit
+NOTES = {   # a multi-file library skill: {path in its folder: bytes}
+    "SKILL.md": b"---\nname: notes\ndescription: Use for notes.\n---\n\nSee [ref](references/a.md).\n",
+    "references/a.md": b"# A\n\nWindows line ends stay as they are.\r\n",
+    "assets/page.html": "<!doctype html><title>Café</title>\n".encode("utf-8"),
+    "LICENSE": b"Apache License 2.0\n",
+}
+NOTES_DIR = ".agents/skills/ai-sdlc-notes"
+
+
+class TestMultiFileSkill(unittest.TestCase):
+    """A skill is placed as its whole folder, tracked file by file, and removed cleanly."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.kit = base / "kit"
+        src = self.kit / packs.SKILLS_REL / "notes"
+        for rel, data in {**NOTES, ".DS_Store": b"\x00\x01", "__pycache__/x.pyc": b"\x00"}.items():
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_bytes(data)
+        self.root = helpers.make_repo(base / "repo", {"README.md": "team\n"})
+        self.st = state.new("0.4.0")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_every_file_of_the_folder_is_placed_byte_for_byte(self):
+        files = place.placed_skill_files(self.kit, "notes")
+        self.assertEqual(sorted(files), sorted(f"{NOTES_DIR}/{rel}" for rel in NOTES))
+        self.assertTrue(files[f"{NOTES_DIR}/SKILL.md"].startswith("---\nname: ai-sdlc-notes\n"))
+        for rel in ("references/a.md", "assets/page.html", "LICENSE"):
+            self.assertEqual(files[f"{NOTES_DIR}/{rel}"].encode("utf-8"), NOTES[rel], rel)
+
+    def test_placed_files_are_recorded_and_removed_with_their_folders(self):
+        before = helpers.snapshot(self.root)
+        wanted = place.placed_skill_files(self.kit, "notes")
+        report = place.apply(self.root, self.st, wanted)
+        self.assertEqual(sorted(report["written"]), sorted(wanted))
+        self.assertEqual(sorted(self.st["files"]), sorted(wanted))
+        self.assertEqual((self.root / NOTES_DIR / "references/a.md").read_bytes(),
+                         NOTES["references/a.md"])
+        self.assertEqual(place.apply(self.root, self.st, wanted),
+                         {"written": [], "kept": [], "skipped": [], "removed": []})
+        report = place.apply(self.root, self.st, {})
+        self.assertEqual(sorted(report["removed"]), sorted(wanted))
+        self.assertEqual(helpers.snapshot(self.root), before)
+
+    def test_an_edited_reference_file_is_kept(self):
+        wanted = place.placed_skill_files(self.kit, "notes")
+        place.apply(self.root, self.st, wanted)
+        ref = self.root / NOTES_DIR / "references/a.md"
+        ref.write_text("my notes\n")
+        report = place.apply(self.root, self.st, {})
+        self.assertEqual(report["kept"], [f"{NOTES_DIR}/references/a.md"])
+        self.assertEqual(ref.read_text(), "my notes\n")
+        self.assertFalse((self.root / NOTES_DIR / "assets").exists())
+
+    def test_a_binary_file_is_refused(self):
+        (self.kit / packs.SKILLS_REL / "notes/assets/logo.png").write_bytes(b"\x89PNG\r\n\xff")
+        with self.assertRaisesRegex(ValueError, "notes/assets/logo.png is not UTF-8 text"):
+            place.placed_skill_files(self.kit, "notes")
+
+
+SKILL_DIR ="template/.claude/skills/playbook-dev"     # where the skill lives in the kit
 PLACED_DIR = ".agents/skills/ai-sdlc-playbook-dev"     # where setup places it in the repo
 
 

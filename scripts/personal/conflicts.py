@@ -75,7 +75,7 @@ def warnings(root, st) -> list[tuple[str, str, str]]:
             out.append((f"team-rules:{rel}", f"The team's rule {rel} applies to "
                         f"{', '.join(_shared(globs))}, where the kit's instructions apply too.",
                         reuse.sha256_file(p)))
-    placed = {Path(rel).parent.name for rel in ours if rel.startswith(".agents/skills/")}
+    placed = {Path(rel).parts[2] for rel in ours if rel.startswith(".agents/skills/")}
     names = placed | {n[len(packs.PREFIX):] for n in placed}
     for d in SKILL_DIRS:
         for skill in sorted((root / d).glob("*/SKILL.md")) if (root / d).is_dir() else []:

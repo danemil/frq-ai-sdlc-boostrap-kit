@@ -47,6 +47,17 @@ class TestCheck(unittest.TestCase):
             "unknown:.claude/skills/ai-sdlc-notes/SKILL.md",
             "unknown:.github/instructions/ai-sdlc-extra.instructions.md"])
 
+    def test_personal_notes_and_skills_are_not_unknown_and_stay_hidden(self):
+        (self.root / paths.PERSONAL_NOTES_REL).write_text("---\napplyTo: '**'\n---\nMine.\n")
+        mine = self.root / ".agents/skills/ai-sdlc-personal-release/SKILL.md"
+        mine.parent.mkdir(parents=True)
+        mine.write_text("x\n")
+        lookalike = self.root / ".agents/skills/ai-sdlc-personalx/SKILL.md"
+        lookalike.parent.mkdir(parents=True)
+        lookalike.write_text("x\n")
+        self.assertEqual(self.ids(), ["unknown:.agents/skills/ai-sdlc-personalx/SKILL.md"])
+        self.assertEqual(helpers.git(self.root, "status", "--porcelain").stdout, "")
+
     def test_a_removed_exclude_block_is_reported(self):
         exclude.unprotect(self.root)
         ids = self.ids()
