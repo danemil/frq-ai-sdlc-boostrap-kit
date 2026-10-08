@@ -56,7 +56,7 @@ The **Product** seat — combining **Product Owner** and **Product Manager** —
 
 **Product ↔ Architect.** Product brings the use case; the Architect brings feasibility evidence. The Architect *flags* constraints, risk, and cost; **Product decides** whether and when to proceed.
 
-**Product ↔ EM.** The most intimate operational interaction: Product holds priority, EM holds capacity. They **converge before any commit** — Product proposes the pull, EM states the team's capacity, the **team** commits the scope, and no date is committed until both agree.
+**Product ↔ EM.** The most intimate operational interaction: Product holds priority, EM holds capacity. They **converge before any commit** — Product proposes the pull, EM states the team's capacity, the **team** commits the scope, and no date is committed until all three agree.
 
 **Product ↔ Developer.** Product is the source of truth on *intent* during refinement — answering "what does done look like and why." **No story-level technical intervention**; how it is built is the Developer's call.
 
