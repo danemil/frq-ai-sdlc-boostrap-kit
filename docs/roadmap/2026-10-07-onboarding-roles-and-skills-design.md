@@ -299,6 +299,8 @@ Policy for every addition: vendor a pinned copy under `template/.claude/skills/`
 
 ### 5.0 Jira / Confluence access without MCP
 
+**Superseded and extended (2026-10-08, owner decision):** access now goes through personal, read-only connectors (Jira, Confluence, Bitbucket DC, Jama, Jenkins) with per-user credentials set by `setup.py connect`, outside the repo; see [`2026-10-08-connectors-design.md`](./2026-10-08-connectors-design.md). The API notes below still hold.
+
 Neither Atlassian CLI covers what #1 and #4 need. `acli` (Atlassian, free) is **Cloud-only** and exposes no changelog. `ankitpokhrel/jira-cli` (MIT) supports Data Center but also has no changelog and cannot read Confluence. The kit therefore **extends its own stdlib REST adapter** (`scripts/jira/export_jira.py`, already Cloud + DC with both paging styles) into a small `scripts/atlassian/` library:
 
 | Need | Addition | Used by |
