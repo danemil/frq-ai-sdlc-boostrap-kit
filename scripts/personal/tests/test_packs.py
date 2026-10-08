@@ -158,11 +158,14 @@ class TestRealKit(unittest.TestCase):
         self.assertIn("A human validates everything", text)
         self.assertIn("If a team rule in this repo contradicts a kit rule, follow the team rule "
                       "and mention the difference once.", text)
-        status = choices(lang="de", rituals="status")
-        _, text = packs.instructions_file(all_packs["core"], packs.core_values(
-            all_packs, status, packs.combine(all_packs, status)))
-        self.assertIn("At the start of each session, run `python3 .ai-sdlc/kit/setup.py "
-                      "check --quiet` once", text)
+        for rituals in packs.RITUALS:  # the session-start check is always on (option 2)
+            r = choices(lang="de", rituals=rituals)
+            _, text = packs.instructions_file(all_packs["core"], packs.core_values(
+                all_packs, r, packs.combine(all_packs, r)))
+            self.assertIn("At the start of each session, run `python3 .ai-sdlc/kit/setup.py "
+                          "check --quiet` once", text, rituals)
+            self.assertIn(packs.RITUAL_TEXT[rituals], text, rituals)
+            self.assertNotIn("check --quiet", packs.RITUAL_TEXT[rituals], rituals)
 
     @unittest.skipUnless(subprocess.run([sys.executable, "-c", "import yaml"]).returncode == 0,
                          "needs PyYAML")

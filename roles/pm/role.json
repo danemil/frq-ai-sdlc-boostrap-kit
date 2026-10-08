@@ -1,0 +1,8 @@
+{
+  "id": "pm",
+  "label": "Product Manager",
+  "source": "docs/FRQ-Roles/Product Manager.md",
+  "skills": ["playbook-product"],
+  "defaults": {"git_comfort": "hidden", "rituals": "status"},
+  "connectors": []
+}

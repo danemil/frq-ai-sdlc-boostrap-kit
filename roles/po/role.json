@@ -1,0 +1,8 @@
+{
+  "id": "po",
+  "label": "Product Owner",
+  "source": "docs/FRQ-Roles/Skills Product Owner.md",
+  "skills": ["playbook-product"],
+  "defaults": {"git_comfort": "hidden", "rituals": "status"},
+  "connectors": []
+}

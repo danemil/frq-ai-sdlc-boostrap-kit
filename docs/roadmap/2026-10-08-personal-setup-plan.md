@@ -43,7 +43,7 @@
   done
   ```
 
-- **No client names in anything shipped**: `README.md`, `ONBOARDING.md`, `setup.py`, `roles/**`, `scripts/personal/*.py`, and the new `template/.claude/skills/playbook-sm/SKILL.md` (Task 5c; it may name SAFe, the public framework). The client's name, abbreviation and product names may appear only in `docs/roadmap/`. **The tension:** the PO, PM and SM packs are sourced from `docs/FRQ-Roles/`. Their `instructions.md` is generic role guidance rewritten from those documents (no client, product or programme names), and only `role.json`'s `source` field may hold the path. `test_roles.py` enforces this (Task 5a) with the `source` value exempted.
+- **Client names (owner decision, 2026-10-08, rule option 1).** Role instructions, skills and prompts (anything Copilot reads as guidance: `roles/*/instructions.md`, placed skills, core instructions, ONBOARDING.md) stay generic, with no client or product names. The client name is allowed in docs, tests and `source` paths. Other clients' names stay forbidden everywhere. `test_roles.py` checks the guidance files (Task 5a).
 - **zsh quoting** (the owner's shell):
   - Quote anything with `[` `]` `*` `?`: `grep -F '[team-agents-md]'`, not `grep -F [team-agents-md]` (zsh globs it and fails with `no matches found`).
   - `echo ======` fails in zsh (`=word` is command expansion): use `echo '======'`.
@@ -1081,7 +1081,9 @@ EOF
 
 **Combining roles.** Skills are the union of the core pack and every chosen role, then the person's `add_skills`, minus `drop_skills`. Each role keeps its own instructions file. Where defaults disagree, the more guided wins (`git-native` < `guided` < `hidden`; `none` < `status`), as design §5.2 says ("do git for me" wins). **Decided 2026-10-08 by the owner:** the more guided git comfort wins; this replaces the 2026-10-07 seat design's §4a rule. An explicit choice from `change --git-comfort` or `--rituals` beats every default.
 
-**The core pack** applies to everyone. Its `instructions.md` is the one template (`string.Template`, `$name`, `$language`, `$roles`, `$git_comfort`, `$rituals`): the language line, the USER.md gate, the git line, the session line (with the `status` ritual, every role's default: "At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning it prints"; this replaces the session hook, dropped after Task 0), the kit's governing rule (a human validates everything; evidence found or not found; no judgements about individuals; no invented facts), and the team-rule line (decided 2026-10-08): "If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once." Its `source` is `template/AGENTS.md`, whose §3 hard constraints it condenses. Its defaults are the least guided, so they never win over a role.
+**The core pack** applies to everyone. Its `instructions.md` is the one template (`string.Template`, `$name`, `$language`, `$roles`, `$git_comfort`, `$rituals`): the language line, the USER.md gate, the git line, the session line ("At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning it prints"; this replaces the session hook, dropped after Task 0), the kit's governing rule (a human validates everything; evidence found or not found; no judgements about individuals; no invented facts), and the team-rule line (decided 2026-10-08): "If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once." Its `source` is `template/AGENTS.md`, whose §3 hard constraints it condenses. Its defaults are the least guided, so they never win over a role.
+
+**Decided 2026-10-08 (option 2): session check always on.** The `check --quiet` line is fixed text in `roles/core/instructions.md`, so every person gets it whatever their rituals setting. `$rituals` stays for optional habits only: `status` adds "After the check, give a one-line summary of where the work stands.", `none` adds "No other session-start habit." (`RITUAL_TEXT`; the `RITUALS` values are unchanged). `test_packs` asserts the check line for both values. This change landed with the Task 5a commit.
 
 **Validation** (`packs.validate`, stdlib) checks keys, id == folder, label, that `source` exists in the kit, that skills exist and are placeable, defaults, connectors, the instructions file, and that the core template has only known placeholders. `scripts/personal/validate_packs.py` (CI) adds the skill check: it renders each used skill exactly as setup places it and runs `validate-skills.py`'s `validate_file` on it. `setup.py` never calls either.
 
@@ -1254,11 +1256,14 @@ class TestRealKit(unittest.TestCase):
         self.assertIn("A human validates everything", text)
         self.assertIn("If a team rule in this repo contradicts a kit rule, follow the team rule "
                       "and mention the difference once.", text)
-        status = choices(lang="de", rituals="status")
-        _, text = packs.instructions_file(all_packs["core"], packs.core_values(
-            all_packs, status, packs.combine(all_packs, status)))
-        self.assertIn("At the start of each session, run `python3 .ai-sdlc/kit/setup.py "
-                      "check --quiet` once", text)
+        for rituals in packs.RITUALS:  # the session-start check is always on (option 2)
+            r = choices(lang="de", rituals=rituals)
+            _, text = packs.instructions_file(all_packs["core"], packs.core_values(
+                all_packs, r, packs.combine(all_packs, r)))
+            self.assertIn("At the start of each session, run `python3 .ai-sdlc/kit/setup.py "
+                          "check --quiet` once", text, rituals)
+            self.assertIn(packs.RITUAL_TEXT[rituals], text, rituals)
+            self.assertNotIn("check --quiet", packs.RITUAL_TEXT[rituals], rituals)
 
     @unittest.skipUnless(subprocess.run([sys.executable, "-c", "import yaml"]).returncode == 0,
                          "needs PyYAML")
@@ -1317,10 +1322,9 @@ GIT_TEXT = {
               "commit and push. Never commit to main, master or another protected branch; "
               "use a personal branch.",
 }
-RITUAL_TEXT = {
-    "status": "At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once "
-              "and mention any warning it prints, in the person's language. The command is read-only.",
-    "none": "No session-start ritual: start working straight away.",
+RITUAL_TEXT = {  # optional habits; the check --quiet line is always on (roles/core/instructions.md)
+    "status": "After the check, give a one-line summary of where the work stands.",
+    "none": "No other session-start habit.",
 }
 HEADER = ("<!-- AI-SDLC personal setup, from roles/{id}/instructions.md. If you edit this file, "
           "the kit keeps your edit and puts its newer copy next to it as .kit-new. -->")
@@ -1549,7 +1553,7 @@ Create `roles/core/instructions.md`:
 
 **Git.** $git_comfort
 
-**Session.** $rituals
+**Session.** At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning it prints, in the person's language. The command is read-only. $rituals
 
 **A human validates everything.**
 - You suggest; $name decides. Never approve, sign off, prioritise or close anything for them.
@@ -1597,7 +1601,9 @@ EOF
 
 ### Task 5a: Role packs for Product Owner, Product Manager and Scrum Master (content)
 
-**This task is content, not code: the human must review the wording of every instructions file.** The text condenses the role catalogues in `docs/FRQ-Roles/` (PO01–PO10, PM01–PM12, SM01–SM12, and their safety rules) into generic guidance: no client, product or programme names. `role.json`'s `source` points at the catalogue; that path is the only place the client abbreviation may appear, and `test_no_client_names_in_shipped_files` exempts exactly that field.
+**This task is content, not code: the human must review the wording of every instructions file.** The text condenses the role catalogues in `docs/FRQ-Roles/` (PO01–PO10, PM01–PM12, SM01–SM12, and their safety rules) into generic guidance: no client, product or programme names. `role.json`'s `source` points at the catalogue. Under the client-name rule (Global constraints), `test_no_client_names_in_copilot_guidance` scans only what Copilot reads as guidance; docs, tests and `source` paths may name the client.
+
+**Decided 2026-10-08: SM speaks SAFe from 5a.** The `sm` pack is the Scrum Master / Team Coach (SAFe) from the start: its label and instructions use SAFe terms (iterations, PI Planning, PI objectives, ART Sync / Scrum of Scrums, system demo, Inspect & Adapt, ROAM), drawn from SM01–SM12 and standard SAFe. It still has no skill in 5a; Task 5c adds `playbook-sm` and one sentence naming it.
 
 **Skill mapping** (from the kit's library, `template/.claude/skills/`):
 
@@ -1605,7 +1611,7 @@ EOF
 |---|---|---|---|
 | `po` | `playbook-product` | hidden | the Product seat's contract covers PO; seat profile "Product" defaults to hidden |
 | `pm` | `playbook-product` | hidden | same seat contract (Product = PO + PM) |
-| `sm` | none yet; `playbook-sm` from Task 5c | guided | no SM playbook exists yet; Task 5c writes the SAFe Scrum Master / Team Coach playbook and points the pack at it (owner decision, 2026-10-08) |
+| `sm` | none yet; `playbook-sm` from Task 5c | guided | the instructions are SAFe from 5a; no SM playbook exists yet; Task 5c writes the SAFe Scrum Master / Team Coach playbook and points the pack at it (owner decisions, 2026-10-08) |
 | `dev`, `qa`, `architect`, `em` | their own `playbook-*` | as `seat-profiles.json` | Task 5b |
 
 `skill-creator` is in no pack: anyone can add it with `change --add-skill skill-creator`. `git-verbs` cannot be placed (Task 4). Rituals default to `status` for every role.
@@ -1618,8 +1624,7 @@ EOF
 
 ```python
 #!/usr/bin/env python3
-"""The v1 role packs: which roles exist, what each one gets, and no client names shipped."""
-import json
+"""The v1 role packs: which roles exist, what each one gets, and generic Copilot guidance."""
 import re
 import unittest
 
@@ -1631,25 +1636,24 @@ KIT = helpers.KIT
 EXPECTED = {
     "po": ("Product Owner", ["playbook-product"], "hidden"),
     "pm": ("Product Manager", ["playbook-product"], "hidden"),
-    "sm": ("Scrum Master", [], "guided"),           # playbook-sm arrives in Task 5c
+    "sm": ("Scrum Master / Team Coach (SAFe)", [], "guided"),  # playbook-sm arrives in Task 5c
 }
 CLIENT_WORDS = re.compile(r"\b(frequentis|frq|mosaix)\b", re.I)
 
 
-def shipped_texts():
-    """(path, text) of everything a person sees; a role.json's `source` path is exempt."""
-    for rel in ("README.md", "ONBOARDING.md", "setup.py"):
-        if (KIT / rel).is_file():
-            yield rel, (KIT / rel).read_text(encoding="utf-8")
-    for p in sorted((KIT / "scripts/personal").glob("*.py")):
+def guidance_texts():
+    """(path, text) of everything Copilot reads as guidance: the client-name rule (owner
+    decision, 2026-10-08) keeps these generic; docs, tests and `source` paths may name the client."""
+    for p in sorted((KIT / packs.ROLES_REL).glob("*/instructions.md")):
         yield p.relative_to(KIT).as_posix(), p.read_text(encoding="utf-8")
-    for p in sorted((KIT / packs.ROLES_REL).rglob("*")):
-        if p.name == "role.json":
-            data = json.loads(p.read_text(encoding="utf-8"))
-            data.pop("source")
-            yield p.relative_to(KIT).as_posix(), json.dumps(data)
-        elif p.is_file():
-            yield p.relative_to(KIT).as_posix(), p.read_text(encoding="utf-8")
+    for skill in packs.available_skills(KIT):        # any of them can be placed
+        p = KIT / packs.SKILLS_REL / skill / "SKILL.md"
+        yield p.relative_to(KIT).as_posix(), p.read_text(encoding="utf-8")
+    yield "packs.GIT_TEXT", "\n".join(packs.GIT_TEXT.values())         # rendered into core
+    yield "packs.RITUAL_TEXT", "\n".join(packs.RITUAL_TEXT.values())
+    yield "packs.HEADER", packs.HEADER
+    if (KIT / "ONBOARDING.md").is_file():
+        yield "ONBOARDING.md", (KIT / "ONBOARDING.md").read_text(encoding="utf-8")
 
 
 class TestRoles(unittest.TestCase):
@@ -1678,8 +1682,8 @@ class TestRoles(unittest.TestCase):
     def test_all_packs_validate(self):
         self.assertEqual(packs.validate(KIT), [])
 
-    def test_no_client_names_in_shipped_files(self):
-        for rel, text in shipped_texts():
+    def test_no_client_names_in_copilot_guidance(self):
+        for rel, text in guidance_texts():
             with self.subTest(path=rel):
                 self.assertIsNone(CLIENT_WORDS.search(text))
 
@@ -1774,7 +1778,7 @@ You support a Product Manager: feature readiness, the roadmap, prioritisation an
 ```json
 {
   "id": "sm",
-  "label": "Scrum Master",
+  "label": "Scrum Master / Team Coach (SAFe)",
   "source": "docs/FRQ-Roles/Scrum Master Skills.md",
   "skills": [],
   "defaults": {"git_comfort": "guided", "rituals": "status"},
@@ -1785,25 +1789,31 @@ You support a Product Manager: feature readiness, the roadmap, prioritisation an
 `roles/sm/instructions.md`:
 
 ~~~~markdown
-# Role: Scrum Master
+# Role: Scrum Master / Team Coach (SAFe)
 
-You support a Scrum Master: sprint flow, impediments, dependencies and ceremonies.
+You support a Scrum Master / Team Coach on a SAFe Agile Release Train (ART): team flow, impediments, team events, PI Planning and the team's improvement. Say "iteration"; "sprint" means the same.
 
 **What you help with**
-- **Flow health.** Find work that waits: a long time in one status, waiting for review, clarification or testing, blockers without an owner, items moving backward or reopened, work near sprint end without evidence.
+- **Flow health.** Find work that waits: a long time in one status, waiting for review, clarification or testing, blockers without an owner, items moving backward or reopened, work near iteration end without evidence.
 - **Progress evidence.** Compare reported progress with workflow and engineering evidence: commits, reviews, builds, tests.
-- **Blockers and dependencies.** List each with its owner, its age and the next step.
-- **Daily scrum prep.** What changed since yesterday, new blockers, items at risk.
-- **Sprint review pack.** The evidence for what was done, per item.
-- **Retrospectives.** Patterns at team level across sprints.
+- **Impediments and dependencies.** List each with its owner, its age and the next step. For a dependency on another team, name the providing team, the consuming team, what is needed and by when.
+- **Daily stand-up prep.** What changed since yesterday, new blockers, items at risk.
+- **Iteration review pack.** The evidence for what was done, per item; what was not done, and scope changes.
+- **Retrospectives.** Patterns at team level across iterations.
 - **Flow metrics.** Explain cycle time, throughput and work in progress, with the definition, source and period of every number.
-- **Planning, risks and ceremonies.** Check planning readiness, prepare risks for the team's discussion, and draft agendas with an objective, participants, inputs, timeboxes, decision points and the expected output.
+- **Iteration planning, risks and agendas.** Check planning readiness, prepare risks for the team's discussion, and draft agendas with an objective, participants, inputs, timeboxes, decision points and the expected output.
+- **PI Planning prep.** Gather the team's capacity, the draft PI objectives (committed and uncommitted), and the dependencies and risks for the program board.
+- **PI objectives tracking.** List the evidence found per objective, next to the business value the business owners assigned. Never assign it yourself.
+- **ART Sync / Scrum of Scrums prep.** Cross-team dependencies, progress towards PI objectives, and impediments the team cannot remove that need escalating.
+- **System demo and Inspect & Adapt prep.** Collect the team's evidence for the system demo, and the inputs to the problem-solving workshop: observed outcomes, flow and quality signals, recurring problems and candidate improvement items, each with its evidence and its limits.
+- **ROAM.** Prepare PI risks for the ROAM discussion (Resolved, Owned, Accepted, Mitigated). Suggest a category at most: the team and the Release Train Engineer (RTE) decide.
 
 **Limits**
 - Show signals, not judgements about people or performance. Never score individuals.
 - No guesses about interpersonal problems, emotions or ability.
 - No cause-and-effect claims without a source, a definition and a period.
 - Suggest a risk classification at most: the team decides it.
+- Never assign business value or cast confidence votes for the team: business owners assign business value, and the team votes.
 ~~~~
 
 **Step 4: Run the tests and the validator**
@@ -2011,17 +2021,17 @@ EOF
 
 ### Task 5c: SAFe Scrum Master / Team Coach playbook (content)
 
-**Owner decision (2026-10-08):** the client works in SAFe and no SM playbook exists, so the `sm` pack gets its own skill instead of borrowing `playbook-em`. **This task is content, not code: the human must review every line of the new playbook and of the rewritten SM instructions before the commit.** The playbook is generic role guidance for the SAFe Scrum Master / Team Coach, drawn from `docs/FRQ-Roles/Scrum Master Skills.md` (SM01–SM12) and the public SAFe role description. It may name SAFe as a framework; it names no client, product or programme. It lives with the other playbooks in the kit's skill library (`template/.claude/skills/`, `packs.SKILLS_REL`, where Tasks 5a and 5b take their skills from), follows their shape (frontmatter with `metadata`, §1 Mandate to §5 Definition of done, about 80 lines), and keeps their relative links to `AGENTS.md` and `WORKING-AGREEMENT.md`, which Task 6a rewrites when it places the file.
+**Owner decision (2026-10-08):** the client works in SAFe and no SM playbook exists, so the `sm` pack gets its own skill instead of borrowing `playbook-em`. **This task is content, not code: the human must review every line of the new playbook and of the one-sentence change to the SM instructions before the commit.** The playbook is generic role guidance for the SAFe Scrum Master / Team Coach, drawn from `docs/FRQ-Roles/Scrum Master Skills.md` (SM01–SM12) and the public SAFe role description. It may name SAFe as a framework; it names no client, product or programme. It lives with the other playbooks in the kit's skill library (`template/.claude/skills/`, `packs.SKILLS_REL`, where Tasks 5a and 5b take their skills from), follows their shape (frontmatter with `metadata`, §1 Mandate to §5 Definition of done, about 80 lines), and keeps their relative links to `AGENTS.md` and `WORKING-AGREEMENT.md`, which Task 6a rewrites when it places the file.
 
 **Files:**
 - Create: `template/.claude/skills/playbook-sm/SKILL.md`
-- Modify: `roles/sm/role.json` (`skills`), `roles/sm/instructions.md` (rewritten), `template/.claude/skills/README.md` (one row in the role-seat table)
+- Modify: `roles/sm/role.json` (`skills`), `roles/sm/instructions.md` (one sentence naming the skill; the SAFe text is from Task 5a), `template/.claude/skills/README.md` (one row in the role-seat table)
 - Test: `scripts/personal/tests/test_roles.py` (`EXPECTED["sm"]`, one new test)
 
 **Step 1: Extend the test.** In `scripts/personal/tests/test_roles.py`, change the `"sm"` entry of `EXPECTED` to:
 
 ```python
-    "sm": ("Scrum Master", ["playbook-sm"], "guided"),
+    "sm": ("Scrum Master / Team Coach (SAFe)", ["playbook-sm"], "guided"),
 ```
 
 and add this test to `TestRoles`, after `test_instructions_name_their_skills`:
@@ -2041,7 +2051,7 @@ The rest of the skill check reuses what exists: `test_all_packs_validate` (the s
 **Step 2: Run it to make sure it fails**
 
 Run: `python3 scripts/personal/tests/test_roles.py`
-Expected: `Ran 7 tests`, `FAILED (failures=2, errors=1)`: `test_label_skills_and_defaults_per_role` (role=sm) fails with `Tuples differ: ('Scrum Master', []) != ('Scrum Master', ['playbook-sm'])`, `test_instructions_name_their_skills` fails with ``'`ai-sdlc-playbook-sm`' not found``, and the new test errors with `FileNotFoundError: … playbook-sm/SKILL.md`. (Worked out by hand; see the prototype note.)
+Expected: `Ran 7 tests`, `FAILED (failures=2, errors=1)`: `test_label_skills_and_defaults_per_role` (role=sm) fails with `Tuples differ: ('Scrum Master / Team Coach (SAFe)', []) != ('Scrum Master / Team Coach (SAFe)', ['playbook-sm'])`, `test_instructions_name_their_skills` fails with ``'`ai-sdlc-playbook-sm`' not found``, and the new test errors with `FileNotFoundError: … playbook-sm/SKILL.md`. (Worked out by hand; see the prototype note.)
 
 **Step 3: Write the content.**
 
@@ -2117,7 +2127,7 @@ This is the role-seat contract for the **Scrum Master / Team Coach** seat on `<P
 Ties to the board's Roles × Skills × MCP matrix. See [`AGENTS.md`](../../../AGENTS.md) and [`WORKING-AGREEMENT.md`](../../../WORKING-AGREEMENT.md). AI is a `working`-trust collaborator for this seat: it prepares, the people decide.
 
 - **Invokable skills** — this playbook; `playbook-product` for backlog questions; `skill-creator` to capture a reusable facilitation pattern.
-- **What AI prepares** — flow-health signals (items waiting, ageing, blocked or reopened), daily stand-up and iteration review packs, PI Planning readiness checks, ROAM drafts, Inspect & Adapt evidence, agendas with timeboxes and expected outputs.
+- **What AI prepares** — in personal setup, the Scrum Master instructions (`ai-sdlc-sm.instructions.md`) list it item by item; this playbook says who owns and decides. In short: flow and impediment signals, event and PI Planning preparation, Inspect & Adapt evidence and ROAM drafts.
 - **Hard line** — signals about the work and the team, never judgements about individual people: no scores, rankings or guesses about anyone's motives, mood or ability.
 - **Evidence, not verdicts** — every number has a definition, a source and a period; no cause-and-effect claim without them.
 - **Scoped writes only** — AI drafts; the SM or the team publishes. It never changes the board, commits a PI objective or closes an impediment on its own.
@@ -2133,29 +2143,13 @@ Ties to the board's Roles × Skills × MCP matrix. See [`AGENTS.md`](../../../AG
 
 In `roles/sm/role.json`, set `"skills": ["playbook-sm"]`.
 
-Replace `roles/sm/instructions.md` with:
+In `roles/sm/instructions.md` (SAFe since Task 5a), add this sentence at the end of the "You support…" paragraph, after ""sprint" means the same.":
 
-~~~~markdown
-# Role: Scrum Master
+```markdown
+The skill `ai-sdlc-playbook-sm` holds the full role contract; use it for "who owns or decides this" questions.
+```
 
-You support a Scrum Master / Team Coach working in SAFe: team flow, impediments, team events, PI Planning and the team's improvement. The skill `ai-sdlc-playbook-sm` holds the full role contract.
-
-**What you help with**
-- **Flow health.** Find work that waits: a long time in one status, waiting for review, clarification or testing, blockers without an owner, items moving backward or reopened, work near iteration end without evidence.
-- **Progress evidence.** Compare reported progress with workflow and engineering evidence: commits, reviews, builds, tests.
-- **Impediments and dependencies.** List each with its owner, its age and the next step; say which need the ART Sync / Scrum of Scrums.
-- **Team events.** Prepare the daily stand-up (what changed, new blockers, items at risk), the iteration review pack (evidence per item), and agendas with an objective, participants, inputs, timeboxes, decision points and the expected output.
-- **PI Planning.** Check readiness (capacity, features, dependencies, risks) and check that draft PI objectives are specific, measurable, owned and linked to features.
-- **Risks.** Prepare a ROAM draft for the team's discussion.
-- **Retrospectives and Inspect & Adapt.** Find team-level patterns across iterations and organise the evidence for the team's improvement items.
-- **Flow metrics.** Explain cycle time, throughput and work in progress, with the definition, source and period of every number.
-
-**Limits**
-- Show signals, not judgements about people or performance. Never score individuals.
-- No guesses about interpersonal problems, emotions or ability.
-- No cause-and-effect claims without a source, a definition and a period.
-- Suggest a risk classification at most: the team decides it. The team commits to objectives, not you.
-~~~~
+The instructions list what the AI does for the Scrum Master; the playbook holds the mandate, decision rights and seat relationships, so the two do not repeat each other.
 
 In `template/.claude/skills/README.md`, add a row to the role-seat table, after `playbook-qa`:
 
@@ -2507,7 +2501,7 @@ def user_md(all_packs, choices, combined) -> str:
         f"- **Roles:** {', '.join(all_packs[r]['label'] for r in choices['roles'])}\n"
         f"- **Language:** {packs.LANGUAGES[choices['lang']]}\n"
         f"- **Git comfort:** {combined['git_comfort']}\n"
-        f"- **Session status line:** {'on' if combined['rituals'] == 'status' else 'off'}\n"
+        f"- **Session summary:** {'on' if combined['rituals'] == 'status' else 'off'}\n"
         f"- **Extra skills:** {extra}\n"
         f"- **Skills left out:** {fewer}\n\n"
         "Written by the kit. To change it, say \"change my preferences\".\n"
@@ -2722,7 +2716,7 @@ class TestSetup(unittest.TestCase):
         code, out = helpers.cli(self.root, self.copy, *ARGS)
         self.assertEqual(code, 0, out)
         self.assertIn("Set up AI-SDLC", out)
-        self.assertIn("for Ana Pop: Product Owner, Scrum Master · German (Deutsch).", out)
+        self.assertIn("for Ana Pop: Product Owner, Scrum Master / Team Coach (SAFe) · German (Deutsch).", out)
         for rel in (".github/instructions/ai-sdlc-core.instructions.md",
                     ".github/instructions/ai-sdlc-po.instructions.md",
                     ".github/instructions/ai-sdlc-sm.instructions.md",
@@ -2863,7 +2857,7 @@ def _summary(verb, root, is_git, kit, all_packs, st, report) -> list[str]:
     for item in report["skipped"]:
         lines.append(f"- Left alone: {item}")
     skills = ", ".join(packs.PREFIX + s for s in combined["skills"]) or "none"
-    lines.append(f"- Skills: {skills} · git: {combined['git_comfort']} · session status line: "
+    lines.append(f"- Skills: {skills} · git: {combined['git_comfort']} · session summary: "
                  f"{'on' if combined['rituals'] == 'status' else 'off'}")
     return lines
 
@@ -4107,7 +4101,7 @@ Below, `KIT` is the folder this file is in. Before setup it is wherever the pers
 2. **Protect the kit first.** Run `python3 KIT/setup.py setup --protect-only`. It moves the kit to `.ai-sdlc/kit` and hides it from git. From now on, run `python3 .ai-sdlc/kit/setup.py`.
 3. **Ask three questions,** one at a time:
    1. "What is your name?"
-   2. "What is your role here? You can pick more than one: Product Owner (`po`), Product Manager (`pm`), Scrum Master (`sm`), Developer (`dev`), QA (`qa`), Architect (`architect`), Engineering Manager (`em`)."
+   2. "What is your role here? You can pick more than one: Product Owner (`po`), Product Manager (`pm`), Scrum Master / Team Coach in SAFe (`sm`), Developer (`dev`), QA (`qa`), Architect (`architect`), Engineering Manager (`em`)."
    3. "Which language should I answer in: English (`en`), Romanian (`ro`) or German (`de`)?"
 
    From the answer to question 3 on, speak that language.
@@ -4127,7 +4121,7 @@ Ask what they want to change, then run `python3 .ai-sdlc/kit/setup.py change` wi
 | other roles | `--roles <ids>` (the full new list) |
 | another language | `--lang <en, ro or de>` |
 | git done for them, or not | `--git-comfort <hidden, guided, git-native or default>` |
-| the session status line on or off | `--rituals <status, none or default>` |
+| the one-line session summary on or off (the session-start check always runs) | `--rituals <status, none or default>` |
 | an extra skill | `--add-skill <skill>` |
 | a skill left out | `--drop-skill <skill>` |
 
@@ -4513,7 +4507,7 @@ The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or
 |---|---|---|---|
 | Product Owner | `po` | `ai-sdlc-playbook-product` | done for you, in plain words |
 | Product Manager | `pm` | `ai-sdlc-playbook-product` | done for you, in plain words |
-| Scrum Master | `sm` | `ai-sdlc-playbook-sm` | done for you, explained |
+| Scrum Master / Team Coach (SAFe) | `sm` | `ai-sdlc-playbook-sm` | done for you, explained |
 | Developer | `dev` | `ai-sdlc-playbook-dev` | you drive git |
 | QA | `qa` | `ai-sdlc-playbook-qa` | done for you, explained |
 | Architect | `architect` | `ai-sdlc-playbook-architect` | you drive git |
@@ -4587,12 +4581,12 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 
 ### Added
 - `setup.py` with `setup`, `change`, `update`, `check`, `ack` and `remove`, backed by `scripts/personal/` (stdlib only, Python 3.9+).
-- Role packs in `roles/`: core, Product Owner, Product Manager, Scrum Master, Developer, QA, Architect and Engineering Manager, with `scripts/personal/validate_packs.py`.
+- Role packs in `roles/`: core, Product Owner, Product Manager, Scrum Master / Team Coach (SAFe), Developer, QA, Architect and Engineering Manager, with `scripts/personal/validate_packs.py`.
 - `playbook-sm`: a SAFe Scrum Master / Team Coach playbook in the skill library, used by the Scrum Master pack.
 - Placed skills' relative links that leave their folder point at the same file inside `.ai-sdlc/kit/`.
 - `ONBOARDING.md` at the kit root: the conversation Copilot follows (three questions: name, role(s), language).
 - Warnings with stable ids when the team's own `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/` or skills overlap the kit's files; `ack` silences one until that team file changes.
-- A session-start line in the core instructions: Copilot runs `setup.py check --quiet` once and mentions any warning.
+- A session-start line in the core instructions: Copilot runs `setup.py check --quiet` once and mentions any warning, whatever the rituals setting; `--rituals status` adds a one-line summary of where the work stands.
 
 ### Team mode, last changes: added (released in 0.4.0, now retired)
 - `install.sh --ci jenkins|github|none` installs only the CI governance gate a project runs (repeatable for both). The choice is recorded in `.ai-sdlc/manifest.json` and kept on re-run; without it, both gates ship as before. Switching removes the old gate's file only while it is unedited. `doctor` shows the choice.
@@ -4623,7 +4617,7 @@ echo "install.sh: team mode is retired since kit 0.4.0. See README.md: copy the 
 Run:
 ```bash
 python3 scripts/personal/tests/test_release.py
-python3 scripts/personal/tests/test_roles.py     # scans the new README for client names
+python3 scripts/personal/tests/test_roles.py     # README is docs: the guidance scan does not read it
 python3 scripts/install/tests/test_adopt.py      # adopt.py itself is unchanged
 ```
 Expected: `test_release` `Ran 5 tests` `OK`; `test_roles` 7 OK; `test_adopt` 42 OK.
@@ -4730,6 +4724,6 @@ git push
 
 ## Out of scope (by design §9)
 
-RTE/SAFe pack (the SAFe Scrum Master playbook is in v1, Task 5c); connectors (Phase 3); role discovery (v2); languages beyond en/ro/de; rituals beyond the status line; promoting a personal setup to a team setup; a fixed install location as a second kit source; local git hooks (accepted limit: `git add -f` bypasses the exclude block).
+RTE/SAFe pack (the SAFe Scrum Master playbook is in v1, Task 5c); connectors (Phase 3); role discovery (v2); languages beyond en/ro/de; rituals beyond the one-line session summary; promoting a personal setup to a team setup; a fixed install location as a second kit source; local git hooks (accepted limit: `git add -f` bypasses the exclude block).
 
 **Follow-up, not part of this plan (owner decision, 2026-10-08):** After a successful pilot, propose deleting the retired team-mode code (install.sh, scripts/install outside what personal setup imports, template/ CI files, --ci). Do NOT delete anything without the owner's explicit approval in that moment; ask first.

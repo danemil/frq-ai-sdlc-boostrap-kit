@@ -34,10 +34,9 @@ GIT_TEXT = {
               "commit and push. Never commit to main, master or another protected branch; "
               "use a personal branch.",
 }
-RITUAL_TEXT = {
-    "status": "At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once "
-              "and mention any warning it prints, in the person's language. The command is read-only.",
-    "none": "No session-start ritual: start working straight away.",
+RITUAL_TEXT = {  # optional habits; the check --quiet line is always on (roles/core/instructions.md)
+    "status": "After the check, give a one-line summary of where the work stands.",
+    "none": "No other session-start habit.",
 }
 HEADER = ("<!-- AI-SDLC personal setup, from roles/{id}/instructions.md. If you edit this file, "
           "the kit keeps your edit and puts its newer copy next to it as .kit-new. -->")

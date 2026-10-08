@@ -8,7 +8,7 @@
 
 **Git.** $git_comfort
 
-**Session.** $rituals
+**Session.** At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning it prints, in the person's language. The command is read-only. $rituals
 
 **A human validates everything.**
 - You suggest; $name decides. Never approve, sign off, prioritise or close anything for them.
