@@ -58,7 +58,7 @@ The **Engineering Manager (EM)** seat owns how `<PROJECT_NAME>` is built and shi
 
 **EM ↔ QA** — QA defines quality signals; EM wires them into CI as gates and co-owns the definition of done.
 
-**Escalation** — A scope/velocity deadlock that the EM and Product cannot resolve goes to the `<DIRECTOR / SPONSOR>`.
+**Escalation** — A scope-versus-capacity conflict goes to the team first; one the team, Product and the EM cannot resolve goes to the RTE, then the `<DIRECTOR / SPONSOR>`.
 
 ## §4 — Working with AI (Roles × Skills × MCP)
 

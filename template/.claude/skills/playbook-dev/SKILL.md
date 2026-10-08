@@ -50,11 +50,11 @@ This is the role-seat contract for the **Developer** — the seat that turns agr
 
 **Developer ↔ EM** — Provide estimates, take daily unblocking, and give/receive code review. EM owns capacity and sequencing; the team commits the scope; surface slippage early.
 
-**Developer ↔ Product** — Clarify intent and edge cases at refinement. Do not accept scope changes mid-story without Product **and** EM agreeing.
+**Developer ↔ Product** — Clarify intent and edge cases at refinement. Do not accept scope changes mid-story on your own: the **team** agrees them, with Product (content) and the EM (capacity).
 
 **Developer ↔ QA** — Hand off with passing tests and a clear repro/demo. Fix verified defects; re-hand-off rather than arguing severity.
 
-**Escalation:** contract or scope ambiguity → Architect (contract) / EM (scope).
+**Escalation:** contract or scope ambiguity → Architect (contract) / the team, then Product (scope).
 
 ## §4 — Working with AI (Roles × Skills × MCP)
 Maps to the board's Roles × Skills × MCP matrix; the Developer seat operates at `ai-trust: working`.
