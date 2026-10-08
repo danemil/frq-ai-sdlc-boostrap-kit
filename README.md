@@ -25,7 +25,7 @@ You need Python 3.9 or newer. Copilot checks it first and tells you who to ask i
 │   └── state.json      kit version, your choices, the files placed and their fingerprints
 ├── .github/
 │   └── instructions/ai-sdlc-*.instructions.md   a core brief plus one file per role
-└── .agents/skills/ai-sdlc-*/SKILL.md            your roles' skills, prefixed so names cannot clash
+└── .agents/skills/ai-sdlc-*/                    your skills (each a whole folder), prefixed so names cannot clash
 ```
 
 The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or `.vscode/settings.json`: the team may own them. Copilot reads the team's files and the kit's `ai-sdlc-*` files together. When they overlap, setup warns you (without blocking) and Copilot looks for real contradictions with you; where they disagree, the team's rule wins.
@@ -41,6 +41,10 @@ The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or
 | QA | `qa` | `ai-sdlc-playbook-qa` | done for you, explained |
 | Architect | `architect` | `ai-sdlc-playbook-architect` | you drive git |
 | Engineering Manager | `em` | `ai-sdlc-playbook-em` | you drive git |
+
+**Every role also gets four skills** (the `core` pack, so a future role gets them too): `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira) and `ai-sdlc-deceneus` (what to remember from a chat, saved only to your own hidden files after you approve). Leave one out with "change my preferences". Each skill's folder has a `PROVENANCE.md`.
+
+Your own notes (`.github/instructions/ai-sdlc-personal.instructions.md`) and personal skills (`.agents/skills/ai-sdlc-personal-*/`) are hidden from git like the kit's files, but they are yours: the kit never changes them, and `remove` keeps and lists them.
 
 You can hold several roles: their skills are combined, each keeps its own instructions file, and where their defaults differ the more guided one wins. Every role works under one rule: **a human validates everything** the AI writes or decides.
 
