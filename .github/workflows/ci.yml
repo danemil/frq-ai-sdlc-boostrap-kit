@@ -98,7 +98,8 @@ jobs:
   # No pyyaml here, which proves setup.py is stdlib only. The 3.9 leg runs only this job;
   # the Phase 0 suites (ai-governance, 3.12) need tomllib.
   personal-e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moves to 26.04 on 2026-10-19 and Python 3.9 has no 26.04 build.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

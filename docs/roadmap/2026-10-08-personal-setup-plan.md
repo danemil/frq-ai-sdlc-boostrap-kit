@@ -4294,7 +4294,8 @@ Then delete the whole `adopt-e2e` job, from its comment block (`# Adopt the kit 
   # No pyyaml here, which proves setup.py is stdlib only. The 3.9 leg runs only this job;
   # the Phase 0 suites (ai-governance, 3.12) need tomllib.
   personal-e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moves to 26.04 on 2026-10-19 and Python 3.9 has no 26.04 build.
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -4463,7 +4464,7 @@ EOF
 ```bash
 git push
 ```
-Expected on the PR: `ai-governance` and both `personal-e2e` legs (`3.9`, `3.12`) succeed. On 2026-10-08 `actions/python-versions` ships 3.9.25 for Ubuntu 22.04 and 24.04 (`ubuntu-latest`) but not for 26.04; when `ubuntu-latest` moves to 26.04, pin the 3.9 leg to `runs-on: ubuntu-24.04` rather than dropping 3.9.
+Expected on the PR: `ai-governance` and both `personal-e2e` legs (`3.9`, `3.12`) succeed. On 2026-10-08 `actions/python-versions` ships 3.9.25 for Ubuntu 22.04 and 24.04 but not for 26.04, and `ubuntu-latest` moves to 26.04 on 2026-10-19; that is why the job is pinned to `runs-on: ubuntu-24.04` rather than dropping 3.9. Check the logs: the 3.9 leg's "Set up job" step reports Ubuntu 24.04.
 
 **Step 6: Human review checkpoint.** Show `git show --stat HEAD` and the test output and the green PR checks; wait for approval before Task 15.
 
