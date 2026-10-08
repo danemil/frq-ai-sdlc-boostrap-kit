@@ -68,7 +68,7 @@ The **Product** seat — combining **Product Owner** and **Product Manager** —
 
 Ties to the board's Roles × Skills × MCP matrix; the Product seat's AI trust level is **working**.
 
-- **Invokable skills:** this playbook; `brainstorming` and `writing-plans` (if present) for discovery and spec shaping; `skill-creator` to capture repeatable Product workflows.
+- **Invokable skills:** this playbook; `ai-sdlc-brainstorming` and `ai-sdlc-writing-plans` (if you have them) for discovery and spec shaping; `ai-sdlc-skill-creator` (if you have it) to capture repeatable Product workflows.
 - **MCP — issue-tracker (HEAVY):** create and modify epics, stories, iterations, and links under the Product seat. This is the primary **scoped-write** surface for Product.
 - **MCP — docs-wiki:** draft PRDs and roadmap pages for human review.
 - **MCP — knowledge:** ground product decisions on ingested sources (research, prior decisions, stakeholder input) rather than assertion.

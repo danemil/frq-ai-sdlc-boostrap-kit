@@ -66,7 +66,7 @@ This is the role-seat contract for the **Scrum Master / Team Coach** seat on `<P
 
 Ties to the board's Roles × Skills × MCP matrix. See [`AGENTS.md`](../../../AGENTS.md) and [`WORKING-AGREEMENT.md`](../../../WORKING-AGREEMENT.md). AI is a `working`-trust collaborator for this seat: it prepares, the people decide.
 
-- **Invokable skills** — this playbook; `playbook-product` for backlog questions; `skill-creator` to capture a reusable facilitation pattern.
+- **Invokable skills** — this playbook; `ai-sdlc-playbook-product` (if you have it) for backlog questions; `ai-sdlc-skill-creator` (if you have it) to capture a reusable facilitation pattern.
 - **What AI prepares** — in personal setup, the Scrum Master instructions (`ai-sdlc-sm.instructions.md`) list it item by item; this playbook says who owns and decides. In short: flow and impediment signals, event and PI Planning preparation, Inspect & Adapt evidence and ROAM drafts.
 - **Hard line** — signals about the work and the team, never judgements about individual people: no scores, rankings or guesses about anyone's motives, mood or ability.
 - **Evidence, not verdicts** — every number has a definition, a source and a period; no cause-and-effect claim without them.

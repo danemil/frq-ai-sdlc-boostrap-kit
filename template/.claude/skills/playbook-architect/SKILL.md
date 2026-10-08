@@ -66,7 +66,7 @@ The **Architect** is the seat accountable for the shape of the `<PROJECT_NAME>` 
 **Escalation rule:** unresolved cross-seat disputes go to the **Director / sponsor** as tiebreaker. See `WORKING-AGREEMENT.md` for the full path.
 
 ## §4 — Working with AI (Roles × Skills × MCP)
-- **Invokable skills:** this playbook (`playbook-architect`); `brainstorming` and `writing-plans` when shaping options before an ADR; `skill-creator` to evolve seat skills as the system changes.
+- **Invokable skills:** this playbook (`ai-sdlc-playbook-architect`); `ai-sdlc-brainstorming` and `ai-sdlc-writing-plans` when shaping options before an ADR; `ai-sdlc-receiving-code-review` when review comments on a design or ADR come in; `ai-sdlc-skill-creator` (if you have it) to evolve seat skills as the system changes.
 - **Knowledge connector — heavy use:** grounds every ADR and load-bearing claim on ingested sources before it is written.
 - **`context7` connector:** pulls authoritative library/framework docs when evaluating a technology or interface.
 - **`docs-wiki` connector:** drafts ADRs and specs; promotion to approved stays a deliberate, human-confirmed step.

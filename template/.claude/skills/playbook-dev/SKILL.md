@@ -59,7 +59,7 @@ This is the role-seat contract for the **Developer** — the seat that turns agr
 ## §4 — Working with AI (Roles × Skills × MCP)
 Maps to the board's Roles × Skills × MCP matrix; the Developer seat operates at `ai-trust: working`.
 
-- **Invokable skills:** this playbook (`playbook-dev`); the `test-driven-development`, `code-review`, and `systematic-debugging` skills where present; `skill-creator` to capture reusable workflows.
+- **Invokable skills:** this playbook (`ai-sdlc-playbook-dev`); `ai-sdlc-brainstorming` and `ai-sdlc-writing-plans` before building; `ai-sdlc-test-driven-development`, `ai-sdlc-systematic-debugging` and `ai-sdlc-verification-before-completion` while building; `ai-sdlc-receiving-code-review` when review comments come in (the review itself follows the team's review process); `ai-sdlc-skill-creator` (if you have it) to capture reusable workflows.
 - **MCP — `context7` (HEAVY):** pull up-to-date library/framework/API docs and **prefer it over memory**. Ground every non-trivial library call on `context7` rather than guessing APIs.
 - **MCP — `knowledge`:** ground work on project conventions, prior decisions, and the agreed architecture before writing code.
 - **MCP — `issue-tracker`:** read the story and acceptance criteria, and update status — do not invent requirements not in the issue.

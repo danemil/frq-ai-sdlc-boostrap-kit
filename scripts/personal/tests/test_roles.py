@@ -144,6 +144,25 @@ class TestRoles(unittest.TestCase):
             self.assertIn(topic, text)
         self.assertIsNone(CLIENT_WORDS.search(text))
 
+    def test_playbooks_name_only_shipped_skills_by_their_placed_names(self):
+        """Every skill a placed playbook names is one the kit ships, as `ai-sdlc-<name>`
+        (owner decision 3, 2026-10-08). Team mode (retired in 0.4.0) is not checked."""
+        shipped = set(packs.available_skills(KIT))
+        unprefixed = shipped | set(packs.UNSUPPORTED_SKILLS) | set(FILES) | {"code-review"}
+        name = re.compile(r"(?<![\w/.-])(ai-sdlc-)?([a-z0-9]+(?:-[a-z0-9]+)+)(?![\w/-])")
+        bad = {}
+        for pb in (s for s in shipped if s.startswith("playbook-")):
+            _, text = place.placed_skill(KIT, pb)
+            for m in name.finditer(text):
+                prefixed, skill = m.group(1), m.group(2)
+                if (skill not in shipped) if prefixed else (skill in unprefixed):
+                    bad.setdefault(pb, set()).add(m.group(0))
+            # one-word process skill names (`brainstorming`): the pattern above needs a hyphen
+            for skill in (s for s in FILES if "-" not in s):
+                if re.search(rf"(?<![\w/.-]){skill}(?![\w/-])", text):
+                    bad.setdefault(pb, set()).add(skill)
+        self.assertEqual({pb: sorted(names) for pb, names in bad.items()}, {})
+
     def test_all_packs_validate(self):
         self.assertEqual(packs.validate(KIT), [])
 
