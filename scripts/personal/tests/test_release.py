@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release 0.4.0: the version, the changelog entry, and docs that lead with personal setup."""
+"""Releases: the version, the changelog entries, and docs that lead with personal setup."""
 import unittest
 
 import helpers
@@ -13,7 +13,20 @@ def read(rel):
 
 class TestRelease(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(read("VERSION").strip(), "0.4.0")
+        self.assertEqual(read("VERSION").strip(), "0.5.0")
+
+    def test_the_newest_changelog_entry_is_the_version_and_unreleased_is_empty(self):
+        log = read("CHANGELOG.md")
+        unreleased = log.split("## [Unreleased]", 1)[1].split("\n## [", 1)
+        self.assertEqual(unreleased[0].strip(), "")
+        self.assertTrue(unreleased[1].startswith(read("VERSION").strip() + "] — "))
+
+    def test_changelog_0_5_0_has_the_connectors_and_the_check_fix(self):
+        entry = read("CHANGELOG.md").split("## [0.5.0]", 1)[1].split("\n## [", 1)[0]
+        for text in ("**Personal connectors, read-only:**", "`setup.py connect <name> [--test]`",
+                     "`connectors` skill in the core pack", "Connector defaults per role",
+                     "`docs/how-to.md`", "Another copy of the kit (same version X)"):
+            self.assertIn(text, entry)
 
     def test_changelog_says_team_mode_is_retired(self):
         entry = read("CHANGELOG.md").split("## [0.4.0]", 1)[1].split("\n## [", 1)[0]

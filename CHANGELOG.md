@@ -9,12 +9,20 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+
+## [0.5.0] — 2026-10-08
 ### Added
 - **Personal connectors, read-only:** `jira` and `confluence` (Data Center and Cloud), `bitbucket` (Data Center), `jama` (Jama Connect, OAuth client credentials) and `jenkins`. Copilot reads with `python3 .ai-sdlc/kit/connectors.py <name> <command> [--json]`; every item carries its `url`. Only GET requests are sent (plus Jama's token request). Stdlib only; proxies and a company CA bundle are honoured, TLS verification is never switched off.
 - `setup.py connect <name> [--test]`, `connections` and `disconnect <name>`. The person runs `connect` in their own terminal (secrets typed hidden; it refuses without a terminal unless every value is in `AI_SDLC_<NAME>_*` variables). Logins are saved per user in `~/.config/ai-sdlc/connectors/` (0700/0600), outside every repo; `remove` never touches them, and no command prints a secret.
 - `connectors` skill in the core pack (`ai-sdlc-connectors`): how Copilot checks connections, reads data, cites links, stays read-only, explains errors, and never handles a secret.
-- Connector defaults per role in `roles/<id>/role.json` (suggestions only; anyone can connect any tool). The setup summary names them ("Connectors for your roles: …", marking connected ones), and `ONBOARDING.md` gains "Connect a tool".
-- docs/how-to.md: step-by-step guide (setup, update, connect, troubleshooting).
+- Connector defaults per role in `roles/<id>/role.json` (suggestions only; anyone can connect any tool). The setup summary names them ("Connectors for your roles: …", marking connected ones).
+- `docs/how-to.md`: step-by-step guide (first-time setup, update, connect and use the connectors, change, check, personal notes and skills, remove, troubleshooting).
+
+### Changed
+- `ONBOARDING.md` gains "Connect a tool", and its close names the connectors for the person's roles without asking for a login.
+
+### Fixed
+- `check` no longer tells a person to delete a kit copy with the **same** version as the installed kit, which they may have copied in to update. It now says: "Another copy of the kit (same version X) is in <folder>. If you copied it in to update, say "update the kit"; otherwise delete it." Newer and older copies keep their messages; the finding id stays `kit-copy:<folder>`.
 
 ## [0.4.0] — 2026-10-08
 ### Changed
