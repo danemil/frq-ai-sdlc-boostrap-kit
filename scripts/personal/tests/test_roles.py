@@ -20,7 +20,8 @@ EXPECTED = {
     "architect": ("Architect", ["playbook-architect"], "git-native"),
     "em": ("Engineering Manager", ["playbook-em"], "git-native"),
 }
-CORE_SKILLS = ["deceneus", "drawio", "visual-explainers", "visual-issue"]   # every person gets them
+CORE_SKILLS = ["deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
+               "visual-explainers", "visual-issue"]   # every person gets them
 CLIENT_WORDS = re.compile(r"\b(frequentis|frq|mosaix)\b", re.I)
 
 

@@ -11,6 +11,7 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 ## [Unreleased]
 ### Added
 - Four skills for every role, in the core pack: `drawio` (upstream jgraph/drawio-mcp Copilot variant @1da785068fde, Apache-2.0; references bundled, no URL or upload mode, diagrams in `docs/diagrams/`), `visual-explainers` (HTML explainers in `docs/explainers/`), `visual-issue` (issues and PRs with a compiled Mermaid diagram for GitHub, Bitbucket or Jira) and `deceneus` (danemil/deceneus @01de547, MIT; saves only approved preferences, personal notes or personal skills). Each has a `PROVENANCE.md`.
+- Document skills in the core pack, written from scratch for the kit (MIT): `doc-word` (.docx), `doc-excel` (.xlsx/.csv), `doc-powerpoint` (.pptx) and `doc-pdf` (.pdf), using python-docx, openpyxl, python-pptx and pypdf, installed only with the person's consent into a personal venv at `~/.ai-sdlc/venv`.
 - A placed skill is its whole folder (`references/`, `assets/`, licence files), each file fingerprinted in `state.json` and removed byte for byte.
 - Personal notes (`.github/instructions/ai-sdlc-personal.instructions.md`) and personal skills (`.agents/skills/ai-sdlc-personal-*/`) belong to the person: hidden from git, never reported as unknown by `check`, kept and listed by `remove`. The `personal` pack id and `personal-*` skill names are reserved.
 

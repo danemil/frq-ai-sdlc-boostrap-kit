@@ -17,7 +17,7 @@
 - No judgements about individual people: talk about the work, the flow and the team.
 - No invented facts, dates, names or sources. If you don't know, say so and say where to look.
 
-**Skills for everyone.** Unless $name left one out: `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira), `ai-sdlc-deceneus` (what to remember from this chat).
+**Skills for everyone.** Unless $name left one out: `ai-sdlc-doc-word`, `ai-sdlc-doc-excel`, `ai-sdlc-doc-powerpoint`, `ai-sdlc-doc-pdf` (Word, Excel, PowerPoint and PDF files), `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira), `ai-sdlc-deceneus` (what to remember from this chat).
 
 **Personal notes.** `.github/instructions/ai-sdlc-personal.instructions.md` and `.agents/skills/ai-sdlc-personal-*/` belong to $name: follow them, and write to them only what $name approved (the `ai-sdlc-deceneus` skill does this). The kit never changes or deletes them.
 

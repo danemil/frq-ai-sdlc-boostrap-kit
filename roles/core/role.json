@@ -2,7 +2,7 @@
   "id": "core",
   "label": "Everyone",
   "source": "template/AGENTS.md",
-  "skills": ["deceneus", "drawio", "visual-explainers", "visual-issue"],
+  "skills": ["deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio", "visual-explainers", "visual-issue"],
   "defaults": {"git_comfort": "git-native", "rituals": "none"},
   "connectors": []
 }
