@@ -166,6 +166,16 @@ def is_kit(path) -> bool:
     return all((path / p).exists() for p in ("setup.py", "VERSION", packs.ROLES_REL))
 
 
+def replace_kit(root, kit) -> Path:
+    """Swap .ai-sdlc/kit for the newer copy at `kit` (update). Interrupted, a re-run finishes it."""
+    dest = Path(root) / paths.KIT_REL
+    if dest.exists():
+        if not is_kit(dest):
+            raise FileExistsError(dest)
+        shutil.rmtree(dest)
+    return move_kit(root, kit)
+
+
 def move_kit(root, kit) -> Path:
     """Move the copied kit folder to .ai-sdlc/kit (nothing to do when it is already there).
 

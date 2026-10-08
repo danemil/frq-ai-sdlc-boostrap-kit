@@ -4,9 +4,10 @@ The lines are short and plain: Copilot relays them to the person as they are.
 """
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
-from . import checks, exclude, packs, paths, place, state
+from . import checks, conflicts, exclude, packs, paths, place, state
 
 
 class SetupError(Exception):
@@ -35,6 +36,15 @@ def _roles(all_packs, value) -> list[str]:
 def _lang(value) -> str:
     if value not in packs.LANGUAGES:
         raise SetupError(f"Choose a language from: {', '.join(packs.LANGUAGES)}.")
+    return value
+
+
+def _skill(kit, value) -> str:
+    if value in packs.UNSUPPORTED_SKILLS:
+        raise SetupError(f"The skill {value} cannot be added: {packs.UNSUPPORTED_SKILLS[value]}.")
+    if value not in packs.available_skills(kit):
+        raise SetupError(f"There is no skill {value}. Available: "
+                         f"{', '.join(packs.available_skills(kit))}.")
     return value
 
 
@@ -123,15 +133,113 @@ def cmd_check(args, cwd, kit):
     return _check_lines(root)
 
 
-def not_built(args, cwd, kit):
-    return 3, [f"setup.py {args.command}: not built yet"]
+def cmd_ack(args, cwd, kit):
+    root, _ = paths.repo_root(cwd)
+    st = _need_state(root)
+    current = {wid: fp for wid, _, fp in conflicts.warnings(root, st)}
+    unknown = [wid for wid in args.ids if wid not in current]
+    if unknown:
+        raise SetupError(f"No current warning has the id {', '.join(unknown)}. "
+                         "Run check to see the ids.")
+    for wid in args.ids:
+        st["acks"][wid] = current[wid]
+    state.save(root, st)
+    return 0, [f"Noted {wid}. It comes back only if that team file changes." for wid in args.ids]
+
+
+def cmd_change(args, cwd, kit):
+    root, is_git = paths.repo_root(cwd)
+    st = _need_state(root)
+    kit = root / paths.KIT_REL
+    all_packs = packs.load(kit)
+    c = st["choices"]
+    if args.name is not None:
+        c["name"] = _name(args.name)
+    if args.roles is not None:
+        c["roles"] = _roles(all_packs, args.roles)
+    if args.lang is not None:
+        c["lang"] = _lang(args.lang)
+    if args.git_comfort is not None:
+        c["git_comfort"] = None if args.git_comfort == "default" else args.git_comfort
+    if args.rituals is not None:
+        c["rituals"] = None if args.rituals == "default" else args.rituals
+    for s in args.add_skill:
+        _skill(kit, s)
+        c["add_skills"] = sorted(set(c["add_skills"]) | {s})
+        c["drop_skills"] = [x for x in c["drop_skills"] if x != s]
+    for s in args.drop_skill:
+        c["drop_skills"] = sorted(set(c["drop_skills"]) | {s})
+        c["add_skills"] = [x for x in c["add_skills"] if x != s]
+    if is_git:
+        exclude.protect(root)
+    report = place.apply(root, st, place.wanted_files(kit, all_packs, c))
+    state.save(root, st)
+    return 0, _summary("Updated", root, is_git, kit, all_packs, st, report) + _check_lines(root)[1]
+
+
+def cmd_update(args, cwd, kit):
+    root, is_git = paths.repo_root(cwd)
+    st = _need_state(root)
+    kit = Path(kit).resolve()
+    dest = root / paths.KIT_REL
+    if kit != dest:
+        new, old = paths.kit_version(kit), paths.kit_version(dest)
+        if checks.version_key(new) < checks.version_key(old):
+            raise SetupError(f"This copy is older ({new}) than the kit set up here ({old}). "
+                             "Nothing was changed.")
+        if root not in kit.parents:
+            raise SetupError(f"Copy the newer kit folder into the repo first; it is at {kit}.")
+    if is_git:
+        exclude.protect(root)                     # the newer kit may hide more paths
+    if kit != dest:
+        try:
+            place.replace_kit(root, kit)
+        except FileExistsError:
+            raise SetupError(f"{paths.KIT_REL} is not a kit folder; it was left alone.") from None
+    all_packs = packs.load(dest)
+    c = st["choices"]
+    gone = [r for r in c["roles"] if r not in packs.selectable(all_packs)]
+    c["roles"] = [r for r in c["roles"] if r not in gone]
+    report = place.apply(root, st, place.wanted_files(dest, all_packs, c))
+    st["kit_version"] = paths.kit_version(dest)
+    state.save(root, st)
+    lines = _summary("Updated to", root, is_git, dest, all_packs, st, report)
+    if gone:
+        lines.append(f"- The newer kit has no {', '.join(gone)} role any more; it was dropped.")
+    return 0, lines + _check_lines(root)[1]
+
+
+def cmd_remove(args, cwd, kit):
+    root, is_git = paths.repo_root(cwd)
+    st = _need_state(root)
+    report = place.apply(root, st, {})            # deletes unedited files, keeps edited ones
+    kit_dir = root / paths.KIT_REL
+    if place.is_kit(kit_dir):
+        shutil.rmtree(kit_dir)
+    (root / paths.STATE_REL).unlink()
+    home = root / paths.HOME_REL
+    if home.is_dir() and not any(home.iterdir()):
+        home.rmdir()
+    if is_git:
+        exclude.unprotect(root)
+    lines = [f"Removed the kit: {len(report['removed'])} file(s), the kit folder and your settings."]
+    if report["kept"]:
+        lines.append("Kept, because you edited them (git now shows them; delete them if you "
+                     "don't need them): " + ", ".join(report["kept"]))
+    elif is_git:
+        lines.append("The repo is back to how it was before setup.")
+    return 0, lines
 
 
 HANDLERS = {
     "setup": cmd_setup,
+    "change": cmd_change,
+    "update": cmd_update,
     "check": cmd_check,
+    "ack": cmd_ack,
+    "remove": cmd_remove,
 }
 
 
 def run(args, cwd, kit):
-    return HANDLERS.get(args.command, not_built)(args, cwd, kit)
+    return HANDLERS[args.command](args, cwd, kit)
