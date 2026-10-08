@@ -38,6 +38,15 @@ def _lang(value) -> str:
     return value
 
 
+def _skill(kit, value) -> str:
+    if value in packs.UNSUPPORTED_SKILLS:
+        raise SetupError(f"The skill {value} cannot be added: {packs.UNSUPPORTED_SKILLS[value]}.")
+    if value not in packs.available_skills(kit):
+        raise SetupError(f"There is no skill {value}. Available: "
+                         f"{', '.join(packs.available_skills(kit))}.")
+    return value
+
+
 def _need_state(root) -> dict:
     st = state.load(root)
     if st is None:
@@ -137,6 +146,36 @@ def cmd_ack(args, cwd, kit):
     return 0, [f"Noted {wid}. It comes back only if that team file changes." for wid in args.ids]
 
 
+def cmd_change(args, cwd, kit):
+    root, is_git = paths.repo_root(cwd)
+    st = _need_state(root)
+    kit = root / paths.KIT_REL
+    all_packs = packs.load(kit)
+    c = st["choices"]
+    if args.name is not None:
+        c["name"] = _name(args.name)
+    if args.roles is not None:
+        c["roles"] = _roles(all_packs, args.roles)
+    if args.lang is not None:
+        c["lang"] = _lang(args.lang)
+    if args.git_comfort is not None:
+        c["git_comfort"] = None if args.git_comfort == "default" else args.git_comfort
+    if args.rituals is not None:
+        c["rituals"] = None if args.rituals == "default" else args.rituals
+    for s in args.add_skill:
+        _skill(kit, s)
+        c["add_skills"] = sorted(set(c["add_skills"]) | {s})
+        c["drop_skills"] = [x for x in c["drop_skills"] if x != s]
+    for s in args.drop_skill:
+        c["drop_skills"] = sorted(set(c["drop_skills"]) | {s})
+        c["add_skills"] = [x for x in c["add_skills"] if x != s]
+    if is_git:
+        exclude.protect(root)
+    report = place.apply(root, st, place.wanted_files(kit, all_packs, c))
+    state.save(root, st)
+    return 0, _summary("Updated", root, is_git, kit, all_packs, st, report) + _check_lines(root)[1]
+
+
 def not_built(args, cwd, kit):
     return 3, [f"setup.py {args.command}: not built yet"]
 
@@ -145,6 +184,7 @@ HANDLERS = {
     "setup": cmd_setup,
     "check": cmd_check,
     "ack": cmd_ack,
+    "change": cmd_change,
 }
 
 
