@@ -11,6 +11,8 @@ ai-trust: working
 
 # Onboarding — first-run setup
 
+> **Retired team-mode onboarding.** If you were asked to "do the onboarding" for the AI-SDLC kit, stop here and follow the `ONBOARDING.md` at the kit's top folder instead.
+
 This file is **only loaded when `USER.md` does not exist** at the repo root. It is the gatekeeper — every AI harness reads this before doing any real work. Once `USER.md` exists, skip this file entirely and read `USER.md` instead.
 
 > **To the AI agent reading this:** You execute these steps yourself using your tools (terminal, ask-the-user, write-file). Do not tell the user to run commands — run them. Only fall back to asking the user when a step needs elevated privileges, a GUI installer, or interactive credentials. Do not proceed with project work until onboarding is complete and `USER.md` has been created.

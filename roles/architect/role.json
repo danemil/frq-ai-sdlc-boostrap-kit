@@ -1,0 +1,8 @@
+{
+  "id": "architect",
+  "label": "Architect",
+  "source": "template/.claude/skills/playbook-architect/SKILL.md",
+  "skills": ["playbook-architect"],
+  "defaults": {"git_comfort": "git-native", "rituals": "status"},
+  "connectors": []
+}

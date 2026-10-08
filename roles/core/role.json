@@ -1,0 +1,8 @@
+{
+  "id": "core",
+  "label": "Everyone",
+  "source": "template/AGENTS.md",
+  "skills": [],
+  "defaults": {"git_comfort": "git-native", "rituals": "none"},
+  "connectors": []
+}

@@ -139,7 +139,7 @@ The script never uses the network, never runs a git command that changes anythin
 |---|---|
 | Core pack; PO, PM, SM (from `docs/FRQ-Roles/`); Dev, QA, Architect, EM (from the existing playbooks); a new SAFe Scrum Master / Team Coach playbook (`playbook-sm`) for the SM pack | RTE/SAFe pack; connectors (Phase 3); role discovery (v2) |
 | English, Romanian, German | Other languages |
-| Session status line and drift check | More rituals (save reminders, summaries) |
+| Session summary, with the session-start check always on and drift check | More rituals (save reminders, summaries) |
 | The six commands | Promoting a personal setup to a shared team setup (only on request) |
 
 Kit version **0.4.0**, with a CHANGELOG entry saying team mode is retired. The README is rewritten around "copy, then *do the onboarding*". Kit-owned docs stay in English; Copilot replies in each person's language.

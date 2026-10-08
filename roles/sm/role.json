@@ -1,0 +1,8 @@
+{
+  "id": "sm",
+  "label": "Scrum Master / Team Coach (SAFe)",
+  "source": "docs/FRQ-Roles/Scrum Master Skills.md",
+  "skills": ["playbook-sm"],
+  "defaults": {"git_comfort": "guided", "rituals": "status"},
+  "connectors": []
+}

@@ -10,4 +10,5 @@
 # Greenfield is the zero-conflict case of the same code path; see
 # docs/roadmap/2026-08-28-brownfield-adoption-design.md.
 set -euo pipefail
+echo "install.sh: team mode is retired since kit 0.4.0. See README.md: copy the kit, then say \"do the onboarding\"." >&2
 exec python3 "$(cd "$(dirname "$0")" && pwd)/scripts/install/adopt.py" "$@"

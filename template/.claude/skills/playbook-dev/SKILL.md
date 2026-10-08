@@ -32,7 +32,7 @@ This is the role-seat contract for the **Developer** — the seat that turns agr
 ### 1.3 Deliberately doesn't touch
 - **Backlog priority** — owned by Product.
 - **Reference-architecture shape** — owned by Architect.
-- **Sprint scope commitment** — owned by EM.
+- **Iteration (sprint) scope commitment** — made by the team as a whole, not by one seat (the EM owns capacity).
 - **Release / merge-to-protected decisions** — owned by EM.
 
 ## §2 — Decision-rights cheat sheet
@@ -48,7 +48,7 @@ This is the role-seat contract for the **Developer** — the seat that turns agr
 
 **Developer ↔ Architect** — Implement to the interface contract. Where the contract is wrong, incomplete, or costly, flag it and propose a change; do not silently diverge (§2 row 5).
 
-**Developer ↔ EM** — Provide estimates, take daily unblocking, and give/receive code review. EM owns scope and sequencing; surface slippage early.
+**Developer ↔ EM** — Provide estimates, take daily unblocking, and give/receive code review. EM owns capacity and sequencing; the team commits the scope; surface slippage early.
 
 **Developer ↔ Product** — Clarify intent and edge cases at refinement. Do not accept scope changes mid-story without Product **and** EM agreeing.
 

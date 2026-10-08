@@ -31,7 +31,7 @@ The **Architect** is the seat accountable for the shape of the `<PROJECT_NAME>` 
 
 ### 1.3 Deliberately doesn't touch
 - **Backlog priority order** — Product.
-- **Sprint mechanics & velocity** — EM.
+- **Iteration (sprint) mechanics & velocity** — EM.
 - **Acceptance-criteria approval** — Product.
 - **Commercial terms** — outside the seat entirely.
 
