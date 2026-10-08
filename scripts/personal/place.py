@@ -14,8 +14,10 @@ is on disk, and what the kit would write now:
 A placed file that is no longer wanted is deleted while unedited, and kept (and
 reported) once edited. A path git tracks is never written or deleted.
 
-A placed skill's relative links that leave its folder are pointed at the same
-file inside .ai-sdlc/kit/ (rewrite_links), so they still resolve after the move.
+A placed skill is its whole folder (SKILL.md plus references/, assets/, …), each
+file recorded in state.json like any other. Its SKILL.md's relative links that
+leave its folder are pointed at the same file inside .ai-sdlc/kit/
+(rewrite_links), so they still resolve after the move.
 """
 from __future__ import annotations
 
@@ -94,6 +96,30 @@ def placed_skill(kit, skill, missing=None) -> tuple[str, str]:
     return f"{dest_dir}/SKILL.md", text
 
 
+def placed_skill_files(kit, skill, missing=None) -> dict[str, str]:
+    """{repo path: text} of a library skill's whole folder as setup places it.
+
+    SKILL.md goes through placed_skill; the skill's other files (references/,
+    assets/, LICENSE, …) are copied byte for byte, at the same relative path.
+    Dotfiles, caches and symlinks are skipped. Skill files must be UTF-8 text.
+    """
+    src = Path(kit) / packs.SKILLS_REL / skill
+    rel, text = placed_skill(kit, skill, missing)
+    files = {rel: text}
+    dest_dir = posixpath.dirname(rel)
+    for p in sorted(src.rglob("*")):
+        sub = p.relative_to(src)
+        if (p.is_symlink() or not p.is_file() or sub.as_posix() == "SKILL.md"
+                or any(part.startswith(".") or part == "__pycache__" for part in sub.parts)):
+            continue
+        try:
+            files[f"{dest_dir}/{sub.as_posix()}"] = p.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            raise ValueError(f"{skill}/{sub.as_posix()} is not UTF-8 text; "
+                             "a placed skill holds text files only") from None
+    return files
+
+
 def wanted_files(kit, all_packs, choices) -> dict[str, str]:
     """{repo path: text} of every file these choices call for."""
     combined = packs.combine(all_packs, choices)
@@ -101,8 +127,7 @@ def wanted_files(kit, all_packs, choices) -> dict[str, str]:
     files = dict(packs.instructions_file(all_packs[pid], values)
                  for pid in [packs.CORE, *choices["roles"]])
     for skill in combined["skills"]:
-        rel, text = placed_skill(kit, skill)
-        files[rel] = text
+        files.update(placed_skill_files(kit, skill))
     files[paths.USER_REL] = user_md(all_packs, choices, combined)
     return files
 

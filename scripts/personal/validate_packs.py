@@ -34,6 +34,10 @@ def skill_errors(kit) -> list[str]:
     with tempfile.TemporaryDirectory() as tmp:
         for skill in used:
             missing = []
+            try:
+                place.placed_skill_files(kit, skill)   # every file of the folder is placeable
+            except ValueError as exc:
+                errors.append(f"{packs.PREFIX}{skill}: {exc}")
             _, text = place.placed_skill(kit, skill, missing)
             dest = Path(tmp) / f"{packs.PREFIX}{skill}" / "SKILL.md"
             dest.parent.mkdir()
