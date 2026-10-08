@@ -70,7 +70,7 @@ The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
 Set up AI-SDLC 0.5.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 33 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
+- Wrote 50 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
@@ -513,6 +513,7 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `Bitbucket Cloud is not supported yet` | The URL is `bitbucket.org`. | Only Bitbucket Data Center is supported. |
 | The document skills (Word, Excel, PowerPoint, PDF) cannot install their library: `ensurepip is not available`, or `python3 -m venv` fails | The `python3-venv` package is missing on the VM. | Ask IT to install `python3-venv`. The skills install into `~/.ai-sdlc/venv` only, and only with your consent. |
 | The document skills: `pip` cannot reach the package index | A company proxy or internal package mirror is needed. | Ask IT for the pip proxy or index settings (for example `HTTPS_PROXY`, or `pip config set global.index-url <mirror>`), then try again. |
+| The LikeC4 skill cannot validate or export a `.c4` model: `npx` cannot reach the npm registry, or Node is not installed | The `likec4` CLI comes from npm, which the VM may block. | The `.c4` file is still kept. Validate and export with the LikeC4 VS Code extension, or ask IT for npm registry access. Copilot asks before it downloads the CLI. |
 | Copilot says it cannot find `ONBOARDING.md`, or does something else when you say "do the onboarding" | Copilot did not look in the kit folder. Its file search may skip folders that git ignores, such as `.ai-sdlc/kit/` after setup. | Point it there: *"follow ai-sdlc-kit/ONBOARDING.md"* before setup (your folder name), or *"follow .ai-sdlc/kit/ONBOARDING.md"* after setup. |
 | `There is no skill <name>. Available: …` | A wrong skill name in `--add-skill`. | Use a name from the list it prints. |
 | `The kit is not set up in this repo yet` | `change`, `update`, `ack` or `remove` in a repo without the kit. | Check you are in the right repo (`git rev-parse --show-toplevel`), or do the [first-time setup](#1-first-time-setup-in-a-repo). |

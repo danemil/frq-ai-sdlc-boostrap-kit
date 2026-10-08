@@ -60,6 +60,16 @@ class TestChange(unittest.TestCase):
         self.assertTrue((self.root / ".agents/skills/ai-sdlc-drawio/references/xml-reference.md")
                         .is_file())
 
+    def test_setup_places_the_likec4_skill_and_it_can_be_dropped(self):
+        skill = self.root / ".agents/skills/ai-sdlc-likec4-dsl"
+        self.assertTrue((skill / "SKILL.md").is_file())
+        self.assertTrue((skill / "references/cli.md").is_file())
+        self.assertTrue((skill / "LICENSE").is_file())
+        self.assertIn("docs/architecture/", (skill / "SKILL.md").read_text(encoding="utf-8"))
+        self.change("--drop-skill", "likec4-dsl")
+        self.assertFalse(skill.exists())
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-drawio/SKILL.md").is_file())
+
     def test_unknown_or_unsupported_skills_are_refused(self):
         code, out = helpers.cli(self.root, self.kit, "change", "--add-skill", "nope")
         self.assertEqual(code, 2)

@@ -25,6 +25,7 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 |---|---|
 | **skill-creator** | Create new skills, and improve / evaluate existing ones. Use it to add a team skill or sharpen one's triggering. |
 | **drawio** | draw.io diagrams (Mermaid or XML), saved locally; export needs the draw.io desktop app. Upstream Apache-2.0, see its `PROVENANCE.md`. |
+| **likec4-dsl** | LikeC4 architecture-as-code models (`.c4`/`.likec4`), saved locally; validation and export need the LikeC4 CLI or VS Code extension. Upstream MIT, see its `PROVENANCE.md`. |
 | **visual-explainers** | A self-contained HTML explainer for a concept, flow or tradeoff. |
 | **visual-issue** | An issue, ticket or PR description with a compiled Mermaid diagram, for GitHub, Bitbucket or Jira. |
 | **connectors** | Read-only facts from Jira, Confluence, Bitbucket Data Center, Jama and Jenkins through the kit's `connectors.py`, each with its link. The person connects in their own terminal (`setup.py connect <name>`); the AI never handles a secret. |

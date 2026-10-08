@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Added
+- `likec4-dsl` skill in the core pack (`ai-sdlc-likec4-dsl`), for every role: LikeC4 architecture-as-code (`.c4`/`.likec4` files). Upstream likec4/likec4 `skills/likec4-dsl` @4e6ee7afc526, MIT; references bundled, upstream `evals/` not bundled. Models go to `docs/architecture/`; the `likec4` CLI is optional, and Copilot asks before running it through `npx`/`bunx`/`pnpm dlx` the first time.
 
 ## [0.5.0] — 2026-10-08
 ### Added
