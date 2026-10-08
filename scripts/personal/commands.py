@@ -1,4 +1,4 @@
-"""The six commands behind setup.py. Each returns (exit code, lines to print).
+"""The commands behind setup.py. Each returns (exit code, lines to print).
 
 The lines are short and plain: Copilot relays them to the person as they are.
 """
@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 
 from . import checks, conflicts, exclude, packs, paths, place, state
+from .connectors import manage
 
 
 class SetupError(Exception):
@@ -235,6 +236,18 @@ def cmd_remove(args, cwd, kit):
     return 0, lines
 
 
+def cmd_connect(args, cwd, kit):
+    return manage.connect(args.name, test_only=args.test)
+
+
+def cmd_connections(args, cwd, kit):
+    return manage.connections()
+
+
+def cmd_disconnect(args, cwd, kit):
+    return manage.disconnect(args.name)
+
+
 HANDLERS = {
     "setup": cmd_setup,
     "change": cmd_change,
@@ -242,6 +255,9 @@ HANDLERS = {
     "check": cmd_check,
     "ack": cmd_ack,
     "remove": cmd_remove,
+    "connect": cmd_connect,
+    "connections": cmd_connections,
+    "disconnect": cmd_disconnect,
 }
 
 
