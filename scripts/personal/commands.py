@@ -4,6 +4,7 @@ The lines are short and plain: Copilot relays them to the person as they are.
 """
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from . import checks, conflicts, exclude, packs, paths, place, state
@@ -208,18 +209,37 @@ def cmd_update(args, cwd, kit):
     return 0, lines + _check_lines(root)[1]
 
 
-def not_built(args, cwd, kit):
-    return 3, [f"setup.py {args.command}: not built yet"]
+def cmd_remove(args, cwd, kit):
+    root, is_git = paths.repo_root(cwd)
+    st = _need_state(root)
+    report = place.apply(root, st, {})            # deletes unedited files, keeps edited ones
+    kit_dir = root / paths.KIT_REL
+    if place.is_kit(kit_dir):
+        shutil.rmtree(kit_dir)
+    (root / paths.STATE_REL).unlink()
+    home = root / paths.HOME_REL
+    if home.is_dir() and not any(home.iterdir()):
+        home.rmdir()
+    if is_git:
+        exclude.unprotect(root)
+    lines = [f"Removed the kit: {len(report['removed'])} file(s), the kit folder and your settings."]
+    if report["kept"]:
+        lines.append("Kept, because you edited them (git now shows them; delete them if you "
+                     "don't need them): " + ", ".join(report["kept"]))
+    elif is_git:
+        lines.append("The repo is back to how it was before setup.")
+    return 0, lines
 
 
 HANDLERS = {
     "setup": cmd_setup,
-    "check": cmd_check,
-    "ack": cmd_ack,
     "change": cmd_change,
     "update": cmd_update,
+    "check": cmd_check,
+    "ack": cmd_ack,
+    "remove": cmd_remove,
 }
 
 
 def run(args, cwd, kit):
-    return HANDLERS.get(args.command, not_built)(args, cwd, kit)
+    return HANDLERS[args.command](args, cwd, kit)
