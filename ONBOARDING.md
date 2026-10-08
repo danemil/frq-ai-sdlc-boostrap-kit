@@ -16,14 +16,11 @@ Below, `KIT` is the folder this file is in. Before setup it is wherever the pers
    From the answer to question 3 on, speak that language.
 4. **Set up.** Run `python3 .ai-sdlc/kit/setup.py setup --name "<name>" --roles <ids, comma-separated> --lang <code>`.
 5. **Relay the result** in plain words: who it is set up for, then each item under "Check", with its id in brackets.
-6. **Look for contradictions.** For each `team-…` warning, read the team file it names and the kit's `.github/instructions/ai-sdlc-*.instructions.md`. Tell the person only about real contradictions (one says do X, the other says don't), one sentence each, naming both files. The team's rule wins; say so.
-7. **Acknowledge.** If `setup.py` answers that this command is not built yet, tell the person in their language that it arrives in the next kit version, and go to step 8.
-   For each warning the person has understood, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>`. It comes back only if that team file changes.
+6. **Look for contradictions.** For each `team-…` or `skill-clash:…` warning, read the team file it names and the kit's `.github/instructions/ai-sdlc-*.instructions.md`. Tell the person only about real contradictions (one says do X, the other says don't), one sentence each, naming both files. The team's rule wins; say so.
+7. **Acknowledge.** For each warning the person has understood, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>`. It comes back only if that team file changes.
 8. **Close.** Say: "You're set up. Say 'change my preferences', 'update the kit' or 'remove the kit' at any time."
 
 ## Change my preferences
-
-If `setup.py` answers that this command is not built yet, tell the person in their language that it arrives in the next kit version, and stop.
 
 Ask what they want to change, then run `python3 .ai-sdlc/kit/setup.py change` with the matching option:
 
@@ -41,8 +38,6 @@ Relay the summary. If it says it kept their edit, explain that the kit's newer c
 
 ## Update the kit
 
-If `setup.py` answers that this command is not built yet, tell the person in their language that it arrives in the next kit version, and stop.
-
 The person copied a newer kit folder into the repo; `check` names it (`kit-copy:<folder>`). Run `python3 <that folder>/setup.py update`. Relay the summary, including any kept edits.
 
 ## Check the kit
@@ -56,7 +51,5 @@ Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 - `team-…` and `skill-clash:…`: as in steps 6 and 7 above.
 
 ## Remove the kit
-
-If `setup.py` answers that this command is not built yet, tell the person in their language that it arrives in the next kit version, and stop.
 
 Ask first: "This removes the kit and your settings from this repo. Files you edited are kept. Continue?" On yes, run `python3 .ai-sdlc/kit/setup.py remove` and relay what it removed and kept.

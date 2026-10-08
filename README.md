@@ -11,7 +11,7 @@ A **personal AI setup for everyone on a software team**: developers, QA, archite
 
 Copilot tells you what it set up. `git status` shows nothing: every file the kit adds is hidden from git through `.git/info/exclude`, so it never reaches the shared history. Setup is once per repo.
 
-Afterwards, say **"check the kit"** at any time. **"change my preferences"**, **"update the kit"** (after copying a newer kit folder in) and **"remove the kit"** work the same way (coming in the next version).
+Afterwards, say **"change my preferences"**, **"update the kit"** (after copying a newer kit folder in), **"check the kit"** or **"remove the kit"** at any time.
 
 You need Python 3.9 or newer. Copilot checks it first and tells you who to ask if it is missing.
 
@@ -28,7 +28,7 @@ You need Python 3.9 or newer. Copilot checks it first and tells you who to ask i
 └── .agents/skills/ai-sdlc-*/SKILL.md            your roles' skills, prefixed so names cannot clash
 ```
 
-The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or `.vscode/settings.json`: the team may own them. Copilot reads the team's files and the kit's `ai-sdlc-*` files together. When they overlap, setup warns you (without blocking; coming in the next version) and Copilot looks for real contradictions with you; where they disagree, the team's rule wins.
+The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or `.vscode/settings.json`: the team may own them. Copilot reads the team's files and the kit's `ai-sdlc-*` files together. When they overlap, setup warns you (without blocking) and Copilot looks for real contradictions with you; where they disagree, the team's rule wins.
 
 ## Roles
 
@@ -48,9 +48,9 @@ Role packs live in [`roles/`](./roles/), one folder per role (`role.json` + `ins
 
 ## Under the hood
 
-Copilot runs the conversation from `ONBOARDING.md`; a small, tested, stdlib-only script does the file work: `python3 .ai-sdlc/kit/setup.py setup | change | update | check | ack | remove` (`change`, `update`, `ack` and `remove` coming in the next version). You never need to run it yourself.
+Copilot runs the conversation from `ONBOARDING.md`; a small, tested, stdlib-only script does the file work: `python3 .ai-sdlc/kit/setup.py setup | change | update | check | ack | remove`. You never need to run it yourself.
 
-It never uses the network, never runs a git command that changes anything (only `rev-parse`, `ls-files` and `check-ignore`), never writes to a path git tracks, and never touches a file it did not create. A file you edit is yours: `update` and `change` keep it and put the kit's newer copy next to it as `<file>.kit-new`; `remove` keeps it and tells you. After `remove`, the repo is byte for byte what it was before setup. (`update`, `change` and `remove` are coming in the next version.)
+It never uses the network, never runs a git command that changes anything (only `rev-parse`, `ls-files` and `check-ignore`), never writes to a path git tracks, and never touches a file it did not create. A file you edit is yours: `update` and `change` keep it and put the kit's newer copy next to it as `<file>.kit-new`; `remove` keeps it and tells you. After `remove`, the repo is byte for byte what it was before setup.
 
 **Known limit:** `git add -f` can still add hidden files. The kit installs no git hooks, because they could clash with the team's own.
 
