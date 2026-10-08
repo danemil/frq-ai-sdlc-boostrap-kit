@@ -23,6 +23,11 @@ The audience is mixed: developers, QA, architects, product owners, project manag
 | 9 | Team mode | **Retired.** Personal mode only, for now. |
 | — | How to build it | **Copilot runs the conversation; a small tested script does the file work.** |
 | — | Session-start hook | **Dropped after the VM spike (2026-10-08):** VS Code doesn't run hooks and their output doesn't reach the model. The core instructions make Copilot run `check --quiet` instead (§6). |
+| — | A team rule contradicts a kit rule | **The team rule wins (owner, 2026-10-08).** The core instructions say: "If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once." |
+| — | Git comfort when roles disagree | **The more guided one wins (owner, 2026-10-08)**; this replaces the 2026-10-07 seat design's rule (§5.2). |
+| — | Scrum Master skill | **A SAFe Scrum Master / Team Coach playbook (`playbook-sm`) in v1 (owner, 2026-10-08)**: generic role guidance, no client names, reviewed by a human. |
+| — | Relative links in placed skills | **Rewritten (owner, 2026-10-08)** to point at the same file inside `.ai-sdlc/kit/`; links inside the skill's folder, URLs and anchors stay; a link with no target in the kit is left and reported (§5.2). |
+| — | Retired team-mode code | **Kept until after the pilot (owner, 2026-10-08).** Then its deletion is proposed; nothing is deleted without the owner's explicit approval at that moment. |
 
 ## 3. What the person does
 
@@ -79,7 +84,9 @@ instructions.md  how Copilot behaves for this role → ai-sdlc-<id>.instructions
 
 A **core pack** applies to everyone: the kit's working rules, the reply language, the gate "if `.ai-sdlc/USER.md` is missing, do the onboarding first", and the session-start line "run `python3 .ai-sdlc/kit/setup.py check --quiet` once and mention any warning". All packs share one format, so v2 role discovery can generate packs without migration.
 
-With several roles: skills are combined; each role keeps its own instructions file; where defaults disagree, the more guided one wins (e.g. "do git for me").
+With several roles: skills are combined; each role keeps its own instructions file; where defaults disagree, the more guided one wins (e.g. "do git for me"; decided by the owner 2026-10-08).
+
+Skills come from the kit's skill library (`template/.claude/skills/`) and are placed as `.agents/skills/ai-sdlc-<skill>/`. Their relative links that leave the skill's folder (e.g. `../../../AGENTS.md`) are rewritten to the same file inside `.ai-sdlc/kit/`, so they still resolve; links inside the folder, URLs and anchors are not touched.
 
 ### 5.3 `ONBOARDING.md` (kit root)
 
@@ -130,7 +137,7 @@ The script never uses the network, never runs a git command that changes anythin
 
 | v1 | Later |
 |---|---|
-| Core pack; PO, PM, SM (from `docs/FRQ-Roles/`); Dev, QA, Architect, EM (from the existing playbooks) | RTE/SAFe pack; connectors (Phase 3); role discovery (v2) |
+| Core pack; PO, PM, SM (from `docs/FRQ-Roles/`); Dev, QA, Architect, EM (from the existing playbooks); a new SAFe Scrum Master / Team Coach playbook (`playbook-sm`) for the SM pack | RTE/SAFe pack; connectors (Phase 3); role discovery (v2) |
 | English, Romanian, German | Other languages |
 | Session status line and drift check | More rituals (save reminders, summaries) |
 | The six commands | Promoting a personal setup to a shared team setup (only on request) |
