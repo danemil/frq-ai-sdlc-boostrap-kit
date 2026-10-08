@@ -4014,6 +4014,8 @@ This task placed a session-start hook (`.github/hooks/…`) that ran `check --qu
 
 The conversation script, with no file logic in it. "Do the onboarding": check `python3 --version` (3.9+, else a plain who-to-ask message and stop), `setup --protect-only`, the three questions one at a time (then speak the chosen language), `setup`, relay the summary and each warning with its id, the judgement pass over the team's files versus the kit's (real contradictions only; the team's rule wins), `ack`, close. Then sections for "change my preferences" (a table from wishes to `change` options), "update the kit", "check the kit" (each finding id → its fix) and "remove the kit" (confirm first). The test parses `setup.py`'s argparse parser and fails if the document names a subcommand or a flag that does not exist, or forgets a role or a language. It also checks that the retired `template/ONBOARDING.md` sends Copilot here (Task 0, check 8: the kit folder carries both files).
 
+**MVP adjustment (owner decision, 2026-10-08, for the demo).** `change`, `update`, `remove`, `ack` and the team-file warnings (Task 8) were not built when Task 13 landed: `setup.py` answers them with exit 3 ("not built yet"). `ONBOARDING.md` keeps their sections and adds one deletable line at the top of "Change my preferences", "Update the kit" and "Remove the kit" ("…tell the person in their language that it arrives in the next kit version, and stop.") and at the start of step 7 ("…and go to step 8.", so the onboarding still closes). Delete those four lines when Tasks 8–11 land. Tasks 13 and 15 were built in parallel worktrees and cherry-picked onto the branch.
+
 **Files:**
 - Create: `ONBOARDING.md` (kit root)
 - Modify: `template/ONBOARDING.md` (one blockquote after the title)

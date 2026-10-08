@@ -17,7 +17,7 @@ Below, `KIT` is the folder this file is in. Before setup it is wherever the pers
 4. **Set up.** Run `python3 .ai-sdlc/kit/setup.py setup --name "<name>" --roles <ids, comma-separated> --lang <code>`.
 5. **Relay the result** in plain words: who it is set up for, then each item under "Check", with its id in brackets.
 6. **Look for contradictions.** For each `team-…` warning, read the team file it names and the kit's `.github/instructions/ai-sdlc-*.instructions.md`. Tell the person only about real contradictions (one says do X, the other says don't), one sentence each, naming both files. The team's rule wins; say so.
-7. **Acknowledge.** If `setup.py` answers that this command is not built yet, tell the person in their language that it arrives in the next kit version, and stop.
+7. **Acknowledge.** If `setup.py` answers that this command is not built yet, tell the person in their language that it arrives in the next kit version, and go to step 8.
    For each warning the person has understood, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>`. It comes back only if that team file changes.
 8. **Close.** Say: "You're set up. Say 'change my preferences', 'update the kit' or 'remove the kit' at any time."
 
