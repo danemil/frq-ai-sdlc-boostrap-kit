@@ -13,13 +13,21 @@ def read(rel):
 
 class TestRelease(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(read("VERSION").strip(), "0.6.0")
+        self.assertEqual(read("VERSION").strip(), "0.7.0")
 
     def test_the_newest_changelog_entry_is_the_version_and_unreleased_is_empty(self):
         log = read("CHANGELOG.md")
         unreleased = log.split("## [Unreleased]", 1)[1].split("\n## [", 1)
         self.assertEqual(unreleased[0].strip(), "")
         self.assertTrue(unreleased[1].startswith(read("VERSION").strip() + "] — "))
+
+    def test_changelog_0_7_0_has_the_process_skills(self):
+        entry = read("CHANGELOG.md").split("## [0.7.0]", 1)[1].split("\n## [", 1)[0]
+        for text in ("obra/superpowers v6.4.2", "`ai-sdlc-brainstorming`", "`ai-sdlc-writing-plans`",
+                     "`ai-sdlc-test-driven-development`", "`ai-sdlc-systematic-debugging`",
+                     "`ai-sdlc-verification-before-completion`", "`ai-sdlc-receiving-code-review`",
+                     "never commit, push or merge on their own"):
+            self.assertIn(text, entry)
 
     def test_changelog_0_6_0_has_likec4_connect_suggested_and_the_update_fix(self):
         entry = read("CHANGELOG.md").split("## [0.6.0]", 1)[1].split("\n## [", 1)[0]
