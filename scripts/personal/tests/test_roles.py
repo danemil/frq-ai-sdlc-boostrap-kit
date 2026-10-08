@@ -12,6 +12,10 @@ EXPECTED = {
     "po": ("Product Owner", ["playbook-product"], "hidden"),
     "pm": ("Product Manager", ["playbook-product"], "hidden"),
     "sm": ("Scrum Master / Team Coach (SAFe)", [], "guided"),  # playbook-sm arrives in Task 5c
+    "dev": ("Developer", ["playbook-dev"], "git-native"),
+    "qa": ("QA", ["playbook-qa"], "guided"),
+    "architect": ("Architect", ["playbook-architect"], "git-native"),
+    "em": ("Engineering Manager", ["playbook-em"], "git-native"),
 }
 CLIENT_WORDS = re.compile(r"\b(frequentis|frq|mosaix)\b", re.I)
 

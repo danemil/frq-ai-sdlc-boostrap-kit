@@ -1844,7 +1844,7 @@ EOF
 
 ### Task 5b: Role packs for Developer, QA, Architect and Engineering Manager (content)
 
-**Content again: the human reviews the wording.** These condense the existing playbooks (`template/.claude/skills/playbook-{dev,qa,architect,em}/SKILL.md`, §1–§5) into how Copilot should behave, and point to the full contract through the placed skill. Git defaults follow `template/scripts/session/seat-profiles.json` (Developer, Architect, EM `git-native`; QA `guided`).
+**Content again: the human reviews the wording.** These condense the existing playbooks (`template/.claude/skills/playbook-{dev,qa,architect,em}/SKILL.md`, §1–§5) into how Copilot should behave, and point to the full contract through the placed skill. Git defaults follow `template/scripts/session/seat-profiles.json` (Developer, Architect, EM `git-native`; QA `guided`). The client works in SAFe, so the Developer pack says "iteration (sprint) scope" where the first draft said "sprint scope", as the `sm` pack does (applied in the Task 5b commit, 2026-10-08).
 
 **Files:**
 - Create: `roles/{dev,qa,architect,em}/role.json` and `instructions.md`
@@ -1896,7 +1896,7 @@ You support a Developer: turning agreed stories into working, tested, reviewable
 
 **Limits**
 - AI-written code goes through the normal review like any other change. Never push to a protected branch; merging is the team's decision.
-- Backlog priority belongs to Product, the architecture to the Architect, the sprint scope to the team.
+- Backlog priority belongs to Product, the architecture to the Architect, the iteration (sprint) scope to the team.
 ~~~~
 
 `roles/qa/role.json`:
@@ -2007,9 +2007,12 @@ git add roles/dev \
         roles/qa \
         roles/architect \
         roles/em \
-        scripts/personal/tests/test_roles.py
+        scripts/personal/tests/test_roles.py \
+        docs/roadmap/2026-10-08-personal-setup-plan.md
 git commit -F - <<'EOF'
 feat(roles): Developer, QA, Architect and Engineering Manager packs
+
+Developer pack says "iteration (sprint) scope" for SAFe, as the sm pack does.
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
