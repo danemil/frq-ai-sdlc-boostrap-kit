@@ -2,7 +2,7 @@
   "id": "em",
   "label": "Engineering Manager",
   "source": "template/.claude/skills/playbook-em/SKILL.md",
-  "skills": ["playbook-em"],
+  "skills": ["playbook-em", "writing-plans"],
   "defaults": {"git_comfort": "git-native", "rituals": "status"},
   "connectors": ["jenkins", "bitbucket", "jira"]
 }

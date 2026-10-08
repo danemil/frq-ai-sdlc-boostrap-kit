@@ -2,7 +2,7 @@
   "id": "qa",
   "label": "QA",
   "source": "template/.claude/skills/playbook-qa/SKILL.md",
-  "skills": ["playbook-qa"],
+  "skills": ["playbook-qa", "systematic-debugging", "test-driven-development", "verification-before-completion"],
   "defaults": {"git_comfort": "guided", "rituals": "status"},
   "connectors": ["jira", "jama", "jenkins"]
 }

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import helpers
 from personal import packs, place, state
+from test_superpowers import FILES
 
 KIT = helpers.KIT
 # id: (label, skills, git comfort default)
@@ -15,10 +16,14 @@ EXPECTED = {
     "po": ("Product Owner", ["playbook-product"], "hidden"),
     "pm": ("Product Manager", ["playbook-product"], "hidden"),
     "sm": ("Scrum Master / Team Coach (SAFe)", ["playbook-sm"], "guided"),
-    "dev": ("Developer", ["playbook-dev"], "git-native"),
-    "qa": ("QA", ["playbook-qa"], "guided"),
-    "architect": ("Architect", ["playbook-architect"], "git-native"),
-    "em": ("Engineering Manager", ["playbook-em"], "git-native"),
+    "dev": ("Developer", ["playbook-dev", "brainstorming", "receiving-code-review",
+                          "systematic-debugging", "test-driven-development",
+                          "verification-before-completion", "writing-plans"], "git-native"),
+    "qa": ("QA", ["playbook-qa", "systematic-debugging", "test-driven-development",
+                  "verification-before-completion"], "guided"),
+    "architect": ("Architect", ["playbook-architect", "brainstorming", "receiving-code-review",
+                                "writing-plans"], "git-native"),
+    "em": ("Engineering Manager", ["playbook-em", "writing-plans"], "git-native"),
 }
 # id: the connectors onboarding suggests (owner approval, 2026-10-08); core suggests none
 CONNECTORS = {
@@ -103,6 +108,19 @@ class TestRoles(unittest.TestCase):
                 files = sorted(p.relative_to(src).as_posix() for p in src.rglob("*") if p.is_file())
                 for rel in files:
                     self.assertIn(f".agents/skills/{packs.PREFIX}{skill}/{rel}", wanted)
+
+    def test_several_roles_get_the_union_once(self):
+        def skills(roles):
+            c = state.new("0")["choices"]
+            c["roles"] = roles
+            return packs.combine(self.packs, c)["skills"]
+        got = skills(["architect", "em"])
+        self.assertEqual(got.count("writing-plans"), 1, got)
+        self.assertEqual(set(got) & set(FILES),
+                         {"brainstorming", "receiving-code-review", "writing-plans"})
+        got = skills(["qa", "architect"])
+        self.assertEqual(set(got) & set(FILES), set(FILES))
+        self.assertEqual(len(got), len(set(got)), got)
 
     def test_a_core_skill_can_be_left_out(self):
         c = state.new("0")["choices"]

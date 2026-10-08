@@ -7,6 +7,7 @@ from pathlib import Path
 
 import helpers
 from personal import packs, paths
+from test_superpowers import FILES
 
 ARGS = ["setup", "--name", "Ana", "--roles", "po", "--lang", "en"]
 CORE = ".github/instructions/ai-sdlc-core.instructions.md"
@@ -44,7 +45,9 @@ class TestChange(unittest.TestCase):
         out = self.change("--roles", "po")
         self.assertFalse((self.root / DEV).exists())
         self.assertFalse((self.root / ".agents/skills/ai-sdlc-playbook-dev").exists())
-        self.assertIn("Removed 2 file(s) no longer needed", out)
+        # the dev instructions, the dev playbook, and the six process skills' files
+        removed = 2 + sum(len(files) for files in FILES.values())
+        self.assertIn(f"Removed {removed} file(s) no longer needed", out)
 
     def test_skills_can_be_added_and_dropped(self):
         self.change("--add-skill", "skill-creator", "--drop-skill", "playbook-product")
@@ -69,6 +72,29 @@ class TestChange(unittest.TestCase):
         self.change("--drop-skill", "likec4-dsl")
         self.assertFalse(skill.exists())
         self.assertTrue((self.root / ".agents/skills/ai-sdlc-drawio/SKILL.md").is_file())
+
+    def skill_files(self, name):
+        d = self.root / ".agents/skills" / f"ai-sdlc-{name}"
+        return sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file())
+
+    def test_a_role_skill_can_be_dropped_and_added_back(self):
+        self.change("--roles", "po,dev")
+        self.assertEqual(self.skill_files("brainstorming"), ["LICENSE", "PROVENANCE.md", "SKILL.md"])
+        self.change("--drop-skill", "brainstorming")
+        self.assertFalse((self.root / ".agents/skills/ai-sdlc-brainstorming").exists())
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-writing-plans/SKILL.md").is_file())
+        self.assertIn("- **Skills left out:** brainstorming",
+                      (self.root / paths.USER_REL).read_text(encoding="utf-8"))
+        self.change("--add-skill", "brainstorming")
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-brainstorming/SKILL.md").is_file())
+
+    def test_a_process_skill_outside_the_roles_can_be_added(self):
+        self.change("--add-skill", "systematic-debugging")
+        self.assertEqual(self.skill_files("systematic-debugging"),
+                         sorted(FILES["systematic-debugging"]))      # no find-polluter.sh
+        self.assertIn("- **Extra skills:** systematic-debugging",
+                      (self.root / paths.USER_REL).read_text(encoding="utf-8"))
+        self.assertFalse((self.root / ".agents/skills/ai-sdlc-test-driven-development").exists())
 
     def test_unknown_or_unsupported_skills_are_refused(self):
         code, out = helpers.cli(self.root, self.kit, "change", "--add-skill", "nope")

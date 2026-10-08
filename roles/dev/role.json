@@ -2,7 +2,7 @@
   "id": "dev",
   "label": "Developer",
   "source": "template/.claude/skills/playbook-dev/SKILL.md",
-  "skills": ["playbook-dev"],
+  "skills": ["playbook-dev", "brainstorming", "receiving-code-review", "systematic-debugging", "test-driven-development", "verification-before-completion", "writing-plans"],
   "defaults": {"git_comfort": "git-native", "rituals": "status"},
   "connectors": ["bitbucket", "jira", "jenkins"]
 }

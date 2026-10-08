@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Added
+- Six process skills from obra/superpowers v6.4.2 (commit 8ca22dba9a94, MIT), vendored with a `PROVENANCE.md` each, given by role: `ai-sdlc-brainstorming`, `ai-sdlc-writing-plans`, `ai-sdlc-test-driven-development`, `ai-sdlc-systematic-debugging`, `ai-sdlc-verification-before-completion`, `ai-sdlc-receiving-code-review` (Developer all six; QA test-driven-development, systematic-debugging, verification-before-completion; Architect brainstorming, writing-plans, receiving-code-review; Engineering Manager writing-plans). They never commit, push or merge on their own: they follow the person's git-comfort setting and ask before each commit. Specs go to `docs/specs/`, plans to `docs/plans/`. Not taken: the skills that run work without a person in between (see the design). Add or leave one out with "change my preferences"; `update` brings them to existing setups.
 
 ## [0.6.0] — 2026-10-08
 ### Added

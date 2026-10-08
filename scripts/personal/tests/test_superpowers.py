@@ -194,5 +194,17 @@ class TestReceivingCodeReview(Checks, unittest.TestCase):
         self.assertIn("Bitbucket", text)
 
 
+class TestPack(unittest.TestCase):
+    """The six come from obra/superpowers, and they are role skills, not core (Task 8)."""
+
+    def test_exactly_these_six_come_from_superpowers(self):
+        got = {p.parent.name for p in LIB.glob("*/PROVENANCE.md")
+               if "obra/superpowers" in p.read_text(encoding="utf-8")}
+        self.assertEqual(got, set(FILES))
+
+    def test_they_are_role_skills_not_core(self):
+        self.assertEqual(set(packs.load(KIT)["core"]["skills"]) & set(FILES), set())
+
+
 if __name__ == "__main__":
     unittest.main()
