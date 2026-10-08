@@ -6,7 +6,9 @@ Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fix
                        the person's own notes and personal skills (paths.is_personal) are not
     unexcluded:<path>  an ai-sdlc* file git does not hide
     stale-kit          the kit folder and state.json disagree on the version
-    kit-copy:<dir>     another kit folder in the repo that git does not hide
+    kit-copy:<dir>     another kit folder in the repo that git does not hide (newer: it waits
+                       for "update the kit"; same version: update from it or delete it;
+                       older: delete it)
     and the team-file warnings from conflicts.py that are not acknowledged.
 """
 from __future__ import annotations
@@ -82,6 +84,9 @@ def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
             v = paths.kit_version(root / d)
             if version_key(v) > version_key(st["kit_version"]):
                 text = f'A newer kit ({v}) is waiting in {d}. Say "update the kit".'
+            elif version_key(v) == version_key(st["kit_version"]):
+                text = (f"Another copy of the kit (same version {v}) is in {d}. "
+                        'If you copied it in to update, say "update the kit"; otherwise delete it.')
             else:
                 text = f"{d} is a copy of the kit that git does not hide. Delete it."
             found.append((f"kit-copy:{d}", text))

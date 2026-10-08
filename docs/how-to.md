@@ -68,7 +68,7 @@ python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,qa --lang en
 ```text
 The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
-Set up AI-SDLC 0.4.0 for Ana: Product Owner, QA · English.
+Set up AI-SDLC 0.5.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 33 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
@@ -87,7 +87,7 @@ Now `git status` shows nothing new. Everything the kit added is hidden through `
 
 ### How to tell you need it
 
-- `check` (or the line Copilot shows at the start of a session) reports **`stale-kit`**, or **`kit-copy:<folder>`** with *"A newer kit (…) is waiting"*.
+- `check` (or the line Copilot shows at the start of a session) reports **`stale-kit`**, or **`kit-copy:<folder>`** with *"A newer kit (…) is waiting"* (or *"Another copy of the kit (same version …)"*, if you copied it in to update).
 - A command fails with **`invalid choice`**. For example, `setup.py connect jira` gives `invalid choice: 'connect' (choose from setup, change, update, check, ack, remove)`. Your kit is older than the command.
 - The README or this guide describes a feature your kit lacks. To see what you have, run `cat .ai-sdlc/kit/VERSION`, or check for a file such as `ls .ai-sdlc/kit/connectors.py`. Features on `main` can arrive before the version number changes, so a newer kit may show the **same** number.
 
@@ -147,7 +147,7 @@ $ git status --short
 $
 ```
 
-> **Same version number?** If the newer copy has the same number as your kit (common when you take the latest `main`), `check` calls it *"a copy of the kit that git does not hide. Delete it."* If you copied it in to update, ignore that and run `update` anyway. It works, and it adds whatever the newer copy has. This is how a 0.4.0 release kit gets `connect`.
+> **Same version number?** If the newer copy has the same number as your kit (common when you take the latest `main`), `check` says *"Another copy of the kit (same version …) is in <folder>. If you copied it in to update, say "update the kit"; otherwise delete it."* Running `update` from it works, and adds whatever the newer copy has.
 
 ### Compare a `.kit-new` file with your edited one, and choose
 
@@ -418,7 +418,7 @@ Check: 3 to look at:
 | `missing:<file>` | A file the kit placed is gone. | `python3 .ai-sdlc/kit/setup.py change` (no options) puts it back. After taking a `.kit-new`, this is expected until you run `change`. |
 | `unknown:<file>` | A file named like the kit's (`ai-sdlc-*`) that the kit did not write, for example one Copilot made. Your personal notes and personal skills are never reported. | Look at it. Delete it if you don't need it, or rename it to a personal file. |
 | `unexcluded:<file>` | A kit file that git does not hide (it could end up in a commit). | `python3 .ai-sdlc/kit/setup.py change` (no options) hides it again. |
-| `kit-copy:<folder>` | Another kit folder in the repo that git does not hide. If it says *"A newer kit (…) is waiting"*, it is newer. | Newer: [update](#2-update-the-kit-to-a-newer-version). Same version: update if you copied it in for that, otherwise delete the folder. Older: delete the folder. |
+| `kit-copy:<folder>` | Another kit folder in the repo that git does not hide. *"A newer kit (…) is waiting"*: it is newer. *"Another copy of the kit (same version …)"*: it has your version. Otherwise it is older. | Newer: [update](#2-update-the-kit-to-a-newer-version). Same version: update if you copied it in for that, otherwise delete the folder. Older: delete the folder. |
 | `stale-kit` | The kit folder and your setup disagree on the version (an update did not finish, or the kit folder was replaced by hand). | `python3 .ai-sdlc/kit/setup.py update` |
 | `team-agents-md` | The team has its own `AGENTS.md`; Copilot reads it together with the kit's files. | Information only. Ask Copilot to look for real contradictions; the team's rule wins. Then acknowledge it (below). |
 | `team-copilot-instructions` | The same, for the team's `.github/copilot-instructions.md`. | As above. |

@@ -75,6 +75,15 @@ class TestCheck(unittest.TestCase):
         found = dict(checks.run(self.root)[1])
         self.assertIn("is a copy of the kit that git does not hide", found["kit-copy:downloads/ai-sdlc-kit"])
 
+    def test_a_same_version_copy_offers_the_update_or_deletion(self):
+        helpers.copy_kit(self.root / "downloads/ai-sdlc-kit")
+        version = paths.kit_version(self.kit)
+        found = dict(checks.run(self.root)[1])
+        self.assertEqual(found["kit-copy:downloads/ai-sdlc-kit"],
+                         f"Another copy of the kit (same version {version}) is in downloads/ai-sdlc-kit. "
+                         'If you copied it in to update, say "update the kit"; otherwise delete it.')
+        self.assertNotIn("Delete it.", found["kit-copy:downloads/ai-sdlc-kit"])
+
     def test_a_kit_folder_newer_than_the_state_is_stale(self):
         (self.kit / "VERSION").write_text("9.9.9\n")
         self.assertEqual(self.ids(), ["stale-kit"])
