@@ -1,5 +1,6 @@
 # Personal setup — design
 
+**Released as kit 0.4.0 on 2026-10-08 (pilot pending).**
 **Status:** approved 2026-10-08 (brainstormed section by section with the kit owner).
 **Supersedes:** team mode (committed kit files, `install.sh`, CI gates) from [Phase 0](./2026-10-07-phase-0-foundations-plan.md). That work stays in git history; the parts reused here move into the new helper.
 **Related:** [onboarding, roles & skills design](./2026-10-07-onboarding-roles-and-skills-design.md) (seat model, role discovery idea).
