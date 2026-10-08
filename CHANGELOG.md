@@ -10,6 +10,15 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-08
+### Added
+- `likec4-dsl` skill in the core pack (`ai-sdlc-likec4-dsl`), for every role: LikeC4 architecture-as-code (`.c4`/`.likec4` files). Upstream likec4/likec4 `skills/likec4-dsl` @4e6ee7afc526, MIT; references bundled, upstream `evals/` not bundled. Models go to `docs/architecture/`; the `likec4` CLI is optional, and Copilot asks before running it through `npx`/`bunx`/`pnpm dlx` the first time.
+- `setup.py connect --suggested`, run by the person in their own terminal: the connectors their roles usually use, one at a time, leaving out the ones already connected (`y` connects with the same questions as `connect <name>`, `s` skips it, `a` skips all the rest; Enter skips), then any other tool by name. Skips are remembered in `state.json` (`skipped_connectors`), so the setup summary marks them "(skipped)" and stops suggesting them, and `connections` shows them as skipped; `connect <name>` clears that tool's skip, `update` drops skips for connectors the kit no longer has, and older state files load unchanged. Without a terminal it asks nothing and changes nothing.
+- `ONBOARDING.md`: after the close, Copilot offers once to connect the person's tools with `connect --suggested` (in their own terminal); "not now" ends it. The `ai-sdlc-connectors` skill suggests `connect --suggested` and never runs it.
+
+### Fixed
+- `update` and `setup` check that a kit copy is complete before they move it. An incomplete copy (for example one missing `template/.claude/skills/connectors/SKILL.md`) used to be moved into `.ai-sdlc/kit` and then stop with a traceback, leaving a half-updated setup (`check`: `stale-kit`). Now they refuse with "This kit copy is incomplete (missing …). Copy the whole kit folder again (without .git) and retry. Nothing was changed." `update` also prepares every file from the copy before it moves, drops an extra skill the newer kit no longer has, and a half-updated setup is finished by `python3 .ai-sdlc/kit/setup.py update` (or, if the kit folder itself is incomplete, by updating from a whole copy). `setup` replaces a kit folder left by an unfinished setup. An unexpected error prints a plain message (exit code 4) instead of a traceback; `AI_SDLC_DEBUG=1` shows the details.
+
 ## [0.5.0] — 2026-10-08
 ### Added
 - **Personal connectors, read-only:** `jira` and `confluence` (Data Center and Cloud), `bitbucket` (Data Center), `jama` (Jama Connect, OAuth client credentials) and `jenkins`. Copilot reads with `python3 .ai-sdlc/kit/connectors.py <name> <command> [--json]`; every item carries its `url`. Only GET requests are sent (plus Jama's token request). Stdlib only; proxies and a company CA bundle are honoured, TLS verification is never switched off.

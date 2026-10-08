@@ -68,9 +68,9 @@ python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,qa --lang en
 ```text
 The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
-Set up AI-SDLC 0.5.0 for Ana: Product Owner, QA · English.
+Set up AI-SDLC 0.6.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 33 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
+- Wrote 51 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
@@ -204,6 +204,31 @@ Test: OK: signed in to jira.example.com as Ana Pop.
 ```
 
 Run it again at any time to change something. Press Enter to keep a saved value.
+
+### Connect your role's tools in one go
+
+At the end of the onboarding Copilot offers this; say "not now" and it does not ask again. You can run it at any time, **in your own terminal**:
+
+```bash
+python3 .ai-sdlc/kit/setup.py connect --suggested
+```
+
+It goes through the tools your roles usually use (the "Connectors for your roles" line of the setup summary), **one at a time**, leaving out the ones already connected. For each it asks `y` (connect it now, with exactly the questions of `connect <name>`), `s` (skip this one) or `a` (skip all the rest). **Pressing Enter skips.** Then it offers the other tools: type a name to connect it, or press Enter to finish.
+
+```text
+$ python3 .ai-sdlc/kit/setup.py connect --suggested
+Connect the tools your roles usually use, one at a time. Logins are typed here, secrets hidden, and saved only on this computer.
+Connect Jira now? [y = yes, s = skip, a = skip all the rest; Enter = skip]: y
+Connect Jira. Secrets are typed hidden and saved only on this computer, in /home/ana/.config/ai-sdlc/connectors/jira.json.
+…
+Test: OK: signed in to jira.example.com as Ana Pop.
+Connect Confluence now? [y = yes, s = skip, a = skip all the rest; Enter = skip]: s
+Connect another tool? Available: bitbucket, jama, jenkins (type its name; Enter = done):
+Connected: jira.
+Skipped: confluence. They are no longer suggested; connect one any time with python3 .ai-sdlc/kit/setup.py connect <name>
+```
+
+**Skips are remembered** for this repo: the setup summary shows the tool as "(skipped)" and stops suggesting it, and `connections` shows "not connected, skipped". Running `connect --suggested` again asks about skipped tools again, and `connect <name>` clears that tool's skip. Without a terminal (for example, if Copilot tried to run it) it asks nothing and changes nothing.
 
 ### What each tool asks for, and where to create the token
 
@@ -498,6 +523,8 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `setup.py: error: unrecognized arguments: jira` (after `setup.py setup jira`) | `setup` is the one-time setup, not the connect command. | `python3 .ai-sdlc/kit/setup.py connect jira` |
 | `A kit is already set up in this repo (.ai-sdlc/kit)` | You ran `setup` with a newer copy. | Run `update` instead: `python3 <copy>/setup.py update`. |
 | `This copy is older (…) than the kit set up here (…)` | The copy you used is older than your kit. | Nothing changed. Delete that copy; get the latest one. |
+| `This kit copy is incomplete (missing …)` or `The kit folder .ai-sdlc/kit is incomplete (missing …)` | Some files did not come along when the kit was copied (an interrupted copy or unzip, or only part of the folder). | Nothing changed. Copy the whole kit folder into the repo again, without `.git` (`rsync -a --exclude .git <kit>/ ./ai-sdlc-kit-new/`), and run `setup` or `update` from that copy. |
+| `AI-SDLC stopped on an unexpected problem: …` (exit code 4) | Something the kit did not expect, such as a full disk or a file it could not read. | Run the command it names (for an update: `python3 .ai-sdlc/kit/setup.py update`). If it happens again, share the message and the output of `check` with the kit owner. |
 | `Copy the newer kit folder into the repo first` | The copy is outside the repo. | `rsync -a --exclude .git <kit>/ ./ai-sdlc-kit-new/`, then run `ai-sdlc-kit-new/setup.py update`. |
 | `python3: command not found`, or `AI-SDLC needs Python 3.9 or newer` | Python is missing or older than 3.9 (`python3 --version`). | Ask IT to install Python 3.9 or newer on the VM. Nothing was changed. |
 | `git status` shows kit files | (1) A kit copy you put in is waiting for `setup` or `update`. (2) After `remove`: your edited files and personal notes were kept. (3) `check` reports `unexcluded:`. (4) Someone ran `git add -f`. | (1) Finish the setup or update, or delete the copy. (2) Delete or move them. (3) `python3 .ai-sdlc/kit/setup.py change`. (4) `git restore --staged <file>`; never commit them. |
@@ -513,6 +540,7 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `Bitbucket Cloud is not supported yet` | The URL is `bitbucket.org`. | Only Bitbucket Data Center is supported. |
 | The document skills (Word, Excel, PowerPoint, PDF) cannot install their library: `ensurepip is not available`, or `python3 -m venv` fails | The `python3-venv` package is missing on the VM. | Ask IT to install `python3-venv`. The skills install into `~/.ai-sdlc/venv` only, and only with your consent. |
 | The document skills: `pip` cannot reach the package index | A company proxy or internal package mirror is needed. | Ask IT for the pip proxy or index settings (for example `HTTPS_PROXY`, or `pip config set global.index-url <mirror>`), then try again. |
+| The LikeC4 skill cannot validate or export a `.c4` model: `npx` cannot reach the npm registry, or Node is not installed | The `likec4` CLI comes from npm, which the VM may block. | The `.c4` file is still kept. Validate and export with the LikeC4 VS Code extension, or ask IT for npm registry access. Copilot asks before it downloads the CLI. |
 | Copilot says it cannot find `ONBOARDING.md`, or does something else when you say "do the onboarding" | Copilot did not look in the kit folder. Its file search may skip folders that git ignores, such as `.ai-sdlc/kit/` after setup. | Point it there: *"follow ai-sdlc-kit/ONBOARDING.md"* before setup (your folder name), or *"follow .ai-sdlc/kit/ONBOARDING.md"* after setup. |
 | `There is no skill <name>. Available: …` | A wrong skill name in `--add-skill`. | Use a name from the list it prints. |
 | `The kit is not set up in this repo yet` | `change`, `update`, `ack` or `remove` in a repo without the kit. | Check you are in the right repo (`git rev-parse --show-toplevel`), or do the [first-time setup](#1-first-time-setup-in-a-repo). |

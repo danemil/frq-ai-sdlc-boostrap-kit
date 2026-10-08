@@ -1,4 +1,4 @@
-"""The person's side: setup.py connect | connections | disconnect.
+"""The person's side: setup.py connect [--suggested] | connections | disconnect.
 
 Each function returns (exit code, lines to print). `connect` asks its questions
 itself (secrets through getpass), so the AI never sees a secret: it refuses to run
@@ -151,14 +151,132 @@ def connect(name, *, test_only=False, connectors=None, isatty=None, ask=input,
     return (0 if ok else 1), lines
 
 
-def connections(connectors=None):
-    """setup.py connections: what is configured, never a secret."""
+def is_connected(connector) -> bool:
+    """Every needed value is saved (file or environment). Never raises."""
+    try:
+        values = registry.load_values(connector)
+        return bool(values) and not connector.missing(values)
+    except Exception:  # noqa: BLE001  an unreadable file counts as not connected
+        return False
+
+
+def _choice(ask, say, prompt):
+    """y, s or a (Enter = s), or None when there are no more answers (EOF, Ctrl-C)."""
+    for _ in range(MAX_TRIES):
+        try:
+            answer = (ask(prompt) or "").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            return None
+        if answer in ("", "s", "skip", "n", "no"):
+            return "s"
+        if answer in ("y", "yes"):
+            return "y"
+        if answer in ("a", "all"):
+            return "a"
+        say("Please answer y, s or a.")
+    return "s"
+
+
+def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=getpass.getpass,
+            say=print, client_kwargs=None):
+    """setup.py connect --suggested: offer the role connectors (`defaults`) one at a time,
+    then any other tool by name. `y` runs connect() exactly as `connect <name>` does.
+
+    Returns (exit code, closing lines, {"connected": [...], "skipped": [...]}). Only the
+    role connectors the person skipped (s, Enter, or a) are in "skipped"; the caller
+    remembers them. Without a terminal it asks nothing and changes nothing."""
+    connectors = registry.discover() if connectors is None else connectors
+    result = {"connected": [], "skipped": []}
+    tty = sys.stdin.isatty() if isatty is None else isatty
+    if not tty:
+        return 0, ["connect --suggested asks questions (and secrets), so it runs only in your "
+                   "own terminal, never through an assistant. Nothing was connected or skipped. "
+                   f"Open a terminal in this repo and run: {SETUP} connect --suggested"], result
+
+    def run_connect(name):
+        """True when there are no more answers (stop the walk)."""
+        try:
+            code, lines = connect(name, connectors=connectors, isatty=True, ask=ask,
+                                  ask_secret=ask_secret, say=say, client_kwargs=client_kwargs)
+        except (EOFError, KeyboardInterrupt):
+            say(f"Stopped connecting {connectors[name].title}. Nothing more was saved.")
+            return True
+        for line in lines:
+            say(line)
+        if code in (0, 1):                     # saved (1: saved, but its test failed)
+            result["connected"].append(name)
+        return False
+
+    todo = [n for n in dict.fromkeys(defaults) if n in connectors]
+    stopped = False
+    if todo:
+        say("Connect the tools your roles usually use, one at a time. Logins are typed here, "
+            "secrets hidden, and saved only on this computer.")
+    for i, name in enumerate(todo):
+        title = connectors[name].title
+        if is_connected(connectors[name]):
+            say(f"- {title}: already connected.")
+            continue
+        answer = _choice(ask, say, f"Connect {title} now? [y = yes, s = skip, a = skip all "
+                                   f"the rest; Enter = skip]: ")
+        if answer is None:
+            say("No more answers; skipping the rest for now.")
+            stopped = True
+            break
+        if answer == "a":
+            result["skipped"] += [n for n in todo[i:] if not is_connected(connectors[n])]
+            stopped = True
+            break
+        if answer == "s":
+            result["skipped"].append(name)
+            continue
+        if run_connect(name):
+            stopped = True
+            break
+
+    tries = 0
+    while not stopped and tries < MAX_TRIES:
+        others = [n for n in connectors if n not in todo and not is_connected(connectors[n])]
+        if not others:
+            break
+        try:
+            answer = (ask(f"Connect another tool? Available: {', '.join(others)} "
+                          f"(type its name; Enter = done): ") or "").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            break
+        if not answer:
+            break
+        if answer not in connectors or is_connected(connectors[answer]):
+            tries += 1
+            say(f"There is no tool {answer!r} to connect here." if answer not in connectors
+                else f"{connectors[answer].title} is already connected.")
+            continue
+        tries = 0
+        if run_connect(answer):
+            break
+
+    lines = []
+    if result["connected"]:
+        lines.append(f"Connected: {', '.join(result['connected'])}.")
+    if result["skipped"]:
+        lines.append(f"Skipped: {', '.join(result['skipped'])}. They are no longer suggested; "
+                     f"connect one any time with {SETUP} connect <name>")
+    if not lines:
+        lines.append("Nothing was connected.")
+    return 0, lines, result
+
+
+def connections(connectors=None, skipped=()):
+    """setup.py connections: what is configured, never a secret. `skipped`: the connectors
+    the person chose to skip in connect --suggested, shown as such."""
     connectors = registry.discover() if connectors is None else connectors
     lines = []
     for name, c in connectors.items():
         src = store.source(name, c.keys)
         if src is None:
-            lines.append(f"- {name}: not connected ({SETUP} connect {name})")
+            lines.append(f"- {name}: not connected, skipped ({SETUP} connect {name} when you "
+                         f"want it)" if name in skipped else
+                         f"- {name}: not connected ({SETUP} connect {name})")
             continue
         values = registry.load_values(c) or {}
         doc = store.read_file(name) or {}

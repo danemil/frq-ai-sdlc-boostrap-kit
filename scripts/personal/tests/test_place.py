@@ -264,6 +264,43 @@ class TestMoveKit(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             place.move_kit(self.root, other)
 
+    # --- validate_kit: is a copy whole enough to set up from? ---------------------
+
+    def test_a_whole_kit_has_no_problems(self):
+        self.assertEqual(place.validate_kit(KIT), [])
+        self.assertEqual(place.validate_kit(self.copy), [])
+
+    def test_each_missing_piece_is_named(self):
+        for rel in ("VERSION", "setup.py", "ONBOARDING.md", "roles/core/role.json",
+                    "roles/sm/instructions.md", "template/.claude/skills/connectors/SKILL.md",
+                    "scripts/personal/connectors/jira.py"):
+            with self.subTest(rel=rel):
+                p = self.copy / rel
+                data = p.read_bytes()
+                p.unlink()
+                self.assertIn(f"missing {rel}", place.validate_kit(self.copy))
+                p.write_bytes(data)
+        self.assertEqual(place.validate_kit(self.copy), [])
+
+    def test_a_file_a_skill_links_to_is_required(self):
+        skill = self.copy / packs.SKILLS_REL / "playbook-dev"
+        targets = [m.group(1).partition("#")[0] for m in re.finditer(
+            r"\]\(([^)\s]+)\)", (skill / "SKILL.md").read_text(encoding="utf-8"))
+                   if not re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:|[#/]", m.group(1))]
+        self.assertTrue(targets, "playbook-dev links to no kit file; pick another skill")
+        rel = posixpath.normpath(posixpath.join(f"{packs.SKILLS_REL}/playbook-dev", targets[0]))
+        (self.copy / rel).unlink()
+        self.assertIn(f"missing {rel} (linked from playbook-dev/SKILL.md)",
+                      place.validate_kit(self.copy))
+
+    def test_a_broken_role_file_or_version_is_named(self):
+        (self.copy / "roles/po/role.json").write_text("{not json")
+        (self.copy / "VERSION").write_text("\n")
+        problems = place.validate_kit(self.copy)
+        self.assertTrue(any(p.startswith("roles/po/role.json is not readable") for p in problems),
+                        problems)
+        self.assertIn("VERSION is empty or not a version number", problems)
+
 
 if __name__ == "__main__":
     unittest.main()

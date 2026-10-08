@@ -21,6 +21,7 @@ leave its folder are pointed at the same file inside .ai-sdlc/kit/
 """
 from __future__ import annotations
 
+import json
 import posixpath
 import re
 import shutil
@@ -191,9 +192,89 @@ def is_kit(path) -> bool:
     return all((path / p).exists() for p in ("setup.py", "VERSION", packs.ROLES_REL))
 
 
+REQUIRED = ("setup.py", "VERSION", "ONBOARDING.md", "connectors.py",
+            f"{packs.ROLES_REL}/{packs.CORE}/role.json")
+
+
+def _link_problems(kit, skill) -> list[str]:
+    """Kit files a skill's SKILL.md links to (inside its folder or out) that are not there."""
+    skill_dir = f"{packs.SKILLS_REL}/{skill}"
+    text = (Path(kit) / skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    out = []
+    for m in _LINK.finditer(text):
+        target = m.group(1)
+        if _SCHEME.match(target) or target.startswith(("#", "/")):
+            continue
+        rel = posixpath.normpath(posixpath.join(skill_dir, target.partition("#")[0]))
+        if rel != ".." and not rel.startswith("../") and not (Path(kit) / rel).exists():
+            out.append(f"missing {rel} (linked from {skill}/SKILL.md)")
+    return out
+
+
+def validate_kit(kit) -> list[str]:
+    """What keeps this kit folder from setting anyone up; [] means it is whole.
+
+    setup and update call it before they move or replace anything. It loads every
+    role pack, resolves every skill the packs or the library name (each SKILL.md,
+    and every kit file it links to), checks the connectors the packs suggest, and
+    renders every file for all roles and all library skills, writing nothing. Each
+    problem is a short phrase; most read "missing <kit path>".
+    """
+    kit = Path(kit)
+    problems = [f"missing {rel}" for rel in REQUIRED if not (kit / rel).is_file()]
+    version = (paths.read_text(kit / "VERSION") or "").strip()
+    if (kit / "VERSION").is_file() and not re.fullmatch(r"\d+(\.\d+)*", version):
+        problems.append("VERSION is empty or not a version number")
+    all_packs = {}
+    for f in sorted((kit / packs.ROLES_REL).glob("*/role.json")):
+        where = f.relative_to(kit).as_posix()
+        try:
+            pack = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            problems.append(f"{where} is not readable ({exc})")
+            continue
+        if not (isinstance(pack, dict) and isinstance(pack.get("skills"), list)
+                and isinstance(pack.get("connectors"), list)):
+            problems.append(f"{where} is not readable (no skills or connectors list)")
+            continue
+        md = f.parent / "instructions.md"
+        if not md.is_file():
+            problems.append(f"missing {md.relative_to(kit).as_posix()}")
+        source = pack.get("source")
+        if isinstance(source, str) and not (kit / source).is_file():
+            problems.append(f"missing {source}")
+        all_packs[f.parent.name] = pack
+    connectors = set(packs.available_connectors(kit))
+    for name in sorted({c for p in all_packs.values() for c in p["connectors"]} - connectors):
+        problems.append(f"missing {packs.CONNECTORS_REL}/{name}.py")
+    library = set(packs.available_skills(kit))
+    named = {s for p in all_packs.values() for s in p["skills"]} - set(packs.UNSUPPORTED_SKILLS)
+    for skill in sorted(named | library):
+        if skill not in library:
+            problems.append(f"missing {packs.SKILLS_REL}/{skill}/SKILL.md")
+        else:
+            try:
+                problems += _link_problems(kit, skill)
+            except (OSError, ValueError) as exc:
+                problems.append(f"{packs.SKILLS_REL}/{skill}/SKILL.md is not readable ({exc})")
+    if problems:
+        return problems
+    try:  # the dry run: every file setup could place, for all roles and all library skills
+        loaded = packs.load(kit)
+        everything = {"name": "x", "roles": packs.selectable(loaded), "lang": "en",
+                      "git_comfort": None, "rituals": None,
+                      "add_skills": sorted(library), "drop_skills": []}
+        wanted_files(kit, loaded, everything)
+    except Exception as exc:  # noqa: BLE001  any failure here would have stopped a setup
+        problems.append(f"the files cannot be prepared ({type(exc).__name__}: {exc})")
+    return problems
+
+
 def replace_kit(root, kit) -> Path:
     """Swap .ai-sdlc/kit for the newer copy at `kit` (update). Interrupted, a re-run finishes it."""
     dest = Path(root) / paths.KIT_REL
+    if Path(root).resolve() not in Path(kit).resolve().parents:   # checked before the old kit goes
+        raise ValueError(f"the kit folder must be inside the repo: {kit} is not in {root}")
     if dest.exists():
         if not is_kit(dest):
             raise FileExistsError(dest)
