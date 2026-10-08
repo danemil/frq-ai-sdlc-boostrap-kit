@@ -93,11 +93,12 @@ def _summary(verb, root, is_git, kit, all_packs, st, report) -> list[str]:
     skills = ", ".join(packs.PREFIX + s for s in combined["skills"]) or "none"
     lines.append(f"- Skills: {skills} · git: {combined['git_comfort']} · session summary: "
                  f"{'on' if combined['rituals'] == 'status' else 'off'}")
-    return lines + _connectors_line(all_packs, c["roles"])
+    return lines + _connectors_line(all_packs, c["roles"], st.get("skipped_connectors", []))
 
 
-def _connectors_line(all_packs, roles) -> list[str]:
-    """One line: the connectors the roles usually need, each marked when already connected.
+def _connectors_line(all_packs, roles, skipped=()) -> list[str]:
+    """One line: the connectors the roles usually need, each marked when already connected
+    or skipped (connect --suggested); a skipped one is not suggested again.
     Names only, never a value; a connector problem never stops a setup summary."""
     names = packs.role_connectors(all_packs, roles)
     if not names:
@@ -109,13 +110,13 @@ def _connectors_line(all_packs, roles) -> list[str]:
     shown, todo = [], []
     for name in names:
         c = found.get(name)
-        try:
-            values = registry.load_values(c) if c else None
-            connected = bool(values) and not c.missing(values)
-        except Exception:  # noqa: BLE001  an unreadable file counts as not connected
-            connected = False
-        shown.append(f"{name} (connected)" if connected else name)
-        if not connected:
+        connected = bool(c) and manage.is_connected(c)
+        if connected:
+            shown.append(f"{name} (connected)")
+        elif name in skipped:
+            shown.append(f"{name} (skipped)")
+        else:
+            shown.append(name)
             todo.append(name)
     hint = f" (say 'connect {todo[0]}')" if todo else ""
     return [f"- Connectors for your roles: {', '.join(shown)}{hint}"]
@@ -251,6 +252,8 @@ def cmd_update(args, cwd, kit):
         except FileExistsError:
             raise SetupError(f"{paths.KIT_REL} is not a kit folder; it was left alone.") from None
     report = place.apply(root, st, wanted)
+    known = set(registry.names())                 # a skip for a connector the kit lost goes
+    st["skipped_connectors"] = [n for n in st["skipped_connectors"] if n in known]
     st["kit_version"] = paths.kit_version(dest)
     state.save(root, st)
     lines = _summary("Updated to", root, is_git, dest, all_packs, st, report)
@@ -287,12 +290,47 @@ def cmd_remove(args, cwd, kit):
     return 0, lines
 
 
+def _state_or_none(cwd):
+    """(root, state) for the repo at cwd; state is None when it is not set up or unreadable."""
+    root, _ = paths.repo_root(cwd)
+    try:
+        return root, state.load(root)
+    except Exception:  # noqa: BLE001  connectors work in any folder, set up or not
+        return root, None
+
+
 def cmd_connect(args, cwd, kit):
-    return manage.connect(args.name, test_only=args.test)
+    if bool(args.name) == bool(args.suggested) or (args.suggested and args.test):
+        raise SetupError("Use either connect <connector> or connect --suggested "
+                         "(--test goes with a connector name).")
+    if args.suggested:
+        return _connect_suggested(cwd)
+    code, lines = manage.connect(args.name, test_only=args.test)
+    root, st = _state_or_none(cwd)
+    if not args.test and code in (0, 1) and st and args.name in st["skipped_connectors"]:
+        st["skipped_connectors"].remove(args.name)  # saved now, so no longer skipped
+        state.save(root, st)
+    return code, lines
+
+
+def _connect_suggested(cwd):
+    root, _ = paths.repo_root(cwd)
+    st = _need_state(root)
+    all_packs = packs.load(root / paths.KIT_REL)
+    defaults = packs.role_connectors(all_packs, [r for r in st["choices"]["roles"]
+                                                 if r in all_packs])
+    code, lines, result = manage.suggest(defaults)
+    skipped = sorted((set(st["skipped_connectors"]) | set(result["skipped"]))
+                     - set(result["connected"]))
+    if skipped != st["skipped_connectors"]:
+        st["skipped_connectors"] = skipped
+        state.save(root, st)
+    return code, lines
 
 
 def cmd_connections(args, cwd, kit):
-    return manage.connections()
+    _, st = _state_or_none(cwd)
+    return manage.connections(skipped=st["skipped_connectors"] if st else ())
 
 
 def cmd_disconnect(args, cwd, kit):

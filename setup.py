@@ -9,6 +9,7 @@
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
   python3 .ai-sdlc/kit/setup.py remove
   python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
+  python3 .ai-sdlc/kit/setup.py connect --suggested            (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connections
   python3 .ai-sdlc/kit/setup.py disconnect <connector>
 
@@ -70,9 +71,12 @@ def parser() -> argparse.ArgumentParser:
 
     n = sub.add_parser("connect", help="save your login for a connector; run it in your own "
                                        "terminal, it asks for secrets hidden")
-    n.add_argument("name", metavar="connector")
+    n.add_argument("name", metavar="connector", nargs="?")
     n.add_argument("--test", action="store_true",
                    help="only check the saved login with one read-only call")
+    n.add_argument("--suggested", action="store_true",
+                   help="offer your roles' connectors one at a time (y = connect, s = skip, "
+                        "a = skip the rest; Enter skips), then any other tool")
     sub.add_parser("connections", help="list connectors: URL, user, kind, last test (no secrets)")
     d = sub.add_parser("disconnect", help="delete a connector's saved login")
     d.add_argument("name", metavar="connector")

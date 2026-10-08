@@ -26,6 +26,7 @@ def new(kit_version: str) -> dict:
         "files": {},          # {path: {"class": "kit", "sha256": ...}}
         "created_dirs": [],   # folders setup made, removed again when empty
         "acks": {},           # {warning id: fingerprint of the team file when acknowledged}
+        "skipped_connectors": [],  # role connectors the person skipped in connect --suggested
     }
 
 
@@ -44,6 +45,9 @@ def load(root) -> dict | None:
     choices = {**st["choices"], **data.get("choices", {})}
     st.update(data)
     st["choices"] = choices
+    skipped = st.get("skipped_connectors")       # older state files have no such field
+    st["skipped_connectors"] = sorted({n for n in skipped if isinstance(n, str)}) \
+        if isinstance(skipped, list) else []
     return st
 
 
