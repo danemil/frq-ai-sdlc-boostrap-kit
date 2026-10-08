@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import exclude, packs, paths, place, state
+from . import checks, exclude, packs, paths, place, state
 
 
 class SetupError(Exception):
@@ -102,7 +102,25 @@ def cmd_setup(args, cwd, kit):
     state.save(root, st)                            # last
     lines = _summary("Set up", root, is_git, kit, all_packs, st, report)
     lines.append('Say "change my preferences", "update the kit" or "remove the kit" at any time.')
-    return 0, lines
+    return 0, lines + _check_lines(root)[1]
+
+
+def _check_lines(root) -> tuple[int, list[str]]:
+    st, found = checks.run(root)
+    if not found:
+        return 0, ["Check: all good."]
+    return 1, [f"Check: {len(found)} to look at:"] + [f"- [{fid}] {text}" for fid, text in found]
+
+
+def cmd_check(args, cwd, kit):
+    root, _ = paths.repo_root(cwd)
+    if args.quiet:
+        try:
+            st, found = checks.run(root)
+            return 0, [checks.quiet_line(root, st, found)]
+        except Exception as exc:  # noqa: BLE001  the session-start check must never fail
+            return 0, [f"AI-SDLC: the check could not run ({exc})."]
+    return _check_lines(root)
 
 
 def not_built(args, cwd, kit):
@@ -111,6 +129,7 @@ def not_built(args, cwd, kit):
 
 HANDLERS = {
     "setup": cmd_setup,
+    "check": cmd_check,
 }
 
 
