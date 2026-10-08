@@ -19,10 +19,14 @@ def pack(pid, skills=(), git="git-native", rituals="status", source="docs/src.md
 
 
 def fake_kit(root, extra=None):
-    """A minimal kit: core + po + dev packs and four library skills."""
+    """A minimal kit: core + po + dev packs, four library skills, two connector modules."""
     root = Path(root)
     (root / "docs").mkdir(parents=True)
     (root / "docs/src.md").write_text("source\n")
+    conn = root / packs.CONNECTORS_REL
+    conn.mkdir(parents=True)
+    for name in ("jira", "jenkins", "store", "_private"):   # store, _private: not connectors
+        (conn / f"{name}.py").write_text("")
     for name in ("playbook-product", "playbook-dev", "skill-creator", "git-verbs"):
         d = root / packs.SKILLS_REL / name
         d.mkdir(parents=True)
@@ -124,14 +128,35 @@ class TestValidate(unittest.TestCase):
 
     def test_bad_defaults_connectors_and_keys(self):
         bad = pack("qa", git="sometimes")
-        bad["connectors"] = ["jira"]
+        bad["connectors"] = ["jira", "nope"]
         bad["extra"] = 1
         errs = self.errors(qa=bad)
         self.assertEqual(errs, ["roles/qa/role.json: unknown key: extra"])
         del bad["extra"]
         errs = self.errors(qa=bad)
         self.assertTrue(any("defaults must be" in e for e in errs), errs)
-        self.assertTrue(any("connectors must be []" in e for e in errs), errs)
+        self.assertIn(f"roles/qa/role.json: connector 'nope' is not in {packs.CONNECTORS_REL} "
+                      "(known: jenkins, jira)", errs)
+
+    def test_connectors_are_known_connector_names(self):
+        ok = pack("qa")
+        ok["connectors"] = ["jira", "jenkins"]
+        self.assertEqual(self.errors(qa=ok), [])
+        for value, words in ((["store"], "connector 'store' is not in"),
+                             (["_private"], "connector '_private' is not in"),
+                             (["jira", "jira"], "must not repeat"),
+                             ("jira", "must be a list of connector names"),
+                             ([1], "must be a list of connector names")):
+            with self.subTest(value=value):
+                bad = pack("qa")
+                bad["connectors"] = value
+                errs = self.errors(qa=bad)
+                self.assertTrue(any(words in e for e in errs), errs)
+
+    def test_role_connectors_are_the_union_in_role_order(self):
+        all_packs = {"a": {"connectors": ["jira", "jenkins"]}, "b": {"connectors": ["jama", "jira"]}}
+        self.assertEqual(packs.role_connectors(all_packs, ["a", "b"]), ["jira", "jenkins", "jama"])
+        self.assertEqual(packs.role_connectors(all_packs, []), [])
 
     def test_instructions_frontmatter_and_length(self):
         kit = fake_kit(self.tmp.name)

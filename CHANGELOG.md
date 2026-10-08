@@ -9,6 +9,11 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Added
+- **Personal connectors, read-only:** `jira` and `confluence` (Data Center and Cloud), `bitbucket` (Data Center), `jama` (Jama Connect, OAuth client credentials) and `jenkins`. Copilot reads with `python3 .ai-sdlc/kit/connectors.py <name> <command> [--json]`; every item carries its `url`. Only GET requests are sent (plus Jama's token request). Stdlib only; proxies and a company CA bundle are honoured, TLS verification is never switched off.
+- `setup.py connect <name> [--test]`, `connections` and `disconnect <name>`. The person runs `connect` in their own terminal (secrets typed hidden; it refuses without a terminal unless every value is in `AI_SDLC_<NAME>_*` variables). Logins are saved per user in `~/.config/ai-sdlc/connectors/` (0700/0600), outside every repo; `remove` never touches them, and no command prints a secret.
+- `connectors` skill in the core pack (`ai-sdlc-connectors`): how Copilot checks connections, reads data, cites links, stays read-only, explains errors, and never handles a secret.
+- Connector defaults per role in `roles/<id>/role.json` (suggestions only; anyone can connect any tool). The setup summary names them ("Connectors for your roles: …", marking connected ones), and `ONBOARDING.md` gains "Connect a tool".
 
 ## [0.4.0] — 2026-10-08
 ### Changed

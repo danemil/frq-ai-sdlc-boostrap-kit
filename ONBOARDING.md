@@ -1,6 +1,6 @@
 # AI-SDLC kit: onboarding
 
-> **To Copilot.** The person said "do the onboarding", or "change my preferences", "update the kit", "check the kit" or "remove the kit". Follow the matching section below. Run every command yourself, from the repo root; the person only answers questions. Speak plainly, without git or Python words unless they use them. Never edit a team file: `AGENTS.md`, `.github/copilot-instructions.md`, or anything not named `ai-sdlc-*`.
+> **To Copilot.** The person said "do the onboarding", or "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>". Follow the matching section below. Run every command yourself, from the repo root; the person only answers questions. The one exception is `setup.py connect`, which asks for secrets: the person runs it in their own terminal. Speak plainly, without git or Python words unless they use them. Never edit a team file: `AGENTS.md`, `.github/copilot-instructions.md`, or anything not named `ai-sdlc-*`.
 
 Below, `KIT` is the folder this file is in. Before setup it is wherever the person copied it (for example `tools/ai-sdlc-kit`); after setup it is always `.ai-sdlc/kit`.
 
@@ -18,7 +18,7 @@ Below, `KIT` is the folder this file is in. Before setup it is wherever the pers
 5. **Relay the result** in plain words: who it is set up for, then each item under "Check", with its id in brackets.
 6. **Look for contradictions.** For each `team-…` or `skill-clash:…` warning, read the team file it names and the kit's `.github/instructions/ai-sdlc-*.instructions.md`. Tell the person only about real contradictions (one says do X, the other says don't), one sentence each, naming both files. The team's rule wins; say so.
 7. **Acknowledge.** For each warning the person has understood, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>`. It comes back only if that team file changes.
-8. **Close.** Say: "You're set up. Say 'change my preferences', 'update the kit' or 'remove the kit' at any time."
+8. **Close.** Say: "You're set up. Say 'change my preferences', 'update the kit' or 'remove the kit' at any time." Then name the tools the setup summary lists under "Connectors for your roles" (for example Jira and Confluence) and say: "I can read these for you once you connect them; say *connect Jira* (etc.) whenever you're ready." Do not ask for a URL, login or token now.
 
 ## Change my preferences
 
@@ -53,3 +53,13 @@ Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 ## Remove the kit
 
 Ask first: "This removes the kit and your settings from this repo. Files you edited, and your personal notes and skills, are kept. Continue?" On yes, run `python3 .ai-sdlc/kit/setup.py remove` and relay what it removed and kept.
+
+## Connect a tool
+
+The person said "connect Jira" (or Confluence, Bitbucket, Jama, Jenkins). The connector names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Connectors only read. **You never ask for, see, paste, store or repeat a token, password or other secret**, and never open the saved login files.
+
+1. Run `python3 .ai-sdlc/kit/setup.py connections` and tell them whether that tool is already connected (its URL, user and last test).
+2. If it is not connected, or they want to change it, tell them to run this **themselves, in their own terminal** (a terminal window, not this chat): `python3 .ai-sdlc/kit/setup.py connect <name>`. It asks for the URL and their login, hides what they type for secrets, saves it only on this computer (in their home folder, outside every repo), and tests it once. Do not run it yourself: it refuses to ask for secrets through an assistant.
+3. If they paste a token or password into the chat, do not use or repeat it. Tell them to revoke it now and create a new one, then save it themselves with the command above.
+4. Only if they ask you to test the connection, run `python3 .ai-sdlc/kit/setup.py connect <name> --test`. It uses the saved login, asks nothing and makes one read-only call. Relay the answer in plain words; the `ai-sdlc-connectors` skill explains each error and its fix.
+5. To forget a saved login, ask first, then run `python3 .ai-sdlc/kit/setup.py disconnect <name>`.

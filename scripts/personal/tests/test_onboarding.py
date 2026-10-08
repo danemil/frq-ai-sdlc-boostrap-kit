@@ -50,8 +50,20 @@ class TestOnboarding(unittest.TestCase):
 
     def test_every_spoken_request_has_a_section(self):
         for title in ("Do the onboarding", "Change my preferences", "Update the kit",
-                      "Check the kit", "Remove the kit"):
+                      "Check the kit", "Remove the kit", "Connect a tool"):
             self.assertIn(f"\n## {title}\n", DOC)
+
+    def test_connecting_is_left_to_the_person(self):
+        onboarding, connect = section("Do the onboarding"), section("Connect a tool")
+        self.assertIn("say *connect Jira* (etc.) whenever you're ready", onboarding)
+        self.assertIn("Do not ask for a URL, login or token now.", onboarding)
+        self.assertIn("**themselves, in their own terminal**", connect)
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py connect <name>`", connect)
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py connect <name> --test`", connect)
+        self.assertIn("revoke it", connect)
+        from personal.connectors import registry
+        for name in registry.names():
+            self.assertIn(f"`{name}`", connect, name)
 
     def test_python_floor_matches_setup_py(self):
         self.assertIn("3.9 or newer", DOC)

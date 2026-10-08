@@ -19,8 +19,10 @@
 
 **Skills for everyone.** Unless $name left one out: `ai-sdlc-doc-word`, `ai-sdlc-doc-excel`, `ai-sdlc-doc-powerpoint`, `ai-sdlc-doc-pdf` (Word, Excel, PowerPoint and PDF files), `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira), `ai-sdlc-deceneus` (what to remember from this chat).
 
+**Connectors.** For facts from Jira, Confluence, Bitbucket, Jama or Jenkins, use `ai-sdlc-connectors`: read-only, cite each item's link, and never ask for, see or repeat a token or password (the person connects in their own terminal).
+
 **Personal notes.** `.github/instructions/ai-sdlc-personal.instructions.md` and `.agents/skills/ai-sdlc-personal-*/` belong to $name: follow them, and write to them only what $name approved (the `ai-sdlc-deceneus` skill does this). The kit never changes or deletes them.
 
 **Team rules come first.** This repo may have its own `AGENTS.md`, `.github/copilot-instructions.md` or `.github/instructions/`. Follow them. If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once.
 
-**Changing the setup.** For "change my preferences", "update the kit", "check the kit" or "remove the kit", follow `.ai-sdlc/kit/ONBOARDING.md`.
+**Changing the setup.** For "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>", follow `.ai-sdlc/kit/ONBOARDING.md`.

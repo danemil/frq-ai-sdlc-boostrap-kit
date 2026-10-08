@@ -20,7 +20,17 @@ EXPECTED = {
     "architect": ("Architect", ["playbook-architect"], "git-native"),
     "em": ("Engineering Manager", ["playbook-em"], "git-native"),
 }
-CORE_SKILLS = ["deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
+# id: the connectors onboarding suggests (owner approval, 2026-10-08); core suggests none
+CONNECTORS = {
+    "po": ["jira", "confluence", "jama"],
+    "pm": ["jira", "confluence", "jama"],
+    "sm": ["jira", "confluence"],
+    "dev": ["bitbucket", "jira", "jenkins"],
+    "qa": ["jira", "jama", "jenkins"],
+    "architect": ["confluence", "bitbucket", "jira"],
+    "em": ["jenkins", "bitbucket", "jira"],
+}
+CORE_SKILLS = ["connectors", "deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
                "visual-explainers", "visual-issue"]   # every person gets them
 CLIENT_WORDS = re.compile(r"\b(frequentis|frq|mosaix)\b", re.I)
 
@@ -53,6 +63,13 @@ class TestRoles(unittest.TestCase):
                 p = self.packs[pid]
                 self.assertEqual((p["label"], p["skills"]), (label, skills))
                 self.assertEqual(p["defaults"], {"git_comfort": git, "rituals": "status"})
+
+    def test_connector_defaults_per_role(self):
+        self.assertEqual(self.packs["core"]["connectors"], [])
+        for pid, names in CONNECTORS.items():
+            with self.subTest(role=pid):
+                self.assertEqual(self.packs[pid]["connectors"], names)
+                self.assertLessEqual(set(names), set(packs.available_connectors(KIT)))
 
     def test_core_skills_reach_every_role(self):
         self.assertEqual(self.packs["core"]["skills"], CORE_SKILLS)

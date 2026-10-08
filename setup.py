@@ -8,6 +8,9 @@
   python3 .ai-sdlc/kit/setup.py check [--quiet]
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
   python3 .ai-sdlc/kit/setup.py remove
+  python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
+  python3 .ai-sdlc/kit/setup.py connections
+  python3 .ai-sdlc/kit/setup.py disconnect <connector>
 
 Run it from the repo root. Stdlib only; needs Python 3.9 or newer.
 """
@@ -53,6 +56,15 @@ def parser() -> argparse.ArgumentParser:
     a = sub.add_parser("ack", help="note that you have seen a warning")
     a.add_argument("ids", nargs="+", metavar="warning-id")
     sub.add_parser("remove", help="take the kit out; the repo ends as it was")
+
+    n = sub.add_parser("connect", help="save your login for a connector; run it in your own "
+                                       "terminal, it asks for secrets hidden")
+    n.add_argument("name", metavar="connector")
+    n.add_argument("--test", action="store_true",
+                   help="only check the saved login with one read-only call")
+    sub.add_parser("connections", help="list connectors: URL, user, kind, last test (no secrets)")
+    d = sub.add_parser("disconnect", help="delete a connector's saved login")
+    d.add_argument("name", metavar="connector")
     return ap
 
 

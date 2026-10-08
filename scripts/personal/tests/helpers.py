@@ -2,8 +2,10 @@
 """Shared test helpers: isolated git, temp repos, a kit copy, and a byte snapshot.
 
 Importing this module points git at no user or system config, so a developer's
-global excludes or hooks cannot change a test's result. It also puts scripts/
-on sys.path, so tests import `personal.<module>`.
+global excludes or hooks cannot change a test's result. It points the connectors'
+config folder at an empty temporary path and drops AI_SDLC_* variables, so a
+developer's saved logins never reach a test. It also puts scripts/ on sys.path,
+so tests import `personal.<module>`.
 
 As a script it prints a snapshot as JSON (used by the CI end-to-end job):
     python3 scripts/personal/tests/helpers.py snapshot <dir>
@@ -16,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 KIT = Path(__file__).resolve().parents[3]
@@ -26,6 +29,10 @@ os.environ["GIT_CONFIG_NOSYSTEM"] = "1"
 for _k, _v in (("GIT_AUTHOR_NAME", "Test"), ("GIT_AUTHOR_EMAIL", "test@example.com"),
                ("GIT_COMMITTER_NAME", "Test"), ("GIT_COMMITTER_EMAIL", "test@example.com")):
     os.environ[_k] = _v
+for _k in [k for k in os.environ if k.startswith("AI_SDLC_")]:
+    del os.environ[_k]
+os.environ["AI_SDLC_CONFIG_DIR"] = os.path.join(tempfile.gettempdir(),
+                                                f"ai-sdlc-tests-{os.getpid()}-no-config")
 
 SKIP = shutil.ignore_patterns(".git", "__pycache__", "*.pyc", ".venv", "node_modules", ".index")
 

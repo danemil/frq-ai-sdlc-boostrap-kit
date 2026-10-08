@@ -4,5 +4,5 @@
   "source": "template/.claude/skills/playbook-qa/SKILL.md",
   "skills": ["playbook-qa"],
   "defaults": {"git_comfort": "guided", "rituals": "status"},
-  "connectors": []
+  "connectors": ["jira", "jama", "jenkins"]
 }

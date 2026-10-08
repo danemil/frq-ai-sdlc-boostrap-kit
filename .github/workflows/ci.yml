@@ -130,6 +130,10 @@ jobs:
           git config --global user.email "kit-ci@users.noreply.github.com"
           git config --global init.defaultBranch main
 
+      # A person's connector logins live outside every repo; here, in a temp folder.
+      - name: Connector logins go to a temp folder, outside the team repo
+        run: echo "AI_SDLC_CONFIG_DIR=$RUNNER_TEMP/ai-sdlc-config" >> "$GITHUB_ENV"
+
       - name: A team repo with its own AI files
         run: |
           set -euo pipefail
@@ -170,6 +174,8 @@ jobs:
           test -f .agents/skills/ai-sdlc-playbook-sm/SKILL.md
           # Core skills are placed as whole folders (references included).
           test -f .agents/skills/ai-sdlc-drawio/references/xml-reference.md
+          printf '%s\n' "$out" | grep -qF -- "- Connectors for your roles: jira, confluence, jama (say 'connect jira')"
+          test ! -e "$AI_SDLC_CONFIG_DIR"                # setup writes no login anywhere
 
       - name: Acknowledge one warning; it goes quiet, the others stay
         run: |
@@ -190,6 +196,48 @@ jobs:
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -qF 'Wrote 2 file(s): .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md'
           grep -q 'Always answer in English' .github/instructions/ai-sdlc-core.instructions.md
+          test -z "$(git status --porcelain)"
+
+      # The real CLI as a subprocess against the fake server (no network), as a script
+      # would run it: no terminal, the values in AI_SDLC_JIRA_*. The login is saved in
+      # $AI_SDLC_CONFIG_DIR, never in the repo, and no output shows the token.
+      - name: Connect Jira to a fake server, read, disconnect; no secret shown or saved in the repo
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/team"
+          K=.ai-sdlc/kit
+          LOG="$RUNNER_TEMP/connect.log"
+          # A fresh random token, so no file can hold it unless this run leaked it.
+          export FAKE_JIRA_TOKEN="ci-$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/fake_tools.py" > "$RUNNER_TEMP/fake.url" &
+          FAKE=$!
+          trap 'kill "$FAKE"' EXIT
+          for _ in $(seq 50); do test -s "$RUNNER_TEMP/fake.url" && break; sleep 0.1; done
+          URL="$(cat "$RUNNER_TEMP/fake.url")"
+
+          out="$(AI_SDLC_JIRA_URL="$URL" AI_SDLC_JIRA_TOKEN="$FAKE_JIRA_TOKEN" \
+                 python3 $K/setup.py connect jira < /dev/null)"
+          printf '%s\n' "$out" | tee -a "$LOG"
+          printf '%s\n' "$out" | grep -qF 'Test: OK: signed in to 127.0.0.1 as Ana Pop.'
+          python3 -c 'import os,stat,sys; assert stat.S_IMODE(os.stat(sys.argv[1]).st_mode) == 0o600' \
+            "$AI_SDLC_CONFIG_DIR/connectors/jira.json"
+
+          out="$(python3 $K/setup.py connections)"       # the env is gone: values from the file
+          printf '%s\n' "$out" | tee -a "$LOG"
+          printf '%s\n' "$out" | grep -qF -- "- jira: $URL"
+
+          out="$(python3 $K/connectors.py jira search 'project = ABC' --json)"
+          printf '%s\n' "$out" | tee -a "$LOG"
+          printf '%s\n' "$out" | python3 -c 'import json, sys; d = json.load(sys.stdin); assert [i["key"] for i in d["items"]] == ["ABC-1", "ABC-2"] and all(i["url"] for i in d["items"]), d'
+
+          out="$(python3 $K/setup.py disconnect jira)"
+          printf '%s\n' "$out" | tee -a "$LOG"
+          printf '%s\n' "$out" | grep -qF 'Removed the saved Jira connection.'
+          test ! -e "$AI_SDLC_CONFIG_DIR/connectors/jira.json"
+
+          if grep -qF "$FAKE_JIRA_TOKEN" "$LOG"; then echo "a secret was printed"; exit 1; fi
+          if grep -rqF "$FAKE_JIRA_TOKEN" .; then echo "a secret is in the repo"; exit 1; fi
+          test ! -e .config                             # no login folder inside the repo
           test -z "$(git status --porcelain)"
 
       - name: Update from a newer copy; an edited file is kept
@@ -223,9 +271,13 @@ jobs:
           cd "$T"
           mv .github/instructions/ai-sdlc-po.instructions.md.kit-new .github/instructions/ai-sdlc-po.instructions.md
           python3 .ai-sdlc/kit/setup.py change
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$AI_SDLC_CONFIG_DIR" > "$RUNNER_TEMP/config-before.json"
           out="$(python3 .ai-sdlc/kit/setup.py remove)"
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -qF 'The repo is back to how it was before setup.'
           python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/after.json"
           diff "$RUNNER_TEMP/before.json" "$RUNNER_TEMP/after.json"
           test -z "$(git status --porcelain)"
+          # remove never touches the person's connector logins
+          python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$AI_SDLC_CONFIG_DIR" \
+            | diff "$RUNNER_TEMP/config-before.json" -
