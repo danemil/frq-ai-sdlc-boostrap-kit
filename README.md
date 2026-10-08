@@ -2,6 +2,8 @@
 
 A **personal AI setup for everyone on a software team**: developers, QA, architects, engineering managers, product owners, product managers and scrum masters. Each person gets GitHub Copilot instructions and skills that fit their role, their language and how they like to work, inside the shared repo, without committing anything to it.
 
+**Common tasks:** set up, update the kit, connect a tool, check, remove and troubleshooting, step by step: [How to use the kit](./docs/how-to.md).
+
 ## Set it up: copy, then "do the onboarding"
 
 1. Copy this kit folder anywhere into your repo (a GitHub ZIP or a colleague's copy; any folder name).
@@ -92,6 +94,16 @@ The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot t
 ## Versions and upgrading
 
 The kit's version is in [`VERSION`](./VERSION); what changed, and what each kind of version bump means for you, is in [`CHANGELOG.md`](./CHANGELOG.md). To upgrade, copy the newer kit folder into your repo (any folder name, as at setup) and say **"update the kit"**. Copilot runs the newer copy's `setup.py update`: it replaces `.ai-sdlc/kit`, refreshes your files and keeps your choices. A file you edited stays as it is, with the kit's newer copy next to it as `<file>.kit-new`. An older copy is refused and nothing changes.
+
+From the terminal, the same in three lines (from your repo's top folder):
+
+```bash
+(cd <your kit clone> && git pull)                      # or download the ZIP again and unzip it
+rsync -a --exclude .git <your kit clone>/ ./ai-sdlc-kit-new/
+python3 ai-sdlc-kit-new/setup.py update
+```
+
+Step by step, with how to tell you need an update and how to handle `.kit-new` files: [Update the kit](./docs/how-to.md#2-update-the-kit-to-a-newer-version).
 
 Coming from 0.3.x (team mode)? Team mode is retired and `install.sh` no longer installs. Personal setup never writes to a file git tracks, so the files team mode committed stay as they are; the team decides whether to remove them.
 

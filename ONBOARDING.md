@@ -38,7 +38,11 @@ Relay the summary. If it says it kept their edit, explain that the kit's newer c
 
 ## Update the kit
 
-The person copied a newer kit folder into the repo; `check` names it (`kit-copy:<folder>`). Run `python3 <that folder>/setup.py update`. Relay the summary, including any kept edits.
+1. **Find the newer copy.** Run `python3 .ai-sdlc/kit/setup.py check`. A `kit-copy:<folder>` item names the kit folder the person copied into the repo. If that copy has the same version number, `check` calls it a copy to delete; when the person copied it in to update, use it anyway.
+2. **No copy yet?** If there is no `kit-copy:` item, the person has not copied a newer kit in. Do not fail. Tell them how, in plain words, then wait for them to say "update the kit" again:
+   - Get the newer kit: `git pull` in their clone of the kit, or download the ZIP again from the kit's GitHub page (**Code → Download ZIP**, or a release) and unzip it.
+   - Copy it into the repo under any folder name, without its `.git` folder, for example `rsync -a --exclude .git <kit folder>/ ./ai-sdlc-kit-new/`. If they tell you where the kit is, offer to run that copy for them.
+3. **Update.** Run `python3 <that folder>/setup.py update`. Relay the summary, including any kept edits: the kit's newer copy is next to their file as `<file>.kit-new`, for them to compare. If it says the copy is older, nothing changed; say so.
 
 ## Check the kit
 
