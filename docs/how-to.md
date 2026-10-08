@@ -205,6 +205,31 @@ Test: OK: signed in to jira.example.com as Ana Pop.
 
 Run it again at any time to change something. Press Enter to keep a saved value.
 
+### Connect your role's tools in one go
+
+At the end of the onboarding Copilot offers this; say "not now" and it does not ask again. You can run it at any time, **in your own terminal**:
+
+```bash
+python3 .ai-sdlc/kit/setup.py connect --suggested
+```
+
+It goes through the tools your roles usually use (the "Connectors for your roles" line of the setup summary), **one at a time**, leaving out the ones already connected. For each it asks `y` (connect it now, with exactly the questions of `connect <name>`), `s` (skip this one) or `a` (skip all the rest). **Pressing Enter skips.** Then it offers the other tools: type a name to connect it, or press Enter to finish.
+
+```text
+$ python3 .ai-sdlc/kit/setup.py connect --suggested
+Connect the tools your roles usually use, one at a time. Logins are typed here, secrets hidden, and saved only on this computer.
+Connect Jira now? [y = yes, s = skip, a = skip all the rest; Enter = skip]: y
+Connect Jira. Secrets are typed hidden and saved only on this computer, in /home/ana/.config/ai-sdlc/connectors/jira.json.
+…
+Test: OK: signed in to jira.example.com as Ana Pop.
+Connect Confluence now? [y = yes, s = skip, a = skip all the rest; Enter = skip]: s
+Connect another tool? Available: bitbucket, jama, jenkins (type its name; Enter = done):
+Connected: jira.
+Skipped: confluence. They are no longer suggested; connect one any time with python3 .ai-sdlc/kit/setup.py connect <name>
+```
+
+**Skips are remembered** for this repo: the setup summary shows the tool as "(skipped)" and stops suggesting it, and `connections` shows "not connected, skipped". Running `connect --suggested` again asks about skipped tools again, and `connect <name>` clears that tool's skip. Without a terminal (for example, if Copilot tried to run it) it asks nothing and changes nothing.
+
 ### What each tool asks for, and where to create the token
 
 | Tool | It asks for | Where to create the token |

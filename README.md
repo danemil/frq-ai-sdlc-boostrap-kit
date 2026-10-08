@@ -62,6 +62,7 @@ Say **"connect Jira"** (or another tool). Copilot tells you the command, and **y
 
 ```
 python3 .ai-sdlc/kit/setup.py connect jira          # asks the URL and your login, saves it, then tests it
+python3 .ai-sdlc/kit/setup.py connect --suggested   # your roles' tools one at a time: y connect, s skip, a skip the rest
 python3 .ai-sdlc/kit/setup.py connect jira --test   # checks the saved login with one read-only call
 python3 .ai-sdlc/kit/setup.py connections           # what is connected: URL, user, last test; never a secret
 python3 .ai-sdlc/kit/setup.py disconnect jira       # deletes the saved login
@@ -80,7 +81,7 @@ The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot t
 
 **Company network.** `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` are honoured. If your company inspects TLS traffic, give its CA bundle (a PEM file) when you connect, or set `AI_SDLC_CA_BUNDLE`; it is added to the system's certificates. Certificate checks are never switched off.
 
-**Suggested per role.** The setup summary names these ("Connectors for your roles: …", with the ones already connected marked) and Copilot suggests them. They are only suggestions: anyone can connect any tool.
+**Suggested per role.** The setup summary names these ("Connectors for your roles: …", with the ones already connected marked) and Copilot suggests them; at the end of the onboarding it offers `connect --suggested`. A tool you skip there is remembered and no longer suggested (`connect <name>` clears the skip). They are only suggestions: anyone can connect any tool.
 
 | Role | Connectors |
 |---|---|

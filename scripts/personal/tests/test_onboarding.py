@@ -65,6 +65,14 @@ class TestOnboarding(unittest.TestCase):
         for name in registry.names():
             self.assertIn(f"`{name}`", connect, name)
 
+    def test_the_onboarding_offers_connect_suggested_once_and_takes_not_now(self):
+        onboarding = section("Do the onboarding")
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py connect --suggested`", onboarding)
+        self.assertIn("not a fourth question", onboarding)
+        self.assertIn('If they say "not now" (or no), skip this step', onboarding)
+        self.assertIn("Do not run it yourself", onboarding)
+        self.assertIn("**Ask three questions,**", onboarding)
+
     def test_python_floor_matches_setup_py(self):
         self.assertIn("3.9 or newer", DOC)
         self.assertIn("sys.version_info < (3, 9)", (helpers.KIT / "setup.py").read_text())

@@ -9,6 +9,9 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Added
+- `setup.py connect --suggested`, run by the person in their own terminal: the connectors their roles usually use, one at a time, leaving out the ones already connected (`y` connects with the same questions as `connect <name>`, `s` skips it, `a` skips all the rest; Enter skips), then any other tool by name. Skips are remembered in `state.json` (`skipped_connectors`), so the setup summary marks them "(skipped)" and stops suggesting them, and `connections` shows them as skipped; `connect <name>` clears that tool's skip, `update` drops skips for connectors the kit no longer has, and older state files load unchanged. Without a terminal it asks nothing and changes nothing.
+- `ONBOARDING.md`: after the close, Copilot offers once to connect the person's tools with `connect --suggested` (in their own terminal); "not now" ends it. The `ai-sdlc-connectors` skill suggests `connect --suggested` and never runs it.
 
 ## [0.5.0] — 2026-10-08
 ### Added
