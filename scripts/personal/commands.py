@@ -56,6 +56,20 @@ def _need_state(root) -> dict:
     return st
 
 
+def _need_whole_kit(kit, copied: bool, command: str) -> None:
+    """Refuse a kit folder that cannot set anyone up, before anything moves (place.validate_kit)."""
+    problems = place.validate_kit(kit)
+    if not problems:
+        return
+    shown = ", ".join(problems[:3]) + (", …" if len(problems) > 3 else "")
+    if copied:
+        raise SetupError(f"This kit copy is incomplete ({shown}). Copy the whole kit folder "
+                         "again (without .git) and retry. Nothing was changed.")
+    raise SetupError(f"The kit folder {paths.KIT_REL} is incomplete ({shown}). Copy the whole "
+                     "kit folder into the repo again (without .git) and run "
+                     f"python3 <that folder>/setup.py {command}. Nothing was changed.")
+
+
 # --- summaries -----------------------------------------------------------------
 
 def _summary(verb, root, is_git, kit, all_packs, st, report) -> list[str]:
@@ -114,10 +128,16 @@ def cmd_setup(args, cwd, kit):
     kit = Path(kit).resolve()
     if not place.is_kit(kit):
         raise SetupError(f"{kit} is not a complete kit folder (setup.py, VERSION, roles/).")
+    dest = root / paths.KIT_REL
+    _need_whole_kit(kit, kit != dest, "setup")      # before anything changes
     if is_git:
         exclude.protect(root)                       # first: hide the destination
     try:
-        kit = place.move_kit(root, kit)             # second: move the copied kit there
+        if (kit != dest and root in kit.parents and state.load(root) is None
+                and place.is_kit(dest)):
+            kit = place.replace_kit(root, kit)      # an unfinished setup's kit folder: replace it
+        else:
+            kit = place.move_kit(root, kit)         # second: move the copied kit there
     except ValueError:
         raise SetupError(f"Copy the kit folder into the repo first; it is at {kit}, "
                          f"outside {root}.") from None
@@ -215,6 +235,14 @@ def cmd_update(args, cwd, kit):
                              "Nothing was changed.")
         if root not in kit.parents:
             raise SetupError(f"Copy the newer kit folder into the repo first; it is at {kit}.")
+    _need_whole_kit(kit, kit != dest, "update")   # before anything changes
+    all_packs = packs.load(kit)
+    c = st["choices"]
+    gone = [r for r in c["roles"] if r not in packs.selectable(all_packs)]
+    c["roles"] = [r for r in c["roles"] if r not in gone]
+    lost = [s for s in c["add_skills"] if s not in packs.available_skills(kit)]
+    c["add_skills"] = [s for s in c["add_skills"] if s not in lost]
+    wanted = place.wanted_files(kit, all_packs, c)  # prepared from the copy, before it moves
     if is_git:
         exclude.protect(root)                     # the newer kit may hide more paths
     if kit != dest:
@@ -222,16 +250,14 @@ def cmd_update(args, cwd, kit):
             place.replace_kit(root, kit)
         except FileExistsError:
             raise SetupError(f"{paths.KIT_REL} is not a kit folder; it was left alone.") from None
-    all_packs = packs.load(dest)
-    c = st["choices"]
-    gone = [r for r in c["roles"] if r not in packs.selectable(all_packs)]
-    c["roles"] = [r for r in c["roles"] if r not in gone]
-    report = place.apply(root, st, place.wanted_files(dest, all_packs, c))
+    report = place.apply(root, st, wanted)
     st["kit_version"] = paths.kit_version(dest)
     state.save(root, st)
     lines = _summary("Updated to", root, is_git, dest, all_packs, st, report)
     if gone:
         lines.append(f"- The newer kit has no {', '.join(gone)} role any more; it was dropped.")
+    if lost:
+        lines.append(f"- The newer kit has no {', '.join(lost)} skill any more; it was dropped.")
     return 0, lines + _check_lines(root)[1]
 
 
