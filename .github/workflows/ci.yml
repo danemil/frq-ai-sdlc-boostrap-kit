@@ -27,6 +27,12 @@ jobs:
           python3 scripts/install/tests/test_harness.py
           python3 scripts/install/tests/test_plan.py
           python3 template/scripts/tests/test_harness_copilot.py
+      # Every suite by path; a new test_*.py is picked up without editing this step.
+      # Kept on one `for t in` line: the local CI extraction (plan, Task 16 Step 1) matches it.
+      - name: Personal setup unit tests
+        run: |
+          set -euo pipefail
+          for t in scripts/personal/tests/test_*.py; do echo "== $t"; python3 "$t"; done
       - name: Installer end-to-end (greenfield, brownfield, idempotency, uninstall)
         run: python3 scripts/install/tests/test_adopt.py
 

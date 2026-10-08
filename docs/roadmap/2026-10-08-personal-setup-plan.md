@@ -658,6 +658,18 @@ EOF
 **Files:**
 - Create: `scripts/personal/exclude.py`
 - Test: `scripts/personal/tests/test_exclude.py`
+- Modify: `.github/workflows/ci.yml` (owner decision, 2026-10-08: kit CI runs the personal suites from this task on, not from Task 14)
+
+**CI step (added in this task, owner decision).** In the `ai-governance` job, right after the step `Installer unit tests (brownfield adoption)`, one step runs every personal suite by path, so later tasks need no CI edit to add theirs:
+
+```yaml
+      - name: Personal setup unit tests
+        run: |
+          set -euo pipefail
+          for t in scripts/personal/tests/test_*.py; do echo "== $t"; python3 "$t"; done
+```
+
+The loop stays on one line that starts with `for t in scripts/personal/`: the local CI extraction (Task 14 Step 1, Task 16 Step 1) matches that prefix and runs the line as one command. No 3.9 run here: it would need a second `setup-python` in the job; Task 14's `personal-e2e` matrix adds the 3.9 leg.
 
 **Step 1: Write the failing test.** Create `scripts/personal/tests/test_exclude.py`:
 
@@ -862,13 +874,16 @@ Expected: `test_exclude` `Ran 11 tests` `OK`; `test_cli` 10 OK.
 
 ```bash
 git add scripts/personal/exclude.py \
-        scripts/personal/tests/test_exclude.py
+        scripts/personal/tests/test_exclude.py \
+        .github/workflows/ci.yml \
+        docs/roadmap/2026-10-08-personal-setup-plan.md
 git commit -F - <<'EOF'
 feat(personal): hide personal-setup paths in .git/info/exclude
 
 A marked block, added idempotently and removed byte for byte (its header
 records whether the file or a final newline was added). Worktree-aware via
 git rev-parse --git-path; a non-git folder is reported, not touched.
+Kit CI now runs scripts/personal/tests (moved earlier from Task 14, owner decision).
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 EOF
@@ -4178,7 +4193,7 @@ EOF
 
 ### Task 14: Kit CI — `personal-e2e` replaces `adopt-e2e`
 
-**Decision on the existing `ai-governance` job: keep all of it, add to it.** `template/` is retired as a shipped artifact, but it is still the source of every pack skill (`template/.claude/skills/`), and `scripts/install/manifest.py` plus `template/scripts/harness/{sync,merge}.py` are imported by personal setup. Its validators and tests cost seconds and guard exactly that reused code, so the 40 commands stay; dropping them would leave reused code untested. The job gains the 13 personal suites and `validate_packs.py` (54 commands; 55 after Task 15). **`adopt-e2e` is deleted**: it exercised `install.sh`, which is no longer offered, and its four legs were the slowest part of CI. Its replacement exercises what a person does.
+**Decision on the existing `ai-governance` job: keep all of it, add to it.** `template/` is retired as a shipped artifact, but it is still the source of every pack skill (`template/.claude/skills/`), and `scripts/install/manifest.py` plus `template/scripts/harness/{sync,merge}.py` are imported by personal setup. Its validators and tests cost seconds and guard exactly that reused code, so the 40 commands stay; dropping them would leave reused code untested. The job already runs every personal suite (the `Personal setup unit tests` step, added early in Task 2 by owner decision: one `for t in scripts/personal/tests/test_*.py` loop line); this task adds `validate_packs.py` (42 commands: the 40, the loop line, the validator; still 42 after Task 15, whose `test_release.py` the loop picks up). **`adopt-e2e` is deleted**: it exercised `install.sh`, which is no longer offered, and its four legs were the slowest part of CI. Its replacement exercises what a person does.
 
 **`personal-e2e`** runs on Python 3.9 (the promised floor) and 3.12, without PyYAML (proving `setup.py` is stdlib only): the personal unit tests; a fake team repo with its own `AGENTS.md`, `.github/instructions/team.instructions.md` (`applyTo: 'docs/**'`) and a clashing `.claude/skills/playbook-dev`; the kit copied in with `git archive` (like a ZIP download); `setup --protect-only`, then `setup`; asserts `git status --porcelain` is empty, `git diff --exit-code HEAD` (team files unchanged) and all three warning ids; `ack`; an `update` from a modified copy (version 9.9.9, new lines in the core and PO packs) with the PO file edited by the person: the core file is refreshed, the edit kept, `.kit-new` written, status still empty; the person takes the kit's copy (`mv` + `change`), then `remove`, and the snapshot (`helpers.py snapshot`, which includes `.git/info/exclude`) must equal the one taken before the kit arrived.
 
@@ -4191,28 +4206,13 @@ Note the pipefail trap the job avoids: `check` exits 1 when it has findings, so 
 
 ```bash
 sed -n '/^  ai-governance:/,/^  personal-e2e:/p' .github/workflows/ci.yml \
-  | grep -E '^\s+(run: )?python3 ' | wc -l
+  | grep -E '^\s+(run: )?(python3 |for t in scripts/personal/)' | wc -l
 ```
-Expected: `42`, not the 54 this task needs: there is no `personal-e2e:` line yet, so the range runs to the end of the file and picks up two `adopt-e2e` lines (`python3 -m venv …`, `python3 - <<'EOF'`) that fail outside a generated clone, and no personal suite is listed at all.
+Expected: `43`, not the 42 this task needs: there is no `personal-e2e:` line yet, so the range runs to the end of the file and picks up two `adopt-e2e` lines (`python3 -m venv …`, `python3 - <<'EOF'`) that fail outside a generated clone, and the pack validator is not listed. (The 43 are the 40 from Phase 0, the personal-suites loop line added in Task 2, and those two `adopt-e2e` lines.)
 
-**Step 2: Edit the workflow.** In the `ai-governance` job, after the step `Installer end-to-end (greenfield, brownfield, idempotency, uninstall)`, add:
+**Step 2: Edit the workflow.** **Do not add a personal-suites step here:** the step `Personal setup unit tests` (after `Installer unit tests (brownfield adoption)`) was added early, in Task 2, by owner decision, and its `for t in scripts/personal/tests/test_*.py` loop already runs every suite, `test_onboarding.py` included. A second one would run each suite twice. In the `ai-governance` job, after the step `Installer end-to-end (greenfield, brownfield, idempotency, uninstall)`, add only the pack validator (the steps after it are shown unchanged, for position):
 
 ```yaml
-      - name: Personal setup unit tests (setup.py)
-        run: |
-          python3 scripts/personal/tests/test_cli.py
-          python3 scripts/personal/tests/test_exclude.py
-          python3 scripts/personal/tests/test_state.py
-          python3 scripts/personal/tests/test_packs.py
-          python3 scripts/personal/tests/test_roles.py
-          python3 scripts/personal/tests/test_place.py
-          python3 scripts/personal/tests/test_setup.py
-          python3 scripts/personal/tests/test_checks.py
-          python3 scripts/personal/tests/test_conflicts.py
-          python3 scripts/personal/tests/test_change.py
-          python3 scripts/personal/tests/test_update.py
-          python3 scripts/personal/tests/test_remove.py
-          python3 scripts/personal/tests/test_onboarding.py
       - name: Validate role packs (roles/*, and their skills against agentskills.io)
         run: python3 scripts/personal/validate_packs.py
 
@@ -4390,7 +4390,7 @@ Expected: `['ai-governance', 'personal-e2e']`, then `ALL-STEPS-OK`. (`git archiv
 **Step 4: Count the local CI commands**
 
 Run the Step 1 command again.
-Expected: `54`.
+Expected: `42` (the 40 from Phase 0, the personal-suites loop line from Task 2, the pack validator).
 
 **Step 5: Commit and push; watch the run**
 
@@ -4425,8 +4425,7 @@ Expected on the PR: `ai-governance` and both `personal-e2e` legs (`3.9`, `3.12`)
 
 **Files:**
 - Modify: `README.md` (rewritten), `CHANGELOG.md`, `VERSION`, `install.sh`
-- Modify: `.github/workflows/ci.yml` (add the release test)
-- Test: `scripts/personal/tests/test_release.py`
+- Test: `scripts/personal/tests/test_release.py` (kit CI picks it up through the `Personal setup unit tests` loop from Task 2; `ci.yml` needs no edit)
 
 **Step 1: Write the failing test.** Create `scripts/personal/tests/test_release.py`:
 
@@ -4617,11 +4616,7 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 echo "install.sh: team mode is retired since kit 0.4.0. See README.md: copy the kit, then say \"do the onboarding\"." >&2
 ```
 
-`.github/workflows/ci.yml`: in the step `Personal setup unit tests (setup.py)`, add after the `test_onboarding.py` line:
-
-```yaml
-          python3 scripts/personal/tests/test_release.py
-```
+`.github/workflows/ci.yml`: no edit. The step `Personal setup unit tests` (Task 2) runs every `scripts/personal/tests/test_*.py`, so `test_release.py` runs in kit CI as soon as it exists.
 
 **Step 4: Run the tests**
 
@@ -4640,7 +4635,6 @@ git add README.md \
         CHANGELOG.md \
         VERSION \
         install.sh \
-        .github/workflows/ci.yml \
         scripts/personal/tests/test_release.py
 git commit -F - <<'EOF'
 docs: retire team mode; README leads with copy-then-onboard; 0.4.0
@@ -4664,12 +4658,12 @@ EOF
 ```bash
 pip install --quiet "pyyaml>=6"
 sed -n '/^  ai-governance:/,/^  personal-e2e:/p' .github/workflows/ci.yml \
-  | grep -E '^\s+(run: )?python3 ' | sed -E 's/^ *(run: )?//' > /tmp/ci-cmds.sh
+  | grep -E '^\s+(run: )?(python3 |for t in scripts/personal/)' | sed -E 's/^ *(run: )?//' > /tmp/ci-cmds.sh
 wc -l < /tmp/ci-cmds.sh
 bash -e /tmp/ci-cmds.sh > /tmp/ci.log 2>&1 && echo ALL-GREEN || tail -30 /tmp/ci.log
 git status --porcelain
 ```
-Expected: `55` (the 40 from Phase 0, 14 personal suites, the pack validator), then `ALL-GREEN`, then no output from `git status`.
+Expected: `42` (the 40 from Phase 0, one loop line that runs all 14 personal suites, the pack validator), then `ALL-GREEN`, then no output from `git status`.
 
 Expected suite counts: `test_change` 8, `test_checks` 9, `test_cli` 10, `test_conflicts` 7, `test_exclude` 11, `test_onboarding` 7, `test_packs` 16, `test_place` 17, `test_release` 5, `test_remove` 6, `test_roles` 7, `test_setup` 8, `test_state` 6, `test_update` 6 (123 new tests: 118 before the 2026-10-08 owner decisions, plus 1 in `test_roles` for Task 5c and 4 in `test_place` for the link rewrite); Phase 0 unchanged: `test_adopt` 42, `test_harness` 13, `test_manifest` 9, `test_merge` 19, `test_plan` 18, `test_harness_copilot` 29.
 
