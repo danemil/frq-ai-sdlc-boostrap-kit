@@ -38,7 +38,7 @@ Relay the summary. If it says it kept their edit, explain that the kit's newer c
 
 ## Update the kit
 
-1. **Find the newer copy.** Run `python3 .ai-sdlc/kit/setup.py check`. A `kit-copy:<folder>` item names the kit folder the person copied into the repo. If that copy has the same version number, `check` calls it a copy to delete; when the person copied it in to update, use it anyway.
+1. **Find the newer copy.** Run `python3 .ai-sdlc/kit/setup.py check`. A `kit-copy:<folder>` item names the kit folder the person copied into the repo. A newer copy says it is waiting; a copy with the same version number says to update from it if it was copied in for that. Either way, use it.
 2. **No copy yet?** If there is no `kit-copy:` item, the person has not copied a newer kit in. Do not fail. Tell them how, in plain words, then wait for them to say "update the kit" again:
    - Get the newer kit: `git pull` in their clone of the kit, or download the ZIP again from the kit's GitHub page (**Code → Download ZIP**, or a release) and unzip it.
    - Copy it into the repo under any folder name, without its `.git` folder, for example `rsync -a --exclude .git <kit folder>/ ./ai-sdlc-kit-new/`. If they tell you where the kit is, offer to run that copy for them.
@@ -50,7 +50,7 @@ Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 
 - `missing:` or `unexcluded:`: run `python3 .ai-sdlc/kit/setup.py change` with no options. It puts files back and hides them again.
 - `unknown:`: a file named like the kit's that the kit did not write. Ask before deleting it. (The person's own `ai-sdlc-personal.instructions.md` and `ai-sdlc-personal-*` skills are never reported.)
-- `kit-copy:`: a newer copy means "update the kit"; an older one can be deleted, after asking.
+- `kit-copy:`: a newer copy means "update the kit". A same-version copy: ask whether they copied it in to update; if so, update from it, otherwise it can be deleted. An older one can be deleted, after asking.
 - `stale-kit`: run `python3 .ai-sdlc/kit/setup.py update`.
 - `team-…` and `skill-clash:…`: as in steps 6 and 7 above.
 

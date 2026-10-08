@@ -1,3 +1,5 @@
+Released as kit 0.5.0 on 2026-10-08 (live confirmation pending, see §5.1).
+
 # Personal connectors — design
 
 **Status:** approved 2026-10-08 (kit owner). Built in three phases: A foundation, B1–B5 one connector each (in parallel), C integration. Plan: [`2026-10-08-connectors-plan.md`](./2026-10-08-connectors-plan.md).
