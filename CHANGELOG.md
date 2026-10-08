@@ -14,6 +14,7 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - `setup.py connect <name> [--test]`, `connections` and `disconnect <name>`. The person runs `connect` in their own terminal (secrets typed hidden; it refuses without a terminal unless every value is in `AI_SDLC_<NAME>_*` variables). Logins are saved per user in `~/.config/ai-sdlc/connectors/` (0700/0600), outside every repo; `remove` never touches them, and no command prints a secret.
 - `connectors` skill in the core pack (`ai-sdlc-connectors`): how Copilot checks connections, reads data, cites links, stays read-only, explains errors, and never handles a secret.
 - Connector defaults per role in `roles/<id>/role.json` (suggestions only; anyone can connect any tool). The setup summary names them ("Connectors for your roles: …", marking connected ones), and `ONBOARDING.md` gains "Connect a tool".
+- docs/how-to.md: step-by-step guide (setup, update, connect, troubleshooting).
 
 ## [0.4.0] — 2026-10-08
 ### Changed
