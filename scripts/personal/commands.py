@@ -176,6 +176,38 @@ def cmd_change(args, cwd, kit):
     return 0, _summary("Updated", root, is_git, kit, all_packs, st, report) + _check_lines(root)[1]
 
 
+def cmd_update(args, cwd, kit):
+    root, is_git = paths.repo_root(cwd)
+    st = _need_state(root)
+    kit = Path(kit).resolve()
+    dest = root / paths.KIT_REL
+    if kit != dest:
+        new, old = paths.kit_version(kit), paths.kit_version(dest)
+        if checks.version_key(new) < checks.version_key(old):
+            raise SetupError(f"This copy is older ({new}) than the kit set up here ({old}). "
+                             "Nothing was changed.")
+        if root not in kit.parents:
+            raise SetupError(f"Copy the newer kit folder into the repo first; it is at {kit}.")
+    if is_git:
+        exclude.protect(root)                     # the newer kit may hide more paths
+    if kit != dest:
+        try:
+            place.replace_kit(root, kit)
+        except FileExistsError:
+            raise SetupError(f"{paths.KIT_REL} is not a kit folder; it was left alone.") from None
+    all_packs = packs.load(dest)
+    c = st["choices"]
+    gone = [r for r in c["roles"] if r not in packs.selectable(all_packs)]
+    c["roles"] = [r for r in c["roles"] if r not in gone]
+    report = place.apply(root, st, place.wanted_files(dest, all_packs, c))
+    st["kit_version"] = paths.kit_version(dest)
+    state.save(root, st)
+    lines = _summary("Updated to", root, is_git, dest, all_packs, st, report)
+    if gone:
+        lines.append(f"- The newer kit has no {', '.join(gone)} role any more; it was dropped.")
+    return 0, lines + _check_lines(root)[1]
+
+
 def not_built(args, cwd, kit):
     return 3, [f"setup.py {args.command}: not built yet"]
 
@@ -185,6 +217,7 @@ HANDLERS = {
     "check": cmd_check,
     "ack": cmd_ack,
     "change": cmd_change,
+    "update": cmd_update,
 }
 
 
