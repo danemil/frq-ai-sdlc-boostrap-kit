@@ -13,6 +13,10 @@
   python3 .ai-sdlc/kit/setup.py disconnect <connector>
 
 Run it from the repo root. Stdlib only; needs Python 3.9 or newer.
+
+Exit codes: 0 done · 1 check found something to look at · 2 refused, nothing was
+changed · 3 a connector is not connected · 4 stopped by an unexpected error (run
+the same command again; AI_SDLC_DEBUG=1 prints the details).
 """
 import sys
 
@@ -21,12 +25,19 @@ if sys.version_info < (3, 9):
 sys.dont_write_bytecode = True  # keep the kit folder free of __pycache__
 
 import argparse  # noqa: E402
+import os  # noqa: E402
+import traceback  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 KIT = Path(__file__).resolve().parent
 sys.path.insert(0, str(KIT / "scripts"))
 
-from personal import commands, packs  # noqa: E402
+try:
+    from personal import commands, packs  # noqa: E402
+except ImportError as exc:  # a kit copy without its scripts: say so, change nothing
+    print(f"This kit copy is incomplete ({exc}). Copy the whole kit folder again (without .git) "
+          "and retry. Nothing was changed.")
+    sys.exit(2)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -74,6 +85,16 @@ def main(argv=None, cwd=None, kit=KIT) -> int:
         code, lines = commands.run(args, cwd=Path(cwd or Path.cwd()), kit=Path(kit))
     except commands.SetupError as exc:
         code, lines = 2, [str(exc)]
+    except Exception as exc:  # noqa: BLE001  a plain message, never a traceback
+        if os.environ.get("AI_SDLC_DEBUG"):
+            traceback.print_exc()
+        again = ("Run python3 .ai-sdlc/kit/setup.py update to finish the update."
+                 if args.command == "update" else
+                 "Run the same command again: it picks up where this one stopped.")
+        code, lines = 4, [
+            f"AI-SDLC stopped on an unexpected problem: {type(exc).__name__}: {exc}",
+            f"{again} If it happens again, share this message and the output of "
+            "python3 .ai-sdlc/kit/setup.py check with the kit owner."]
     print("\n".join(lines))
     return code
 

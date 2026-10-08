@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Fixed
+- `update` and `setup` check that a kit copy is complete before they move it. An incomplete copy (for example one missing `template/.claude/skills/connectors/SKILL.md`) used to be moved into `.ai-sdlc/kit` and then stop with a traceback, leaving a half-updated setup (`check`: `stale-kit`). Now they refuse with "This kit copy is incomplete (missing …). Copy the whole kit folder again (without .git) and retry. Nothing was changed." `update` also prepares every file from the copy before it moves, drops an extra skill the newer kit no longer has, and a half-updated setup is finished by `python3 .ai-sdlc/kit/setup.py update` (or, if the kit folder itself is incomplete, by updating from a whole copy). `setup` replaces a kit folder left by an unfinished setup. An unexpected error prints a plain message (exit code 4) instead of a traceback; `AI_SDLC_DEBUG=1` shows the details.
 
 ## [0.5.0] — 2026-10-08
 ### Added

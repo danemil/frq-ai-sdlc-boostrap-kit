@@ -113,6 +113,55 @@ class TestSetup(unittest.TestCase):
             self.assertNotIn(secret, out)
         self.assertEqual(self.status(), "")
 
+    def test_an_incomplete_copy_is_refused_before_anything_moves(self):
+        (self.copy / "template/.claude/skills/connectors/SKILL.md").unlink()
+        before, status = helpers.snapshot(self.root), self.status()
+        for argv in (ARGS, ["setup", "--protect-only"]):
+            with self.subTest(argv=argv):
+                code, out = helpers.cli(self.root, self.copy, *argv)
+                self.assertEqual(code, 2, out)
+                self.assertNotIn("Traceback", out)
+                self.assertIn("This kit copy is incomplete (missing "
+                              "template/.claude/skills/connectors/SKILL.md). Copy the whole kit "
+                              "folder again (without .git) and retry. Nothing was changed.", out)
+                self.assertEqual(helpers.snapshot(self.root), before)   # exclude file included
+                self.assertEqual(self.status(), status)
+        self.assertFalse(self.kit.exists())
+
+    def test_the_real_cli_on_an_incomplete_copy_prints_no_traceback(self):
+        (self.copy / "roles/core/role.json").unlink()
+        r = subprocess.run([sys.executable, str(self.copy / "setup.py"), *ARGS],
+                           cwd=self.root, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stdout + r.stderr)
+        self.assertIn("This kit copy is incomplete (missing roles/core/role.json)", r.stdout)
+        self.assertTrue(self.copy.exists())
+
+    def test_a_copy_missing_its_code_prints_no_traceback(self):
+        (self.copy / "scripts/personal/commands.py").unlink()
+        r = subprocess.run([sys.executable, str(self.copy / "setup.py"), *ARGS],
+                           cwd=self.root, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertNotIn("Traceback", r.stdout + r.stderr)
+        self.assertIn("This kit copy is incomplete", r.stdout + r.stderr)
+        self.assertTrue(self.copy.exists())
+
+    def test_an_incomplete_kit_folder_left_by_an_older_kit_is_replaced_by_a_whole_copy(self):
+        # what 0.5.0 left behind: the incomplete copy moved in, no state.json yet
+        helpers.cli(self.root, self.copy, "setup", "--protect-only")
+        (self.kit / "template/.claude/skills/connectors/SKILL.md").unlink()
+        code, out = helpers.cli(self.root, self.kit, *ARGS)
+        self.assertEqual(code, 2, out)
+        self.assertIn("The kit folder .ai-sdlc/kit is incomplete", out)
+        self.assertFalse((self.root / paths.STATE_REL).exists())
+        whole = helpers.copy_kit(self.root / "kit-again")
+        code, out = helpers.cli(self.root, whole, *ARGS)
+        self.assertEqual(code, 0, out)
+        self.assertFalse(whole.exists())
+        self.assertTrue((self.kit / "template/.claude/skills/connectors/SKILL.md").is_file())
+        self.assertIn("Check: all good.", out)
+        self.assertEqual(self.status(), "")
+
     def test_the_real_cli_from_a_copied_folder(self):
         r = subprocess.run([sys.executable, str(self.copy / "setup.py"), "setup", "--protect-only"],
                            cwd=self.root, capture_output=True, text=True)
