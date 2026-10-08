@@ -29,7 +29,7 @@ The **Product** seat — combining **Product Owner** and **Product Manager** —
 
 | Item | Co-owner | Meaning |
 | --- | --- | --- |
-| Iteration (sprint) capacity allocation | EM + team | Product proposes the pull; EM states what the team can take; the team commits. |
+| Iteration (sprint) capacity allocation | EM + team | Product proposes the pull; EM states the team's capacity; the team commits the scope. |
 | Use-case feasibility | Architect | Architect flags constraints and risk; Product decides whether to proceed. |
 | Tech-debt prioritisation | Architect + EM | Architect/EM size and surface the debt; Product sequences it against feature work. |
 | Acceptance-criteria technical-correctness input | Architect + QA | Architect/QA validate that AC are technically coherent and verifiable; Product owns the AC themselves. |
@@ -49,20 +49,20 @@ The **Product** seat — combining **Product Owner** and **Product Manager** —
 | 2 | Approve acceptance criteria | Product | Architect, QA | Developer | AC not testable / no verification path |
 | 3 | Set priority order | Product | EM, stakeholders | All seats | Priority conflicts with a dependency or commitment |
 | 4 | Commit a roadmap date | Product | EM, Architect | Stakeholders | Capacity cannot meet the date |
-| 5 | Commit an iteration pull | Team | Product, EM | QA | Product and EM cannot converge on the pull |
+| 5 | Commit an iteration pull | Team | Product, EM | QA | The team cannot converge on a pull with Product and EM |
 | 6 | Accept a mandatory / compliance feature for sequencing | Product | Architect, EM, QA | All seats | Compliance deadline collides with capacity |
 
 ## §3 — Working with other seats
 
 **Product ↔ Architect.** Product brings the use case; the Architect brings feasibility evidence. The Architect *flags* constraints, risk, and cost; **Product decides** whether and when to proceed.
 
-**Product ↔ EM.** The most intimate operational interaction: Product holds priority, EM holds capacity. They **converge before any commit** — Product proposes the pull, EM confirms what the team can take, and no date is committed until both agree.
+**Product ↔ EM.** The most intimate operational interaction: Product holds priority, EM holds capacity. They **converge before any commit** — Product proposes the pull, EM states the team's capacity, the **team** commits the scope, and no date is committed until both agree.
 
 **Product ↔ Developer.** Product is the source of truth on *intent* during refinement — answering "what does done look like and why." **No story-level technical intervention**; how it is built is the Developer's call.
 
 **Product ↔ QA.** Product approves the acceptance criteria; QA verifies them. The definition of done is **jointly held** — Product owns the user-facing bar, QA owns the evidence that it is met.
 
-**Escalation.** A scope-versus-capacity deadlock that Product and EM cannot resolve escalates to the `<DIRECTOR / SPONSOR>`.
+**Escalation.** A scope-versus-capacity conflict goes to the team first; one the team, Product and EM cannot resolve escalates to the RTE, then the `<DIRECTOR / SPONSOR>`.
 
 ## §4 — Working with AI (Roles × Skills × MCP)
 
