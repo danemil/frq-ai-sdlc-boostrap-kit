@@ -51,6 +51,16 @@ class TestRemove(unittest.TestCase):
         self.assertEqual(after, before)
         self.assertIn("The repo is back to how it was before setup.", out)
 
+    def test_python_bytecode_left_in_a_kit_skill_is_removed_too(self):
+        """A skill script run with plain python3 leaves __pycache__ behind; remove still restores."""
+        def run_a_script(r):
+            cache = r / ".agents/skills/ai-sdlc-frq-brandbook/scripts/__pycache__"
+            cache.mkdir(parents=True, exist_ok=True)
+            (cache / "check_brand.cpython-39.pyc").write_bytes(b"\x00")
+        root = helpers.make_repo(self.base / "repo", TEAM)
+        before, after, _ = self.round_trip(root, edit=run_a_script)
+        self.assertEqual(after, before)
+
     def test_an_exclude_file_without_a_final_newline_is_restored(self):
         root = helpers.make_repo(self.base / "repo", TEAM)
         (root / ".git/info/exclude").write_text("*.log")

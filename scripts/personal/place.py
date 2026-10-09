@@ -132,8 +132,20 @@ def wanted_files(kit, all_packs, choices) -> dict[str, str | bytes]:
                  for pid in [packs.CORE, *choices["roles"]])
     for skill in combined["skills"]:
         files.update(placed_skill_files(kit, skill))
+    files[paths.SESSION_HOOK_REL] = session_hook()
     files[paths.USER_REL] = user_md(all_packs, choices, combined)
     return files
+
+
+HOOK_COMMAND = "python3 .ai-sdlc/kit/setup.py check --quiet --hook"
+
+
+def session_hook() -> str:
+    """The repo hook Copilot CLI runs once at session start (repo hooks load only in a
+    folder the person trusted); its output adds the session check to the conversation."""
+    entry = {"type": "command", "bash": HOOK_COMMAND, "powershell": HOOK_COMMAND,
+             "cwd": ".", "timeoutSec": 15}
+    return json.dumps({"version": 1, "hooks": {"sessionStart": [entry]}}, indent=2) + "\n"
 
 
 def _write(root, st, rel, data: bytes) -> None:
@@ -144,10 +156,24 @@ def _write(root, st, rel, data: bytes) -> None:
     reuse.record(st, rel, KIT_CLASS, data)
 
 
+def _drop_bytecode(folder: Path) -> None:
+    for p in folder.iterdir():
+        if p.is_file() and p.suffix == ".pyc":
+            p.unlink()
+        elif p.name == "__pycache__" and p.is_dir() and not p.is_symlink():
+            if all(q.is_file() and q.suffix == ".pyc" for q in p.iterdir()):
+                for q in p.iterdir():
+                    q.unlink()
+                p.rmdir()
+
+
 def prune_dirs(root, st) -> None:
-    """Remove folders setup created once they are empty again (deepest first)."""
+    """Remove folders setup created once they are empty again (deepest first). Python
+    bytecode a skill's script left there (__pycache__/, *.pyc) goes with them."""
     for d in sorted(st["created_dirs"], key=lambda p: p.count("/"), reverse=True):
         path = Path(root) / d
+        if path.is_dir():
+            _drop_bytecode(path)
         if path.is_dir() and not any(path.iterdir()):
             path.rmdir()
         if not path.exists():

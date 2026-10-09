@@ -47,6 +47,17 @@ class TestCheck(unittest.TestCase):
             "unknown:.claude/skills/ai-sdlc-notes/SKILL.md",
             "unknown:.github/instructions/ai-sdlc-extra.instructions.md"])
 
+    def test_python_bytecode_in_a_kit_skill_is_not_unknown(self):
+        """Running a skill's script (the brand checker) can leave __pycache__/*.pyc behind."""
+        skill = self.root / ".agents/skills/ai-sdlc-frq-brandbook/scripts"
+        cache = skill / "__pycache__"
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / "check_brand.cpython-39.pyc").write_bytes(b"\x00")
+        (skill / "stray.pyc").write_bytes(b"\x00")
+        self.assertEqual(self.ids(), [])
+        code, out = helpers.cli(self.root, self.kit, "check", "--quiet")
+        self.assertEqual(code, 0, out)
+
     def test_personal_notes_and_skills_are_not_unknown_and_stay_hidden(self):
         (self.root / paths.PERSONAL_NOTES_REL).write_text("---\napplyTo: '**'\n---\nMine.\n")
         mine = self.root / ".agents/skills/ai-sdlc-personal-release/SKILL.md"

@@ -59,7 +59,8 @@ class TestSetup(unittest.TestCase):
         skills = {rel.split("/")[2] for rel in st["files"] if rel.startswith(".agents/skills/")}
         in_skills = sum(rel.startswith(".agents/skills/") for rel in st["files"])
         self.assertIn(f"- Wrote {len(st['files'])} file(s): .agents/skills/ ({in_skills} in "
-                      f"{len(skills)} skills), .ai-sdlc/ (1), .github/instructions/ (3)", out)
+                      f"{len(skills)} skills), .ai-sdlc/ (1), .github/hooks/ (1), "
+                  ".github/instructions/ (3)", out)
         self.assertNotIn(".agents/skills/ai-sdlc-drawio/references/xml-reference.md", out)
         (self.root / ".github/instructions/ai-sdlc-po.instructions.md").unlink()
         code, out = helpers.cli(self.root, self.kit, *ARGS, "--verbose")

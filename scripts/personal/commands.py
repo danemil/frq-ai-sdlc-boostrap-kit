@@ -4,6 +4,7 @@ The lines are short and plain: Copilot relays them to the person as they are.
 """
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
@@ -230,13 +231,17 @@ def _check_lines(root) -> tuple[int, list[str]]:
 
 
 def cmd_check(args, cwd, kit):
-    if args.quiet:
+    if args.quiet or getattr(args, "hook", False):
         try:
             root, _ = paths.repo_root(cwd)
             st, found = checks.run(root)
-            return 0, [checks.quiet_line(root, st, found)]
+            line, ok = checks.quiet_line(root, st, found), st is not None and not found
         except Exception as exc:  # noqa: BLE001  the session-start check must never fail
-            return 0, [f"AI-SDLC: the check could not run ({exc})."]
+            line, ok = f"AI-SDLC: the check could not run ({exc}).", False
+        if getattr(args, "hook", False):
+            return 0, [json.dumps({"additionalContext": checks.hook_context(line, ok)},
+                                  ensure_ascii=False)]
+        return 0, [line]
     root, _ = paths.repo_root(cwd)
     code, lines = _check_lines(root)
     st = state.load(root)

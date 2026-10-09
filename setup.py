@@ -5,7 +5,7 @@
   python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,sm --lang de
   python3 .ai-sdlc/kit/setup.py change --lang en --add-skill skill-creator
   python3 <newer kit>/setup.py update
-  python3 .ai-sdlc/kit/setup.py check [--quiet]
+  python3 .ai-sdlc/kit/setup.py check [--quiet] [--hook]
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
   python3 .ai-sdlc/kit/setup.py remove [--yes]          (--yes only after the person said yes)
   python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
@@ -69,6 +69,8 @@ def parser() -> argparse.ArgumentParser:
     u.add_argument("--verbose", action="store_true", help="list every file written or removed")
     k = sub.add_parser("check", help="files present and hidden, kit current, team overlaps")
     k.add_argument("--quiet", action="store_true", help="one line, for the start of a session")
+    k.add_argument("--hook", action="store_true",
+                   help="the session hook's JSON (additionalContext); implies --quiet, never fails")
     a = sub.add_parser("ack", help="note that you have seen a warning")
     a.add_argument("ids", nargs="+", metavar="warning-id")
     r = sub.add_parser("remove", help="take the kit out; the repo ends as it was")

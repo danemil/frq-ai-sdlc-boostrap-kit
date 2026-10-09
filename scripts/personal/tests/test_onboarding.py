@@ -65,6 +65,11 @@ class TestOnboarding(unittest.TestCase):
         for name in registry.names():
             self.assertIn(f"`{name}`", connect, name)
 
+    def test_a_pasted_token_is_never_quoted_back(self):
+        text = section("Connect a tool")
+        self.assertIn('never quote it: say "the token you pasted"', text)
+        self.assertIn("revoke it now", text)
+
     def test_the_onboarding_offers_connect_suggested_once_and_takes_not_now(self):
         onboarding = section("Do the onboarding")
         self.assertIn("`python3 .ai-sdlc/kit/setup.py connect --suggested`", onboarding)

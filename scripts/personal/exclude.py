@@ -17,6 +17,7 @@ CREATED, NEWLINE = " [created]", " [newline]"
 PATTERNS = (
     "/.ai-sdlc/",
     "/.github/instructions/ai-sdlc-*",
+    "/.github/hooks/ai-sdlc-*",
     "/.agents/skills/ai-sdlc-*/",
 )
 # After remove, only the person's own files stay hidden (they are kept, see paths.is_personal).

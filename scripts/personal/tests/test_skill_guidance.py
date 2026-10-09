@@ -28,6 +28,10 @@ class TestCoreInstructions(unittest.TestCase):
         self.assertEqual(rules[0], "Session start: do this first.")
         self.assertIn("before your first reply", core())
 
+    def test_the_session_hook_line_counts_as_the_check(self):
+        """Copilot CLI's sessionStart hook puts the check in the context (trusted folders)."""
+        self.assertIn('If your context already holds an "AI-SDLC session check" line', core())
+
     def test_kit_skills_are_read_by_exact_path_not_found_by_search(self):
         text = core()
         self.assertIn("Kit skills are hidden from git, so search tools skip them.", text)

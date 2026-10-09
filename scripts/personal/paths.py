@@ -15,6 +15,8 @@ HOME_REL = ".ai-sdlc"
 KIT_REL = ".ai-sdlc/kit"
 USER_REL = ".ai-sdlc/USER.md"
 STATE_REL = ".ai-sdlc/state.json"
+# Copilot CLI runs it at session start in a trusted folder (check --quiet --hook).
+SESSION_HOOK_REL = ".github/hooks/ai-sdlc-session.json"
 # The person's own files, named like the kit's so git hides them, but never written,
 # replaced or deleted by the kit (the deceneus skill writes them, with approval).
 PERSONAL_NOTES_REL = ".github/instructions/ai-sdlc-personal.instructions.md"

@@ -40,7 +40,8 @@ class TestPlace(unittest.TestCase):
     def test_wanted_files_follow_the_choices(self):
         wanted = self.wanted()
         self.assertEqual(sorted(r for r in wanted if not r.startswith(".agents/")), sorted([
-            ".ai-sdlc/USER.md", ".github/instructions/ai-sdlc-core.instructions.md",
+            ".ai-sdlc/USER.md", ".github/hooks/ai-sdlc-session.json",
+        ".github/instructions/ai-sdlc-core.instructions.md",
             ".github/instructions/ai-sdlc-dev.instructions.md", PO]))
         skills = {r.split("/")[2] for r in wanted if r.startswith(".agents/")}
         self.assertEqual(skills, {f"ai-sdlc-{s}" for s in (

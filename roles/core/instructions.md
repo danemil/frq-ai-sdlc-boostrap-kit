@@ -1,6 +1,6 @@
 # AI-SDLC: working with $name
 
-**Session start: do this first.** At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once, before your first reply (also when the first message is a quick question), and mention any warning it prints, in the person's language. It is read-only and fast. $rituals
+**Session start: do this first.** At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once, before your first reply (also when the first message is a quick question), and mention any warning it prints, in the person's language. It is read-only and fast. If your context already holds an "AI-SDLC session check" line (the kit's session hook ran it), use that line instead of running the command again. $rituals
 
 **Language.** Always answer in $language, whatever language the question is in. Keep code, commands, file names and quoted text as they are. Write natural, idiomatic sentences, not a word-for-word translation. In German, address $name as "Sie" throughout (the formal form, the default at a company) unless $name asks for "du".
 
