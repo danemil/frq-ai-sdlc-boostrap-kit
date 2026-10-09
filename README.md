@@ -17,6 +17,48 @@ Afterwards, say **"change my preferences"**, **"update the kit"** (after copying
 
 You need Python 3.9 or newer. Copilot checks it first and tells you who to ask if it is missing.
 
+## Update the kit, redo the onboarding, change roles
+
+Run these from your repo's top folder. In each case you can say the words to Copilot (Agent mode) instead of typing the commands.
+
+### Get the latest version from GitHub
+
+The kit lives at **https://github.com/danemil/frq-ai-sdlc-boostrap-kit** (you need access to it). Releases are listed under **Releases**, and the newest is marked **Latest**. Check which version you have in `.ai-sdlc/kit/VERSION`.
+
+1. **Get the newer kit**, outside your repo. Pick one:
+   - **A clone (easiest for later updates).** The first time: `git clone https://github.com/danemil/frq-ai-sdlc-boostrap-kit.git ~/ai-sdlc-kit-source`. Every later time: `git -C ~/ai-sdlc-kit-source pull`.
+   - **A ZIP.** On the GitHub page, open **Releases**, then the latest release's **Source code (zip)**, and unzip it. With the GitHub CLI: `gh release download --repo danemil/frq-ai-sdlc-boostrap-kit --archive zip`.
+2. **Copy it into your repo, without `.git`**, under any new folder name:
+
+   ```bash
+   rsync -a --exclude .git ~/ai-sdlc-kit-source/ ./ai-sdlc-kit-new/
+   ```
+3. **Update.** Say **"update the kit"** to Copilot, or run `python3 ai-sdlc-kit-new/setup.py update`.
+
+You should see `Updated to AI-SDLC <version>`. The copied folder is moved into `.ai-sdlc/kit`, so nothing is left behind and `git status` stays clean. Your choices stay. A file you edited is kept, with the kit's newer copy next to it as `<file>.kit-new`. An older copy is refused and nothing changes. Then run `python3 .ai-sdlc/kit/setup.py check`; it should say "Check: all good."
+
+### Redo the onboarding
+
+Say **"do the onboarding"** again. Copilot asks the three questions again (name, roles, language) and sets everything up for the new answers: files for the new roles are added and the ones no longer needed are removed. Your other preferences (git help, session summary, skills you added or left out) and your connector logins stay.
+
+From the terminal, the same in one line:
+
+```bash
+python3 .ai-sdlc/kit/setup.py setup --name "Ana Pop" --roles po,sm --lang en
+```
+
+To start completely fresh instead, run `python3 .ai-sdlc/kit/setup.py remove` (see [Remove the kit](./docs/how-to.md#8-remove-the-kit-from-a-repo)), copy the kit in again and say "do the onboarding". Your connector logins stay in both cases: they are kept per user in `~/.config/ai-sdlc/connectors/`, not in the repo.
+
+### Change roles
+
+Say **"change my preferences"** and name the roles you want, for example *"make me Scrum Master and QA"* or *"add the dev role"*. From the terminal, give the **full** new list of role ids:
+
+```bash
+python3 .ai-sdlc/kit/setup.py change --roles sm,qa
+```
+
+Role ids: `po` (Product Owner), `pm` (Product Manager), `sm` (Scrum Master / Team Coach), `dev` (Developer), `qa` (QA), `architect` (Architect), `em` (Engineering Manager). Only the affected files change: the new roles' instructions and skills are added, the old ones removed. The summary also lists the tools the new roles usually connect to. Other options (language, git help, skills) are in [Change your preferences](./docs/how-to.md#5-change-your-preferences).
+
 ## What ends up in your repo
 
 ```
@@ -98,15 +140,7 @@ The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot t
 
 The kit's version is in [`VERSION`](./VERSION); what changed, and what each kind of version bump means for you, is in [`CHANGELOG.md`](./CHANGELOG.md). To upgrade, copy the newer kit folder into your repo (any folder name, as at setup) and say **"update the kit"**. Copilot runs the newer copy's `setup.py update`: it replaces `.ai-sdlc/kit`, refreshes your files and keeps your choices. A file you edited stays as it is, with the kit's newer copy next to it as `<file>.kit-new`. An older copy is refused and nothing changes.
 
-From the terminal, the same in three lines (from your repo's top folder):
-
-```bash
-(cd <your kit clone> && git pull)                      # or download the ZIP again and unzip it
-rsync -a --exclude .git <your kit clone>/ ./ai-sdlc-kit-new/
-python3 ai-sdlc-kit-new/setup.py update
-```
-
-Step by step, with how to tell you need an update and how to handle `.kit-new` files: [Update the kit](./docs/how-to.md#2-update-the-kit-to-a-newer-version).
+The commands are in [Get the latest version from GitHub](#get-the-latest-version-from-github). Step by step, with how to tell you need an update and how to handle `.kit-new` files: [Update the kit](./docs/how-to.md#2-update-the-kit-to-a-newer-version).
 
 Coming from 0.3.x (team mode)? Team mode is retired and `install.sh` no longer installs. Personal setup never writes to a file git tracks, so the files team mode committed stay as they are; the team decides whether to remove them.
 

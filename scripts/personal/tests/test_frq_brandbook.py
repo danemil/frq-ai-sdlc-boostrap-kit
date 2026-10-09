@@ -374,7 +374,7 @@ class TestSkillFiles(unittest.TestCase):
 
     def test_provenance_and_name_screen(self):
         prov = (SKILL / "PROVENANCE.md").read_text(encoding="utf-8")
-        for topic in ("Brand Guidelines Q4/2025", "shape for shape", "another company's brand skill",
+        for topic in ("Brand Guidelines Q4/2025", "shape for shape",
                       "Group Communications", "Icon Stock", "C1", "C2", "C6"):
             self.assertIn(topic, prov)
         # Built from pieces, so this file does not match its own screen.

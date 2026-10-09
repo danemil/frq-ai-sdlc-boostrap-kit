@@ -16,6 +16,7 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - **Company brand by default** (owner decision): when `ai-sdlc-frq-brandbook` is installed, `ai-sdlc-doc-powerpoint`, `-doc-word`, `-doc-excel`, `-doc-pdf`, `ai-sdlc-visual-explainers` and `ai-sdlc-drawio` use the brand for every new file unless the person asks for a plain one (one rule in each; the core instructions say so too).
 
 ### Changed
+- README: a new section on getting the latest kit from GitHub (clone or release ZIP), redoing the onboarding, and changing roles.
 - A placed skill may hold binary files (a `.pptx` template, `.png` and `.jpeg` images): `setup`, `change` and `update` write them byte for byte and record them like any other file, an edited one is kept with the kit's copy next to it as `.kit-new`, and `remove` takes them back. Before, a non-UTF-8 file in a skill folder stopped setup.
 - `template/.gitignore` keeps the brand skill's `.pptx` template (generated decks stay ignored), and a test checks that every file of that skill is tracked by git.
 - The client-name rule for Copilot guidance has one exception: the `frq-brandbook` folder, and that skill's own name where other guidance points to it. Every other skill and instruction file stays generic (tested).

@@ -9,7 +9,6 @@ Written for this kit (2026-10-09) from brand materials the client owns and provi
 | *Frequentis Brand Guidelines Q4/2025* (51-page PDF, GCM) | The rules: palette (HEX, RGB, CMYK), fonts, logo, tagline, gradient, imagery, icons, writing rules, classification. The source of truth; cited as "PDF p.N" (PDF page index; from p.17 on the printed page number is N+1). |
 | The official Frequentis PowerPoint template (*Corporate PowerPoint Essentials*, "FRQ-Template presentation.pptx": 1 master, 44 layouts, 66 sample slides) | The slide master, the "FRQ_CORP 2024" theme, layout names, placeholder indexes, sizes; the logo shapes and key visuals in `assets/`. Cited as "template". |
 | The earlier internal Frequentis brand skill for Copilot in PowerPoint, v1.0 (2026-10-01), and its off-brand test deck | Create and Check (then "Apply") modes, the audit-then-confirm flow, Must-fix and Should-fix lists, the decisions on tints and register (C6), the six-slide off-brand deck now used as the checker's golden test (kept in the kit's tests, not in this folder). |
-| Structure from another company's brand skill | **Structure and approach only**: a one-screen quick reference first, one workflow per deliverable, a source-of-truth table, depth in `references/`, a machine-readable palette, a stdlib zip/XML deck audit that separates slide-level from master-level findings, building decks from a stripped template by layout name. None of its names, colours, fonts, text or images were used. |
 
 ## What was extracted, and how
 
