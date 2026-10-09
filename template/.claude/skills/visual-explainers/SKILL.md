@@ -29,6 +29,7 @@ Start from [`assets/starter.html`](assets/starter.html); apply [`references/desi
 - Serif headings (weight 500) / mono metadata / sans prose; white cards with 1.5px `--gray-300` borders; clay left-border callouts.
 - Header: mono uppercase eyebrow → serif h1 → gray sub-sentence → `.prompt-box` echoing the user's request.
 - Interaction preference order: native HTML (`<details>`, checkboxes, anchors) → CSS-only → small vanilla JS. Demos are deterministic (FNV-1a hash, never `Math.random()`).
+- For company branding, use `ai-sdlc-frq-brandbook` (if you have it): its palette and fonts replace the ones above.
 - Voice: concrete counted titles ("Three ways to…"); oat-chip section numbers ("01"); every con paired with a mitigation or "choose otherwise when…"; recommendations name one winner in bold with a revisit condition.
 
 Done when the page renders correctly offline and every color on it carries its semantic meaning.

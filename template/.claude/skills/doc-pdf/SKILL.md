@@ -31,6 +31,7 @@ Work with `.pdf` files by writing small Python snippets that use **pypdf**, run 
 - Only write the output file(s). Never modify an input PDF in place.
 - Finish with a short summary: path, page count, and what was done.
 - Encrypted PDF (`reader.is_encrypted`): ask the person for the password; never guess or try to break it.
+- For company branding, use `ai-sdlc-frq-brandbook` (if you have it): template, logo, colours and a brand check.
 
 ## 3. Extract text and tables
 

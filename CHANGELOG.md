@@ -9,6 +9,12 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Added
+- `frq-brandbook` skill in the core pack (`ai-sdlc-frq-brandbook`), for every role and any future one: the company brand on one screen (palette with Office and web values, Arial and Roboto, logo and tagline rules, writing rules, the classification footer), **Create** (new decks from a bundled 25-layout slim template, by layout name; `scripts/new_deck.py` builds one from a Markdown outline with python-pptx) and **Check** (`scripts/check_brand.py`, Python 3.9+ standard library only: off-palette colours, non-brand fonts, italics, shadows and 3D, wrong gradients, the internal company abbreviation, a retyped logo or tagline, "Thank you" slides, a missing classification, plus warnings for Title Case, US spelling, bold, alignment, outlines and dense slides; master and layout findings reported as INFO; exit 1 on FAIL; `--json`; `.docx` and `.xlsx` more lightly). Changes are made only after the person confirms them. Bundles about 2 MB of client-owned brand assets (logos converted shape for shape from the template, key visuals, side bars, the gradient, the template without sample slides or personal metadata); photos with unknown rights, portraits, third-party logos and font files are left out. Sources, decisions on the known conflicts and open items for the brand team are in its `PROVENANCE.md`. One line in `ai-sdlc-doc-powerpoint`, `-doc-word`, `-doc-excel`, `-doc-pdf`, `ai-sdlc-visual-explainers` and `ai-sdlc-drawio` points to it.
+
+### Changed
+- A placed skill may hold binary files (a `.pptx` template, `.png` and `.jpeg` images): `setup`, `change` and `update` write them byte for byte and record them like any other file, an edited one is kept with the kit's copy next to it as `.kit-new`, and `remove` takes them back. Before, a non-UTF-8 file in a skill folder stopped setup.
+- The client-name rule for Copilot guidance has one exception: the `frq-brandbook` folder, and that skill's own name where other guidance points to it. Every other skill and instruction file stays generic (tested).
 
 ## [0.7.0] — 2026-10-08
 ### Added
