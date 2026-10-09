@@ -56,6 +56,27 @@ SCHEME_ALIAS = {"tx1": "dk1", "bg1": "lt1", "tx2": "dk2", "bg2": "lt2"}
 EFFECTS = {"outerShdw": "shadow", "innerShdw": "inner shadow", "prstShdw": "preset shadow",
            "reflection": "reflection", "glow": "glow"}
 COLOUR_MODS = {"lumMod", "lumOff", "tint", "shade"}
+COLOUR_KINDS = {"srgbClr", "schemeClr", "sysClr", "prstClr"}
+FILLS = {"noFill", "solidFill", "gradFill", "pattFill", "blipFill", "grpFill"}
+SYS_COLOURS = {"windowText": "000000", "window": "FFFFFF", "btnText": "000000"}
+PRESET_COLOURS = {"black": "000000", "white": "FFFFFF"}
+# Tints of these are fine (PDF p.7: "except for greys"); tints of blue, light blue and accents are not.
+GREYS = {"333333", "626469", "666666", "9FA0A3", "999999", "C9C3BA", "FFFFFF", "000000"}
+SLIDE_SEVERITY = {"colour.legend-only": "INFO", "colour.tint": "WARN"}
+MONTHS = ("January|February|March|April|May|June|July|August|September|October|November|December"
+          "|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec")
+CONTRACTIONS = (r"\b(?:\w+n['’]t|(?:it|that|there|what|let|here|who)['’]s|(?:we|you|they)['’](?:re|ve|ll|d)"
+                r"|i['’](?:m|ve|ll|d))\b")
+NUMBER_CONTEXT = {"page", "step", "level", "version", "v", "phase", "option", "figure", "fig", "table",
+                  "slide", "chapter", "section", "sprint", "pi", "release", "item", "no", "number", "gate",
+                  "iteration", "wave", "tier", "stage", "lane", "q"}
+UNITS = {"m", "bn", "pt", "px", "mm", "cm", "kg", "km", "h", "min", "s", "ms", "gb", "mb", "tb", "x"}
+GROUP_COMPANY = r"FREQUENTIS(\s+[A-Z][\w.&-]*){0,3}\s+(AG|GmbH|Ltd\.?|s\.r\.o\.|Pty|Inc\.?|SAS|S\.A\.|B\.V\.)"
+DOCX_THEME_FIX = {
+    "theme.colours": "Start customer documents from Doknorme.dotm (Word -> Shared Templates); otherwise set colours per style.",
+    "theme.fonts": "Set the document's theme fonts to Arial, or start from Doknorme.dotm (Word -> Shared Templates).",
+}
+XLSX_FONT_FIX = "Set the workbook's Normal style to Arial (openpyxl: wb._named_styles['Normal'].font = Font(name='Arial'))."
 
 # rule: (proposed fix, source in the brand guidelines Q4/2025 or template)
 RULES = {
@@ -67,7 +88,7 @@ RULES = {
     "effect.3d": ("Use a flat 2D shape or a 2D chart.", "PDF p.18, p.29"),
     "gradient.non-brand": ("Use only the blue #004182 to light blue #00AAE1 gradient, or a flat brand colour.", "PDF p.17"),
     "text.frq": ("Write 'Frequentis'; 'FRQ' is internal only.", "PDF p.25"),
-    "text.caps-name": ("Write 'Frequentis' in sentence case; never retype the logo as text, use the logo file.", "PDF p.4, p.25"),
+    "text.caps-name": ("Write 'Frequentis' in sentence case (capitals only in print headlines and group company names); never retype the logo, use the logo file.", "PDF p.4, p.25"),
     "text.tagline": ("Use the logo-with-tagline file on title and closing slides; never type the tagline on its own.", "PDF p.5"),
     "slide.thank-you": ("Replace it with the template's 'Closing Slide' layout (globe, logo with tagline).", "PDF p.28; template slide 10"),
     "footer.classification": ("Set 'Frequentis Public', 'Frequentis General' or 'Frequentis Confidential' in the master footer.", "PDF p.26"),
@@ -85,6 +106,11 @@ RULES = {
     "theme.colours": ("Build from the Frequentis template so the theme colours are the brand palette.", "PDF p.7; template slide 14"),
     "theme.fonts": ("Build from the Frequentis template so the theme fonts are Arial.", "PDF p.8"),
     "file.empty": ("Add content, starting from the template's layouts.", "-"),
+    "colour.tint": ("Use the brand colour itself, not a lighter or darker tint (grey tints are fine).", "PDF p.7"),
+    "text.at-frequentis": ("Write 'we' without 'At Frequentis we…'.", "PDF p.23"),
+    "text.contraction": ("Write the words out in formal (customer) material: 'we are', 'do not'.", "PDF p.24"),
+    "text.date": ("Write dates as '25 March 2026': no 'th', no comma.", "PDF p.22"),
+    "text.number": ("One to twelve in words; 2,115; 15.50; 10m; 15bn; +10%.", "PDF p.22"),
 }
 
 
@@ -205,10 +231,11 @@ class Report:
     def __init__(self):
         self.items = []
 
-    def add(self, severity, scope, location, rule, message):
-        fix, source = RULES[rule]
+    def add(self, severity, scope, location, rule, message, fix=None):
+        default_fix, source = RULES[rule]
         self.items.append({"severity": severity, "scope": scope, "location": location,
-                           "rule": rule, "message": message, "fix": fix, "source": source})
+                           "rule": rule, "message": message, "fix": fix or default_fix,
+                           "source": source})
 
 
 def listing(values, limit=6) -> str:
@@ -217,21 +244,150 @@ def listing(values, limit=6) -> str:
     return ", ".join(values[:limit]) + more
 
 
+# --- themes -------------------------------------------------------------------------
+
+def read_theme(pkg, theme_part) -> dict:
+    """Colours, font scheme and the shape styles (fill, line, effect) a theme defines."""
+    theme = {"colours": {}, "major": None, "minor": None, "fills": [], "bgfills": [],
+             "lines": [], "effects": [], "part": theme_part}
+    root = pkg.xml(theme_part) if theme_part else None
+    if root is None:
+        return theme
+    scheme = root.find(f".//{A}clrScheme")
+    for slot in (scheme if scheme is not None else []):
+        clr, sys_clr = slot.find(A + "srgbClr"), slot.find(A + "sysClr")
+        if clr is not None:
+            theme["colours"][local(slot.tag)] = (clr.get("val") or "").upper()
+        elif sys_clr is not None:
+            theme["colours"][local(slot.tag)] = (sys_clr.get("lastClr") or "").upper()
+    for kind in ("major", "minor"):
+        latin = root.find(f".//{A}{kind}Font/{A}latin")
+        theme[kind] = latin.get("typeface") if latin is not None else None
+    fmt = root.find(f".//{A}fmtScheme")
+    if fmt is not None:
+        for name, key in (("fillStyleLst", "fills"), ("bgFillStyleLst", "bgfills")):
+            lst = fmt.find(A + name)
+            theme[key] = list(lst) if lst is not None else []
+        lst = fmt.find(A + "lnStyleLst")
+        theme["lines"] = [ln.find(A + "noFill") is None for ln in (lst if lst is not None else [])]
+        lst = fmt.find(A + "effectStyleLst")
+        theme["effects"] = [{EFFECTS[local(x.tag)] for x in es.iter() if local(x.tag) in EFFECTS}
+                            for es in (lst if lst is not None else [])]
+    return theme
+
+
+def theme_findings(report, theme, tokens, severity="WARN", fixes=None):
+    if theme["part"] is None:
+        return
+    fixes = fixes or {}
+    bad = {f"{k} #{v}" for k, v in theme["colours"].items()
+           if k not in ("hlink", "folHlink") and v not in tokens["palette"]}
+    if bad:
+        report.add(severity, "theme", theme["part"], "theme.colours",
+                   f"Theme colours outside the palette: {listing(bad)}.", fixes.get("theme.colours"))
+    faces = {f"{k}: {theme[k]}" for k in ("major", "minor") if theme[k] and theme[k] != tokens["family"]}
+    if faces:
+        report.add(severity, "theme", theme["part"], "theme.fonts", f"Theme fonts: {listing(faces)}.",
+                   fixes.get("theme.fonts"))
+
+
 # --- DrawingML (slides, layouts, masters, charts) ------------------------------------
+
+def scheme_hex(theme, name) -> str:
+    return theme["colours"].get(SCHEME_ALIAS.get(name, name), name)
+
+
+def colour_hex(el, theme, placeholder=None) -> str:
+    """The HEX of a DrawingML colour element (srgbClr, schemeClr, sysClr, prstClr)."""
+    kind = local(el.tag)
+    if kind == "srgbClr":
+        return (el.get("val") or "").upper()
+    if kind == "schemeClr":
+        val = el.get("val", "")
+        if val == "phClr" and placeholder:
+            return placeholder
+        return scheme_hex(theme, val)
+    if kind == "sysClr":
+        return (el.get("lastClr") or SYS_COLOURS.get(el.get("val", ""), "")).upper()
+    if kind == "prstClr":
+        return PRESET_COLOURS.get(el.get("val", ""), el.get("val", ""))
+    return ""
+
+
+def gradient_label(grad, tokens, theme, placeholder=None):
+    """None for the brand gradient (or one brand colour), else a description of the stops."""
+    stops, modded = [], False
+    for gs in grad.iter(A + "gs"):
+        for clr in gs:
+            if local(clr.tag) in COLOUR_KINDS:
+                stops.append(colour_hex(clr, theme, placeholder))
+                modded |= any(local(m.tag) in COLOUR_MODS for m in clr)
+    if not stops or (set(stops) <= tokens["gradient"] and not modded):
+        return None
+    label = " -> ".join(("#" + s if re.fullmatch(r"[0-9A-F]{6}", s) else s) for s in stops)
+    return label + (" (tinted)" if modded else "")
+
+
+def shape_style(sp, theme, tokens):
+    """What a shape inherits from the theme through <p:style> (python-pptx's add_shape writes
+    one): (effects, gradient label or None, filled, theme line visible)."""
+    sppr, style = sp.find(P + "spPr"), sp.find(P + "style")
+    effects, gradient, filled, line = set(), None, False, False
+    has_fill = sppr is not None and any(local(x.tag) in FILLS for x in sppr)
+    if sppr is not None:
+        filled = any(local(x.tag) in FILLS and local(x.tag) != "noFill" for x in sppr)
+    if style is None:
+        return effects, gradient, filled, line
+    ref = style.find(A + "effectRef")
+    if ref is not None and (sppr is None or (sppr.find(A + "effectLst") is None
+                                             and sppr.find(A + "effectDag") is None)):
+        idx = int(ref.get("idx", "0") or 0)
+        if 0 < idx <= len(theme["effects"]):
+            effects = {e + " (from the theme style)" for e in theme["effects"][idx - 1]}
+    ref = style.find(A + "fillRef")
+    if ref is not None and not has_fill:
+        idx = int(ref.get("idx", "0") or 0)
+        pool, i = (theme["bgfills"], idx - 1001) if idx > 1000 else (theme["fills"], idx - 1)
+        if idx > 0 and 0 <= i < len(pool):
+            fill = pool[i]
+            filled = local(fill.tag) != "noFill"
+            if local(fill.tag) == "gradFill":
+                clr = next((c for c in ref if local(c.tag) in COLOUR_KINDS), None)
+                ph = colour_hex(clr, theme) if clr is not None else None
+                label = gradient_label(fill, tokens, theme, ph)
+                gradient = f"{label} (from the theme style)" if label else None
+    ref = style.find(A + "lnRef")
+    ln = sppr.find(A + "ln") if sppr is not None else None
+    own_line = ln is not None and any(local(x.tag) in FILLS for x in ln)
+    if own_line:
+        line = ln.find(A + "noFill") is None
+    elif ref is not None:
+        idx = int(ref.get("idx", "0") or 0)
+        line = 0 < idx <= len(theme["lines"]) and theme["lines"][idx - 1]
+    return effects, gradient, filled, line
+
 
 def drawing_findings(root, tokens, theme) -> dict:
     """{rule: detail} of the visual rules in one DrawingML part (slide, layout, master, chart)."""
     parents = parents_of(root)
-    off, legend, fonts, effects, threed, gradients = set(), set(), set(), set(), set(), set()
+    off, legend, fonts, effects, threed, gradients, tints = (set() for _ in range(7))
     italic = []
-    for el in root.iter(A + "srgbClr"):
-        if any(local(x.tag) in ("effectLst", "effectDag") for x in ancestors(el, parents)):
-            continue                       # a shadow's colour belongs to the shadow finding
-        val = (el.get("val") or "").upper()
-        if val in tokens["legend"]:
-            legend.add("#" + val)
-        elif val and val not in tokens["palette"]:
-            off.add("#" + val)
+    for el in root.iter():
+        kind = local(el.tag)
+        if kind not in COLOUR_KINDS or not el.tag.startswith(A):
+            continue
+        up = [local(x.tag) for x in ancestors(el, parents)]
+        if "effectLst" in up or "effectDag" in up or "style" in up:
+            continue                       # shadow colours and style refs are judged elsewhere
+        val = colour_hex(el, theme)
+        if kind != "schemeClr":
+            if val in tokens["legend"]:
+                legend.add("#" + val)
+            elif val and val not in tokens["palette"]:
+                off.add("#" + val if re.fullmatch(r"[0-9A-F]{6}", val) else val)
+        if "gradFill" not in up and any(local(m.tag) in COLOUR_MODS for m in el):
+            if val not in GREYS:
+                tints.add("#" + val if re.fullmatch(r"[0-9A-F]{6}", val) else val)
     for el in root.iter(A + "latin"):
         face = el.get("typeface", "")
         if face and face not in tokens["fonts"]:
@@ -255,23 +411,23 @@ def drawing_findings(root, tokens, theme) -> dict:
         if el.tag.startswith(C) and (name == "view3D" or name.endswith("3DChart")):
             threed.add("3D chart")
     for grad in root.iter(A + "gradFill"):
-        stops, modded = [], False
-        for gs in grad.iter(A + "gs"):
-            for clr in gs:
-                if local(clr.tag) == "srgbClr":
-                    stops.append((clr.get("val") or "").upper())
-                elif local(clr.tag) == "schemeClr":
-                    v = clr.get("val", "")
-                    stops.append(theme.get(SCHEME_ALIAS.get(v, v), v))
-                modded |= any(local(m.tag) in COLOUR_MODS for m in clr)
-        uniq = set(stops)
-        if stops and (not uniq <= tokens["gradient"] or modded):
-            gradients.add(" -> ".join(("#" + s if re.fullmatch(r"[0-9A-F]{6}", s) else s) for s in stops))
+        if any(local(x.tag) == "style" for x in ancestors(grad, parents)):
+            continue
+        label = gradient_label(grad, tokens, theme)
+        if label:
+            gradients.add(label)
+    for sp in list(root.iter(P + "sp")) + list(root.iter(P + "cxnSp")):
+        eff, grad, _, _ = shape_style(sp, theme, tokens)
+        effects |= eff
+        if grad:
+            gradients.add(grad)
     out = {}
     if off:
         out["colour.off-palette"] = f"Colours outside the palette: {listing(off)}."
     if legend:
         out["colour.legend-only"] = f"Legend-only colours: {listing(legend)}."
+    if tints:
+        out["colour.tint"] = f"Tints or shades of brand colours: {listing(tints)}."
     if fonts:
         out["font.non-brand"] = f"Fonts other than {tokens['family']}: {listing(fonts)}."
     if italic:
@@ -286,13 +442,11 @@ def drawing_findings(root, tokens, theme) -> dict:
     return out
 
 
-def outline_count(root) -> int:
+def outline_count(root, theme, tokens) -> int:
     n = 0
-    for sppr in root.iter(P + "spPr"):
-        filled = any(local(x.tag) in ("solidFill", "gradFill", "pattFill", "blipFill") for x in sppr)
-        ln = sppr.find(A + "ln")
-        if filled and ln is not None and ln.find(A + "noFill") is None and (
-                ln.find(A + "solidFill") is not None or ln.find(A + "gradFill") is not None):
+    for sp in root.iter(P + "sp"):
+        _, _, filled, line = shape_style(sp, theme, tokens)
+        if filled and line:
             n += 1
     return n
 
@@ -335,14 +489,36 @@ def looks_title_case(headline) -> bool:
     return len(caps) >= 2 and len(caps) / max(len(words), 1) >= 0.6
 
 
-def text_findings(report, scope, where, text, tokens):
-    """The writing rules on visible text (any format)."""
+# --- writing rules (any format) -----------------------------------------------------
+
+def small_numbers(text) -> list:
+    """Digits for one to twelve in running text (not dates, times, units, list numbers)."""
+    hits = []
+    for m in re.finditer(r"(?<![\w.,€$£#/:+\-])([1-9]|1[0-2])(?![\w.,%:/)\-])", text):
+        before = re.findall(r"[A-Za-z]+", text[max(0, m.start() - 15):m.start()])
+        after = re.match(r"\s*([A-Za-z]+)", text[m.end():])
+        if before and before[-1].lower() in NUMBER_CONTEXT:
+            continue
+        if after and (re.fullmatch(MONTHS, after.group(1), re.I) or after.group(1).lower() in UNITS):
+            continue
+        hits.append(m.group(1))
+    return hits
+
+
+def text_findings(report, scope, where, text, tokens, public, shape_texts=()):
+    """The writing rules on visible text. `public`: the file is Frequentis Public or has no class."""
     if re.search(r"\bFRQ\b", text):
-        report.add("FAIL", scope, where, "text.frq", "'FRQ' in visible text.")
-    if re.search(r"\bFREQUENTIS\b", text):
-        report.add("FAIL", scope, where, "text.caps-name", "'FREQUENTIS' typed in capitals (a retyped logo?).")
+        report.add("FAIL" if public else "WARN", scope, where, "text.frq",
+                   "'FRQ' in visible text" + ("" if public else " (fine internally; not in anything external)") + ".")
+    caps = [m for m in re.finditer(r"\bFREQUENTIS\b", text)
+            if not re.match(GROUP_COMPANY, text[m.start():])]
+    if caps:
+        report.add("WARN", scope, where, "text.caps-name",
+                   "'FREQUENTIS' in capitals (a retyped logo? capitals are for print headlines only).")
     if re.search(r"for a safer world", text, re.I):
-        report.add("FAIL", scope, where, "text.tagline", "The tagline is typed as text.")
+        alone = any(re.fullmatch(r"\s*for a safer world[.!]?\s*", s, re.I) for s in shape_texts)
+        report.add("FAIL" if alone else "WARN", scope, where, "text.tagline",
+                   "The tagline is typed as text on its own." if alone else "The tagline appears in running text.")
     us = {w.lower() for w in re.findall(r"[A-Za-z]+", text) if w.lower() in tokens["us"]}
     if us:
         report.add("WARN", scope, where, "text.us-spelling",
@@ -351,39 +527,35 @@ def text_findings(report, scope, where, text, tokens):
         report.add("WARN", scope, where, "text.exclamation", f"{text.count('!')} exclamation mark(s).")
     if re.search(r"\s&\s", text):
         report.add("INFO", scope, where, "text.ampersand", "'&' in running text.")
+    if re.search(r"\bAt Frequentis,? we\b", text, re.I):
+        report.add("WARN", scope, where, "text.at-frequentis", "'At Frequentis we…'.")
+    contractions = re.findall(CONTRACTIONS, text, re.I)
+    if contractions:
+        report.add("WARN", scope, where, "text.contraction",
+                   f"Contractions (avoid in formal material): {listing(set(contractions))}.")
+    if re.search(rf"\b\d{{1,2}}(st|nd|rd|th)\b|\b({MONTHS})\s+\d{{1,2}}(st|nd|rd|th)?,", text, re.I):
+        report.add("WARN", scope, where, "text.date", "Date not written as '25 March 2026'.")
+    numbers = []
+    if re.search(r"\bMio\b", text):
+        numbers.append("'Mio' (write 10m in English)")
+    if re.search(r"\d\s*(percent|per cent)\b", text, re.I):
+        numbers.append("'percent' (write +10%)")
+    if re.search(r"\d\s*(million|billion)\b", text, re.I):
+        numbers.append("'million/billion' (write 10m, 15bn)")
+    if re.search(r"(?<![\d.,])\d{1,3}\.\d{3}(?![\d.,])", text):
+        numbers.append("a point as thousands separator (write 2,115)")
+    if re.search(r"(?<![\d.,])\d+,\d{1,2}(?![\d,])", text):
+        numbers.append("a decimal comma (write 15.50)")
+    small = small_numbers(text)
+    if small:
+        numbers.append(f"digits for one to twelve ({listing(set(small), 4)})")
+    if numbers:
+        report.add("WARN", scope, where, "text.number", "Number style: " + "; ".join(numbers) + ".")
 
 
-def theme_colours(pkg, theme_part) -> dict:
-    root = pkg.xml(theme_part) if theme_part else None
-    out = {}
-    scheme = root.find(f".//{A}clrScheme") if root is not None else None
-    for slot in (scheme if scheme is not None else []):
-        clr = slot.find(A + "srgbClr")
-        sys_clr = slot.find(A + "sysClr")
-        if clr is not None:
-            out[local(slot.tag)] = (clr.get("val") or "").upper()
-        elif sys_clr is not None:
-            out[local(slot.tag)] = (sys_clr.get("lastClr") or "").upper()
-    return out
-
-
-def theme_findings(report, pkg, theme_part, tokens):
-    root = pkg.xml(theme_part) if theme_part else None
-    if root is None:
-        return {}
-    colours = theme_colours(pkg, theme_part)
-    bad = {f"{k} #{v}" for k, v in colours.items()
-           if k not in ("hlink", "folHlink") and v not in tokens["palette"]}
-    if bad:
-        report.add("WARN", "theme", theme_part, "theme.colours",
-                   f"Theme colours outside the palette: {listing(bad)}.")
-    faces = {f"{local(f.tag)}: {f.find(A + 'latin').get('typeface')}"
-             for f in root.iter() if local(f.tag) in ("majorFont", "minorFont")
-             and f.find(A + "latin") is not None
-             and f.find(A + "latin").get("typeface") != tokens["family"]}
-    if faces:
-        report.add("WARN", "theme", theme_part, "theme.fonts", f"Theme fonts: {listing(faces)}.")
-    return colours
+def classes_in(texts, tokens) -> set:
+    cls = re.compile("|".join(re.escape(c) for c in tokens["classes"]))
+    return {m.group(0) for _, t in texts for m in cls.finditer(t)}
 
 
 def footer_findings(report, texts_slides, texts_template, tokens, year, kind):
@@ -425,7 +597,8 @@ def check_pptx(pkg, tokens, year) -> Report:
         raise CheckError(f"{pkg.path}: {len(slides)} slides; the checker reads at most {MAX_SLIDES}")
     masters = sorted(t for typ, t in prels.values() if typ == "slideMaster")
     theme_part = next((t for m in masters for typ, t in pkg.rels(m).values() if typ == "theme"), None)
-    theme = theme_findings(report, pkg, theme_part, tokens)
+    theme = read_theme(pkg, theme_part)
+    theme_findings(report, theme, tokens)
 
     template_texts, inherited = [], {}
     layouts = sorted({t for m in masters for typ, t in pkg.rels(m).values() if typ == "slideLayout"},
@@ -445,30 +618,37 @@ def check_pptx(pkg, tokens, year) -> Report:
         names = "; ".join(f"{w}: {d}" for w, d in hits[:3]) + (" …" if len(hits) > 3 else "")
         report.add("INFO", scope, where, rule, f"From the template, inherited (not the slide's): {names}")
 
-    slide_texts = []
+    parsed = []
     for n, part in enumerate(slides, start=1):
         xml = pkg.xml(part)
         if xml is None:
             continue
+        text = "\n".join(t.text or "" for t in xml.iter(A + "t"))
+        charts = [pkg.xml(t) for typ, t in pkg.rels(part).values() if typ == "chart" and t in pkg.names]
+        text += "".join("\n" + chart_text(c) for c in charts)
+        parsed.append((n, xml, charts, text))
+    found_classes = classes_in([(None, p[3]) for p in parsed] + template_texts, tokens)
+    public = not found_classes or "Frequentis Public" in found_classes
+
+    slide_texts = []
+    for n, xml, charts, text in parsed:
         where = f"slide {n}" + (" (hidden)" if xml.get("show") in ("0", "false") else "")
         found = drawing_findings(xml, tokens, theme)
-        text = "\n".join(t.text or "" for t in xml.iter(A + "t"))
-        for typ, target in pkg.rels(part).values():
-            if typ == "chart" and target in pkg.names:
-                chart = pkg.xml(target)
-                for rule, detail in drawing_findings(chart, tokens, theme).items():
-                    found[rule] = (found[rule] + " Chart: " + detail) if rule in found else "Chart: " + detail
-                text += "\n" + chart_text(chart)
-        severity = {"colour.legend-only": "INFO"}
+        for chart in charts:
+            for rule, detail in drawing_findings(chart, tokens, theme).items():
+                found[rule] = (found[rule] + " Chart: " + detail) if rule in found else "Chart: " + detail
         for rule, detail in found.items():
-            report.add(severity.get(rule, "FAIL"), "slide", where, rule, detail)
+            report.add(SLIDE_SEVERITY.get(rule, "FAIL"), "slide", where, rule, detail)
         slide_texts.append((where, text))
+        short = len(re.findall(r"\w+", text)) <= 12           # a closing slide, not a sentence
         if re.search(r"\bthank(s| you)\b", text, re.I):
-            short = len(re.findall(r"\w+", text)) <= 12          # a closing slide, not a sentence of thanks
             report.add("FAIL" if short else "WARN", "slide", where, "slide.thank-you",
                        "A 'Thank you' slide." if short else "'Thank you' on a content slide; is it a closing slide?")
-        text_findings(report, "slide", where, text, tokens)
+        elif short and re.search(r"\bquestions\s*\?", text, re.I):
+            report.add("FAIL", "slide", where, "slide.thank-you", "A 'Questions?' closing slide.")
         shapes = shapes_text(xml)
+        whole = ["\n".join(p[0] for p in ps) for _, ps in shapes]
+        text_findings(report, "slide", where, text, tokens, public, whole)
         paras = [p for _, ps in shapes for p in ps if p[3]]
         headline = next((ps[0][0] for t, ps in shapes if t and ps and ps[0][3]), None)
         if headline is None:
@@ -486,7 +666,7 @@ def check_pptx(pkg, tokens, year) -> Report:
         most = max((sum(1 for p in ps if p[3]) for t, ps in shapes if not t), default=0)
         if most > tokens["max_bullets"]:
             report.add("WARN", "slide", where, "slide.bullets", f"{most} paragraphs in one text box.")
-        outlines = outline_count(xml)
+        outlines = outline_count(xml, theme, tokens)
         if outlines:
             report.add("WARN", "slide", where, "shape.outline", f"{outlines} filled shape(s) with an outline.")
         no_alt = [c for c in (pic.find(f"{P}nvPicPr/{P}cNvPr") for pic in xml.iter(P + "pic"))
@@ -501,30 +681,72 @@ def check_pptx(pkg, tokens, year) -> Report:
 
 # --- WordprocessingML and SpreadsheetML (lighter) -----------------------------------
 
+def word_findings(root, theme, tokens) -> tuple:
+    """(off-palette, legend, fonts, italic count) of a WordprocessingML element tree."""
+    off, legend, fonts, italic = set(), set(), set(), 0
+    for el in root.iter():
+        name = local(el.tag)
+        if name in ("color", "shd"):
+            val = ((el.get(W + "val") if name == "color" else el.get(W + "fill")) or "").upper()
+            if re.fullmatch(r"[0-9A-F]{6}", val):
+                if val in tokens["legend"]:
+                    legend.add("#" + val)
+                elif val not in tokens["palette"]:
+                    off.add("#" + val)
+        elif name == "rFonts":
+            faces = {el.get(W + k) for k in ("ascii", "hAnsi") if el.get(W + k)}
+            for k in ("asciiTheme", "hAnsiTheme"):
+                ref = el.get(W + k)
+                if ref:
+                    faces.add(theme["major" if ref.startswith("major") else "minor"] or ref)
+            fonts |= {f for f in faces if f} - tokens["fonts"]
+        elif name == "i" and el.get(W + "val", "1") not in ("0", "false", "off"):
+            italic += 1
+    return off, legend, fonts, italic
+
+
+def used_word_styles(styles, bodies) -> list:
+    """The style elements the document uses (directly or through basedOn), plus docDefaults."""
+    if styles is None:
+        return []
+    by_id = {s.get(W + "styleId"): s for s in styles.iter(W + "style")}
+    wanted = {el.get(W + "val") for b in bodies for el in b.iter()
+              if local(el.tag) in ("pStyle", "rStyle", "tblStyle")}
+    wanted |= {sid for sid, s in by_id.items() if s.get(W + "default") in ("1", "true")
+               and s.get(W + "type") in ("paragraph", "character", "table")}
+    seen, todo = set(), list(wanted)
+    while todo:
+        sid = todo.pop()
+        if sid in seen or sid not in by_id:
+            continue
+        seen.add(sid)
+        based = by_id[sid].find(W + "basedOn")
+        if based is not None:
+            todo.append(based.get(W + "val"))
+    out = [by_id[s] for s in sorted(seen)]
+    defaults = styles.find(W + "docDefaults")
+    return ([defaults] if defaults is not None else []) + out
+
+
 def check_docx(pkg, tokens, year) -> Report:
     report = Report()
+    theme_part = "word/theme/theme1.xml" if "word/theme/theme1.xml" in pkg.names else None
+    theme = read_theme(pkg, theme_part)
+    theme_findings(report, theme, tokens, "INFO", DOCX_THEME_FIX)
     parts = ["word/document.xml"] + sorted(n for n in pkg.names
                                            if re.fullmatch(r"word/(header|footer)\d*\.xml", n))
-    texts = []
-    for part in parts + ["word/styles.xml"]:
-        root = pkg.xml(part)
-        if root is None:
-            continue
-        styles = part == "word/styles.xml"
-        scope, where = ("styles", "styles") if styles else ("document", posixpath.basename(part)[:-4])
-        sev = "WARN" if styles else "FAIL"
-        off, legend, fonts, italic = set(), set(), set(), 0
-        for el in root.iter():
-            name = local(el.tag)
-            if name == "color" or name == "shd":
-                val = (el.get(W + "val") if name == "color" else el.get(W + "fill")) or ""
-                val = val.upper()
-                if re.fullmatch(r"[0-9A-F]{6}", val):
-                    (legend if val in tokens["legend"] else off if val not in tokens["palette"] else set()).add("#" + val)
-            elif name == "rFonts":
-                fonts |= {el.get(W + k) for k in ("ascii", "hAnsi") if el.get(W + k)} - tokens["fonts"]
-            elif name == "i" and el.get(W + "val", "1") not in ("0", "false", "off"):
-                italic += 1
+    bodies = [(p, pkg.xml(p)) for p in parts]
+    bodies = [(p, r) for p, r in bodies if r is not None]
+    texts = [(posixpath.basename(p)[:-4], "\n".join(t.text or "" for t in r.iter(W + "t"))) for p, r in bodies]
+    found_classes = classes_in(texts, tokens)
+    public = not found_classes or "Frequentis Public" in found_classes
+    checks = [("document", posixpath.basename(p)[:-4], r, "FAIL") for p, r in bodies]
+    styles = used_word_styles(pkg.xml("word/styles.xml"), [r for _, r in bodies])
+    for el in styles:
+        sid = el.get(W + "styleId") or "document defaults"
+        checks.append(("styles", f"style '{sid}'", el, "WARN"))
+    for scope, where, root, sev in checks:
+        off, legend, fonts, italic = word_findings(root, theme, tokens)
         if off:
             report.add(sev, scope, where, "colour.off-palette", f"Colours outside the palette: {listing(off)}.")
         if legend:
@@ -533,21 +755,33 @@ def check_docx(pkg, tokens, year) -> Report:
             report.add(sev, scope, where, "font.non-brand", f"Fonts other than {tokens['family']}: {listing(fonts)}.")
         if italic:
             report.add(sev, scope, where, "text.italic", f"{italic} italic run(s) or style(s).")
-        if not styles:
-            text = "\n".join(t.text or "" for t in root.iter(W + "t"))
-            texts.append((where, text))
-            text_findings(report, scope, where, text, tokens)
-    theme_findings(report, pkg, "word/theme/theme1.xml" if "word/theme/theme1.xml" in pkg.names else None, tokens)
+    for where, text in texts:
+        text_findings(report, "document", where, text, tokens, public)
     footer_findings(report, texts, [], tokens, year, "docx")
     return report
 
 
 def check_xlsx(pkg, tokens, year) -> Report:
     report = Report()
+    sheets = [(p, pkg.xml(p)) for p in sorted(n for n in pkg.names
+                                              if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n))]
+    used = set()
+    for _, root in sheets:
+        for c in root.iter(S + "c"):
+            used.add(int(c.get("s", "0") or 0))
     styles = pkg.xml("xl/styles.xml")
-    if styles is not None:
-        off, legend, fonts = set(), set(), set()
-        for el in styles.iter():
+    if styles is not None and used:
+        fonts_el = styles.find(S + "fonts")
+        fills_el = styles.find(S + "fills")
+        xfs_el = styles.find(S + "cellXfs")
+        fonts_l = list(fonts_el) if fonts_el is not None else []
+        fills_l = list(fills_el) if fills_el is not None else []
+        xfs = list(xfs_el) if xfs_el is not None else []
+        font_ids = {int(xfs[i].get("fontId", "0")) for i in used if i < len(xfs)} or ({0} if fonts_l else set())
+        fill_ids = {int(xfs[i].get("fillId", "0")) for i in used if i < len(xfs)}
+        off, legend, faces = set(), set(), set()
+        targets = [fonts_l[i] for i in font_ids if i < len(fonts_l)] + [fills_l[i] for i in fill_ids if i < len(fills_l)]
+        for el in (e for t in targets for e in t.iter()):
             name = local(el.tag)
             if name in ("color", "fgColor", "bgColor") and el.get("rgb"):
                 val = el.get("rgb").upper()[-6:]
@@ -555,28 +789,29 @@ def check_xlsx(pkg, tokens, year) -> Report:
                     legend.add("#" + val)
                 elif val not in tokens["palette"]:
                     off.add("#" + val)
-            elif name == "name" and el.get("val"):
-                if el.get("val") not in tokens["fonts"]:
-                    fonts.add(el.get("val"))
+            elif name == "name" and el.get("val") and el.get("val") not in tokens["fonts"]:
+                faces.add(el.get("val"))
         if off:
-            report.add("WARN", "styles", "styles", "colour.off-palette", f"Colours outside the palette: {listing(off)}.")
+            report.add("WARN", "styles", "cell styles in use", "colour.off-palette", f"Colours outside the palette: {listing(off)}.")
         if legend:
-            report.add("INFO", "styles", "styles", "colour.legend-only", f"Legend-only colours: {listing(legend)}.")
-        if fonts:
-            report.add("WARN", "styles", "styles", "font.non-brand", f"Fonts other than {tokens['family']}: {listing(fonts)}.")
+            report.add("INFO", "styles", "cell styles in use", "colour.legend-only", f"Legend-only colours: {listing(legend)}.")
+        if faces:
+            report.add("WARN", "styles", "cell styles in use", "font.non-brand",
+                       f"Fonts other than {tokens['family']}: {listing(faces)}.", XLSX_FONT_FIX)
     texts = []
     sst = pkg.xml("xl/sharedStrings.xml")
     if sst is not None:
         texts.append(("shared strings", "\n".join(t.text or "" for t in sst.iter(S + "t"))))
-    for part in sorted(n for n in pkg.names if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", n)):
-        root = pkg.xml(part)
+    for part, root in sheets:
         hf = [e.text or "" for e in root.iter() if local(e.tag) in ("oddHeader", "oddFooter", "evenHeader",
                                                                    "evenFooter", "firstHeader", "firstFooter")]
         inline = [t.text or "" for t in root.iter(S + "t")]
         if hf or inline:
             texts.append((posixpath.basename(part)[:-4], "\n".join(hf + inline)))
+    found_classes = classes_in(texts, tokens)
+    public = not found_classes or "Frequentis Public" in found_classes
     for where, text in texts:
-        text_findings(report, "sheet", where, text, tokens)
+        text_findings(report, "sheet", where, text, tokens, public)
     footer_findings(report, texts, [], tokens, year, "xlsx")
     return report
 

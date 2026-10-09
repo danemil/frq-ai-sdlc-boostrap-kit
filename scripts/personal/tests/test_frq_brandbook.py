@@ -214,7 +214,8 @@ def minimal_xlsx(dest, font="Calibri", rgb="FF000000", strings=("Budget",)):
         f'<sz val="11"/><color rgb="{rgb}"/><name val="{font}"/></font></fonts></styleSheet>',
         "xl/sharedStrings.xml": f'<?xml version="1.0" encoding="UTF-8"?><sst xmlns="{m}">'
         + "".join(f"<si><t>{s}</t></si>" for s in strings) + "</sst>",
-        "xl/worksheets/sheet1.xml": f'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="{m}"><sheetData/></worksheet>',
+        "xl/worksheets/sheet1.xml": f'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="{m}"><sheetData>'
+        '<row r="1"><c r="A1" t="s"><v>0</v></c></row></sheetData></worksheet>',
     }
     with zipfile.ZipFile(dest, "w") as z:
         for n, data in parts.items():
@@ -403,8 +404,8 @@ class TestCheckBrandScript(unittest.TestCase):
         self.assertEqual(code, 1)
         fail = {loc: rules(found, "FAIL", "slide", loc) for loc in
                 ("slide 1", "slide 2", "slide 3", "slide 4", "slide 5", "slide 6")}
-        self.assertLessEqual({"font.non-brand", "text.italic", "colour.off-palette", "text.frq",
-                              "text.caps-name"}, fail["slide 1"])
+        self.assertLessEqual({"font.non-brand", "text.italic", "colour.off-palette", "text.frq"},
+                             fail["slide 1"])
         self.assertLessEqual({"text.tagline", "text.italic", "colour.off-palette"}, fail["slide 2"])
         self.assertLessEqual({"font.non-brand", "colour.off-palette", "effect.shadow",
                               "gradient.non-brand"}, fail["slide 3"])
@@ -412,8 +413,10 @@ class TestCheckBrandScript(unittest.TestCase):
         self.assertLessEqual({"gradient.non-brand", "colour.off-palette"}, fail["slide 5"])
         self.assertIn("slide.thank-you", fail["slide 6"])
         warn = {loc: rules(found, "WARN", "slide", loc) for loc in fail}
-        self.assertLessEqual({"text.align", "text.exclamation"}, warn["slide 1"])
-        self.assertLessEqual({"text.title-case", "text.us-spelling", "text.bold", "text.align"},
+        self.assertLessEqual({"text.align", "text.exclamation", "text.caps-name", "text.date"},
+                             warn["slide 1"])
+        self.assertLessEqual({"text.title-case", "text.us-spelling", "text.bold", "text.align",
+                              "text.at-frequentis", "text.contraction", "text.number"},
                              warn["slide 2"])
         self.assertIn("shape.outline", warn["slide 3"])
         self.assertIn("text.us-spelling", warn["slide 4"])              # chart series "Defense"
@@ -461,12 +464,107 @@ class TestCheckBrandScript(unittest.TestCase):
                 ("Headline (standard)", sp("title", None, "Thank you"), None)])
             code, found = findings(deck, "--year", "2024")
             self.assertEqual(code, 1)
-            self.assertLessEqual({"text.italic", "colour.off-palette", "font.non-brand", "text.frq"},
+            self.assertLessEqual({"text.italic", "colour.off-palette", "font.non-brand"},
                                  rules(found, "FAIL", "slide", "slide 1"))
+            self.assertIn("text.frq", rules(found, "WARN", "slide", "slide 1"))   # class: General
             self.assertLessEqual({"effect.shadow", "effect.3d"}, rules(found, "FAIL", "slide", "slide 2"))
             self.assertNotIn("colour.off-palette", rules(found, "FAIL", "slide", "slide 2"),
                              "a shadow's colour is the shadow finding, not a second one")
             self.assertIn("slide.thank-you", rules(found, "FAIL", "slide", "slide 3"))
+
+    def test_theme_styles_that_python_pptx_shapes_inherit_are_seen(self):
+        style = ('<p:style><a:lnRef idx="1"><a:schemeClr val="accent1"><a:shade val="50000"/></a:schemeClr></a:lnRef>'
+                 '<a:fillRef idx="3"><a:schemeClr val="accent1"/></a:fillRef>'
+                 '<a:effectRef idx="2"><a:schemeClr val="accent1"/></a:effectRef>'
+                 '<a:fontRef idx="minor"><a:schemeClr val="lt1"/></a:fontRef></p:style>')
+        default = ('<p:sp><p:nvSpPr><p:cNvPr id="40" name="Rectangle 1"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+                   '<p:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>' + style + '</p:sp>')
+        clean = ('<p:sp><p:nvSpPr><p:cNvPr id="41" name="Rectangle 2"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>'
+                 '<p:spPr><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="004182"/>'
+                 '</a:solidFill><a:ln><a:noFill/></a:ln><a:effectLst/></p:spPr>' + style + '</p:sp>')
+        with tempfile.TemporaryDirectory() as tmp:
+            deck = build_pptx(Path(tmp) / "shapes.pptx", [("Headline (standard)", default, None),
+                                                         ("Headline (standard)", clean, None)])
+            code, found = findings(deck, "--year", "2024")
+            self.assertEqual(code, 1)
+            self.assertLessEqual({"effect.shadow", "gradient.non-brand"}, rules(found, "FAIL", "slide", "slide 1"))
+            self.assertIn("shape.outline", rules(found, "WARN", "slide", "slide 1"))
+            self.assertEqual(rules(found, None, "slide", "slide 2"), set())
+
+    def test_tints_and_system_colours(self):
+        tint = '<a:rPr><a:solidFill><a:schemeClr val="accent3"><a:lumMod val="60000"/></a:schemeClr></a:solidFill></a:rPr>'
+        grey = '<a:rPr><a:solidFill><a:schemeClr val="bg2"><a:lumMod val="60000"/></a:schemeClr></a:solidFill></a:rPr>'
+        sysc = '<a:rPr><a:solidFill><a:sysClr val="windowText" lastClr="000000"/></a:solidFill></a:rPr>'
+        prst = '<a:rPr><a:solidFill><a:prstClr val="black"/></a:solidFill></a:rPr>'
+        with tempfile.TemporaryDirectory() as tmp:
+            deck = build_pptx(Path(tmp) / "tints.pptx", [
+                ("Headline (standard)", sp(None, None, "Light blue tint", rpr=tint), None),
+                ("Headline (standard)", sp(None, None, "Grey tint", rpr=grey), None),
+                ("Headline (standard)", sp(None, None, "System black", rpr=sysc), None),
+                ("Headline (standard)", sp(None, None, "Preset black", rpr=prst), None)])
+            code, found = findings(deck, "--year", "2024")
+            self.assertIn("colour.tint", rules(found, "WARN", "slide", "slide 1"))
+            self.assertEqual(rules(found, None, "slide", "slide 2"), set())
+            self.assertIn("colour.off-palette", rules(found, "FAIL", "slide", "slide 3"))
+            self.assertIn("colour.off-palette", rules(found, "FAIL", "slide", "slide 4"))
+
+    def test_name_and_tagline_severity_follow_the_rules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            internal = build_pptx(Path(tmp) / "internal.pptx", [   # the master says Frequentis General
+                ("Headline (standard)", sp("title", None, "FRQ status for the team")
+                 + sp(None, None, "FREQUENTIS COMSOFT GmbH supplies it.\nWe work for a safer world every day."), None),
+                ("Headline (standard)", sp(None, None, "FREQUENTIS", name="Logo text"), None),
+                ("Headline (standard)", sp(None, None, "For a safer world", name="Tagline"), None)])
+            code, found = findings(internal, "--year", "2024")
+            self.assertIn("text.frq", rules(found, "WARN", "slide", "slide 1"))
+            self.assertNotIn("text.frq", rules(found, "FAIL"))
+            self.assertNotIn("text.caps-name", rules(found, None, "slide", "slide 1"))
+            self.assertIn("text.tagline", rules(found, "WARN", "slide", "slide 1"))
+            self.assertIn("text.caps-name", rules(found, "WARN", "slide", "slide 2"))
+            self.assertIn("text.tagline", rules(found, "FAIL", "slide", "slide 3"))
+            public = build_pptx(Path(tmp) / "public.pptx", [
+                ("Headline (standard)", sp("title", None, "FRQ results") + sp(None, None, "Frequentis Public"), None)])
+            self.assertIn("text.frq", rules(findings(public, "--year", "2024")[1], "FAIL", "slide", "slide 1"))
+
+    def test_a_questions_closing_slide_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            deck = build_pptx(Path(tmp) / "q.pptx", [("Headline (standard)", sp("title", None, "Questions?"), None)])
+            self.assertIn("slide.thank-you", rules(findings(deck, "--year", "2024")[1], "FAIL", "slide", "slide 1"))
+
+    def test_word_checks_used_styles_and_theme_fonts_only(self):
+        w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+        styles = (f'<?xml version="1.0" encoding="UTF-8"?><w:styles xmlns:w="{w}">'
+                  '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:asciiTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi"/>'
+                  '</w:rPr></w:rPrDefault></w:docDefaults>'
+                  '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr></w:style>'
+                  '<w:style w:type="paragraph" w:styleId="Heading1"><w:basedOn w:val="Normal"/><w:rPr>'
+                  '<w:rFonts w:asciiTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:color w:val="004182"/></w:rPr></w:style>'
+                  '<w:style w:type="character" w:styleId="Code"><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>'
+                  '<w:i/><w:color w:val="FF00FF"/></w:rPr></w:style></w:styles>')
+        theme = ('<?xml version="1.0" encoding="UTF-8"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+                 '<a:themeElements><a:clrScheme name="Office"><a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>'
+                 '<a:accent1><a:srgbClr val="4472C4"/></a:accent1></a:clrScheme><a:fontScheme name="Office">'
+                 '<a:majorFont><a:latin typeface="Calibri Light"/></a:majorFont><a:minorFont><a:latin typeface="Arial"/></a:minorFont>'
+                 '</a:fontScheme></a:themeElements></a:theme>')
+        with tempfile.TemporaryDirectory() as tmp:
+            path = minimal_docx(Path(tmp) / "doc.docx", [("", "Frequentis report")],
+                                footer_text="Frequentis General | © Frequentis AG 2026")
+            with zipfile.ZipFile(path, "a") as z:
+                z.writestr("word/styles.xml", styles)
+                z.writestr("word/theme/theme1.xml", theme)
+            body = zipfile.ZipFile(path).read("word/document.xml").decode().replace(
+                "<w:p><w:r>", '<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r>', 1)
+            parts = {n: zipfile.ZipFile(path).read(n) for n in zipfile.ZipFile(path).namelist()}
+            parts["word/document.xml"] = body.encode()
+            with zipfile.ZipFile(path, "w") as z:
+                for n, d in parts.items():
+                    z.writestr(n, d)
+            code, found = findings(path, "--year", "2026")
+            fonts = [f for f in found if f["rule"] == "font.non-brand"]
+            self.assertTrue(fonts and "Calibri Light" in fonts[0]["message"], found)
+            self.assertNotIn("Courier New", json.dumps(found))           # unused style: not reported
+            self.assertNotIn("text.italic", rules(found))
+            self.assertLessEqual(rules(found, None, "theme"), rules(found, "INFO", "theme"))
 
     def test_word_and_excel(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -604,9 +702,54 @@ class TestNewDeck(unittest.TestCase):
             code, found = findings(out, "--year", "2026")
             self.assertEqual([f for f in found if f["severity"] != "INFO"], [])
             self.assertEqual(code, 0)
-            r = subprocess.run([sys.executable, str(NEW_DECK), str(outline), str(out)],
+            r = subprocess.run([sys.executable, str(NEW_DECK), str(outline), str(out),
+                                "--classification", "Frequentis General"],
                                capture_output=True, text=True, check=False)
             self.assertNotEqual(r.returncode, 0, "never overwrites")
+
+    def run_new_deck(self, tmp, text, *args):
+        outline = Path(tmp) / "o.md"
+        outline.write_text(text, encoding="utf-8")
+        out = Path(tmp) / f"d{len(list(Path(tmp).iterdir()))}.pptx"
+        r = subprocess.run([sys.executable, str(NEW_DECK), str(outline), str(out), *args],
+                           capture_output=True, text=True, check=False)
+        return r, out
+
+    def test_the_classification_is_never_guessed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, out = self.run_new_deck(tmp, "# Title\n\n## One\n- a\n")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("classification", r.stderr)
+            self.assertFalse(out.exists())
+
+    def test_numbered_lists_paragraphs_and_bold_are_kept(self):
+        from pptx import Presentation
+        with tempfile.TemporaryDirectory() as tmp:
+            r, out = self.run_new_deck(tmp, "# Risks\n\n## Two risks need an owner\n"
+                                       "1. **Alarm routing** is late\n2) Spare parts\n"
+                                       "Both need a decision this sprint.\n\n## Divider only\n",
+                                       "--classification", "Frequentis Confidential")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            slides = list(Presentation(str(out)).slides)
+            body = " / ".join(sh.text_frame.text for sh in slides[1].placeholders
+                              if sh.placeholder_format.idx == 15)
+            self.assertIn("Alarm routing is late", body)
+            self.assertIn("Spare parts", body)
+            self.assertIn("Both need a decision this sprint.", body)
+            self.assertNotIn("**", body)
+            self.assertEqual(slides[2].slide_layout.name, "Headline (standard)")
+
+    def test_lines_it_cannot_place_are_reported_and_an_empty_slide_stops_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, out = self.run_new_deck(tmp, "# T\n\n## Costs\n| a | b |\n|---|---|\n",
+                                       "--classification", "Frequentis General")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("| a | b |", r.stderr)
+            self.assertFalse(out.exists())
+            r, out = self.run_new_deck(tmp, "# T\n\n## Costs\n- one\n```\ncode\n```\n",
+                                       "--classification", "Frequentis General")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("not placed", r.stderr)
 
 
 class TestPlacement(unittest.TestCase):

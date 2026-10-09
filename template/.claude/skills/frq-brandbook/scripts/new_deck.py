@@ -3,6 +3,8 @@
 
     python new_deck.py outline.md out.pptx --classification "Frequentis General" [--author "Ana Pop"]
 
+--classification is required: ask the person (Frequentis Public, General or Confidential).
+
 Needs python-pptx (run it with ~/.ai-sdlc/venv/bin/python when python3 has no pptx; install
 only with the person's consent, as ai-sdlc-doc-powerpoint describes). It never overwrites
 a file and never changes the template.
@@ -13,9 +15,13 @@ Outline format:
     Ana Pop, 9 October 2026
 
     ## Slide headline                 -> "Headline + field", or "Sub-headline + field"
-    > Optional sub-headline              when a "> " line follows
-    - Bullet
+    > Optional sub-headline              when a "> " line follows; "Headline (standard)"
+    - Bullet                             when the slide has no content
       - Second-level bullet (two spaces)
+    1. Numbered item (kept as a bullet; renumber by hand if the order matters)
+    A plain line becomes a paragraph. **Bold** and __bold__ markers are removed (the brand
+    avoids bold). Tables, code blocks and ### headings are not placed: they are listed on
+    stderr, and if a slide would end up with none of its content, nothing is written.
 
 A "Closing Slide" is added at the end (never a "Thank you" slide). Slides are filled by
 layout name and placeholder index only: no font, size or colour is set, so the template's
@@ -34,25 +40,40 @@ TEMPLATE = HERE.parent / "assets/templates/frq-template-slim-core.pptx"
 CLASSES = ("Frequentis Public", "Frequentis General", "Frequentis Confidential")
 
 
+def plain(text):
+    return re.sub(r"(\*\*|__)(.+?)\1", r"\2", text).strip()
+
+
 def parse(text):
-    """(title, subtitle, [(headline, subheadline, [(bullet, level)])])."""
-    title, subtitle, slides = "", "", []
+    """(title, subtitle, [(headline, subheadline, [(text, level)], [ignored lines])], [ignored])."""
+    title, subtitle, slides, ignored, fence = "", "", [], [], False
     for raw in text.splitlines():
         line = raw.rstrip()
+        if line.strip().startswith("```"):
+            fence = not fence
+            (slides[-1][3] if slides else ignored).append(line)
+            continue
         if not line.strip():
             continue
-        if line.startswith("## "):
-            slides.append([line[3:].strip(), "", []])
+        target = slides[-1][3] if slides else ignored
+        if fence or line.lstrip().startswith(("|", "###", "<", "!")):
+            target.append(line)
+        elif line.startswith("## "):
+            slides.append([plain(line[3:]), "", [], []])
         elif line.startswith("# "):
-            title = line[2:].strip()
+            title = plain(line[2:])
         elif slides and line.startswith("> "):
-            slides[-1][1] = line[2:].strip()
-        elif slides and re.match(r"^\s*[-*] ", line):
+            slides[-1][1] = plain(line[2:])
+        elif slides and re.match(r"^\s*([-*+]|\d+[.)]) ", line):
             indent = len(line) - len(line.lstrip())
-            slides[-1][2].append((re.sub(r"^\s*[-*] ", "", line), min(indent // 2, 4)))
-        elif not slides and title and not subtitle:
-            subtitle = line.strip()
-    return title, subtitle, [tuple(s) for s in slides]
+            slides[-1][2].append((plain(re.sub(r"^\s*([-*+]|\d+[.)]) ", "", line)), min(indent // 2, 4)))
+        elif slides:
+            slides[-1][2].append((plain(line), 0))
+        elif title and not subtitle:
+            subtitle = plain(line)
+        else:
+            ignored.append(line)
+    return title, subtitle, [tuple(s) for s in slides], ignored
 
 
 def placeholder(slide, idx):
@@ -96,15 +117,27 @@ def set_footer(prs, classification, year, title, author):
 def build(outline, out, classification, year, author=None, template=TEMPLATE):
     from pptx import Presentation                       # python-pptx, from the consented venv
 
-    title, subtitle, slides = parse(Path(outline).read_text(encoding="utf-8"))
+    title, subtitle, slides, ignored = parse(Path(outline).read_text(encoding="utf-8"))
     if not title:
         raise ValueError("the outline needs a '# Deck title' line")
+    lost = ignored + [line for s in slides for line in s[3]]
+    if lost:
+        print("new_deck: these lines were not placed (add them by hand):\n  " + "\n  ".join(lost),
+              file=sys.stderr)
+    empty = [s[0] for s in slides if s[3] and not s[2]]
+    if empty:
+        raise ValueError("nothing of these slides could be placed, so no deck was written: "
+                         + ", ".join(empty))
     prs = Presentation(str(template))
     layouts = {l.name: l for l in prs.slide_layouts}
     s = prs.slides.add_slide(layouts["Standard TITLE"])
     s.shapes.title.text = title
     placeholder(s, 2).text = subtitle or (author or "")
-    for headline, sub, bullets in slides:
+    for headline, sub, bullets, _ in slides:
+        if not sub and not bullets:
+            s = prs.slides.add_slide(layouts["Headline (standard)"])
+            s.shapes.title.text = headline
+            continue
         if sub:
             s = prs.slides.add_slide(layouts["Sub-headline + field"])
             placeholder(s, 14).text = sub
@@ -123,7 +156,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="New on-brand deck from an outline and the bundled template.")
     ap.add_argument("outline")
     ap.add_argument("out")
-    ap.add_argument("--classification", choices=CLASSES, default="Frequentis General")
+    ap.add_argument("--classification", choices=CLASSES, required=True,
+                    help="ask the person; never guess it")
     ap.add_argument("--year", type=int, default=datetime.date.today().year)
     ap.add_argument("--author")
     args = ap.parse_args(argv)
