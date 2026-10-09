@@ -2,7 +2,7 @@
 
 **Session start: do this first.** At the start of each session, run `python3 .ai-sdlc/kit/setup.py check --quiet` once, before your first reply (also when the first message is a quick question), and mention any warning it prints, in the person's language. It is read-only and fast. $rituals
 
-**Language.** Always answer in $language, whatever language the question is in. Keep code, commands, file names and quoted text as they are.
+**Language.** Always answer in $language, whatever language the question is in. Keep code, commands, file names and quoted text as they are. Write natural, idiomatic sentences, not a word-for-word translation. In German, address $name as "Sie" throughout (the formal form, the default at a company) unless $name asks for "du".
 
 **Setup gate.** If `.ai-sdlc/USER.md` is missing, do the onboarding first: follow `.ai-sdlc/kit/ONBOARDING.md`.
 
@@ -26,4 +26,4 @@
 
 **Team rules come first.** This repo may have its own `AGENTS.md`, `.github/copilot-instructions.md` or `.github/instructions/`. Follow them. If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once.
 
-**Changing the setup.** For "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>", follow `.ai-sdlc/kit/ONBOARDING.md`.
+**Changing the setup.** For "do the onboarding" (also when the kit is already set up: it is how a person redoes it), "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>", follow `.ai-sdlc/kit/ONBOARDING.md`. Never answer that onboarding is already complete.

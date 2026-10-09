@@ -54,7 +54,22 @@ class TestCoreInstructions(unittest.TestCase):
         self.assertIn("never offer to\ncommit these files", skill("deceneus"))
 
 
+    def test_do_the_onboarding_always_goes_to_onboarding_md(self):
+        """A set-up repo got "Onboarding is already complete" (lifecycle E2E, item 2)."""
+        line = [l for l in core().splitlines() if l.startswith("**Changing the setup.**")][0]
+        self.assertIn('"do the onboarding" (also when the kit is already set up', line)
+        self.assertIn("`.ai-sdlc/kit/ONBOARDING.md`", line)
+
+    def test_german_uses_one_form_of_address(self):
+        self.assertIn('In German, address $name as "Sie" throughout', core())
+
+
 class TestConnectors(unittest.TestCase):
+    def test_disconnect_needs_the_persons_yes(self):
+        text = skill("connectors")
+        self.assertIn("run it again with `--yes` only after they say yes", text)
+        self.assertIn("Never add `--yes` on your own", text)
+
     def test_the_role_table_matches_the_role_packs(self):
         """A PO/SM run was told to connect Bitbucket and Jenkins."""
         all_packs = packs.load(KIT)
