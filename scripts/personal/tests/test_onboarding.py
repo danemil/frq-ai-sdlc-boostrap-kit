@@ -111,7 +111,14 @@ class TestOnboarding(unittest.TestCase):
         self.assertIn("Only if they say yes", step9)
 
     def test_update_names_where_to_get_the_kit(self):
-        self.assertIn("https://github.com/danemil/frq-ai-sdlc-boostrap-kit", section("Update the kit"))
+        # The address itself names the client, so it stays in README.md (the client-name rule
+        # for Copilot guidance, test_roles); ONBOARDING sends Copilot there for it.
+        update = section("Update the kit")
+        self.assertIn('section "Get the latest version from GitHub"', update)
+        self.assertIn("**Releases**", update)
+        readme = (helpers.KIT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("### Get the latest version from GitHub", readme)
+        self.assertIn("https://github.com/danemil/frq-ai-sdlc-boostrap-kit", readme)
         self.assertNotIn("rsync", DOC)
 
     def test_this_file_says_it_is_the_one_next_to_setup_py(self):
