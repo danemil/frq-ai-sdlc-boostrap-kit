@@ -53,6 +53,20 @@ class TestUpdate(unittest.TestCase):
         self.assertIn("Newer kit line.", (self.root / (PO + ".kit-new")).read_text())
         self.assertEqual(helpers.git(self.root, "status", "--porcelain").stdout, "")
 
+    def test_an_update_cleans_a_bogus_skill_entry(self):
+        state_file = self.root / paths.STATE_REL
+        st = json.loads(state_file.read_text())
+        st["choices"]["drop_skills"] = ["ai-sdlc-drawio"]
+        st["choices"]["add_skills"] = ["ai-sdlc-skill-creator"]
+        state_file.write_text(json.dumps(st))
+        code, out = self.update()
+        self.assertEqual(code, 0, out)
+        st = json.loads(state_file.read_text())
+        self.assertEqual((st["choices"]["add_skills"], st["choices"]["drop_skills"]),
+                         (["skill-creator"], ["drawio"]))
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-skill-creator/SKILL.md").is_file())
+        self.assertFalse((self.root / ".agents/skills/ai-sdlc-drawio").exists())
+
     def test_a_skill_the_newer_kit_drops_is_removed(self):
         role = self.newer / "roles/dev/role.json"
         data = json.loads(role.read_text())

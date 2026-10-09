@@ -37,13 +37,43 @@ def _lang(value) -> str:
     return value
 
 
-def _skill(kit, value) -> str:
+def _skill_id(value) -> str:
+    """A skill id as the kit's library names it: `ai-sdlc-drawio` and `drawio` are the same."""
+    value = (value or "").strip()
+    return value[len(packs.PREFIX):] if value.startswith(packs.PREFIX) else value
+
+
+def _skill(kit, value, verb="added") -> str:
+    value = _skill_id(value)
     if value in packs.UNSUPPORTED_SKILLS:
-        raise SetupError(f"The skill {value} cannot be added: {packs.UNSUPPORTED_SKILLS[value]}.")
+        raise SetupError(f"The skill {value} cannot be {verb}: {packs.UNSUPPORTED_SKILLS[value]}.")
     if value not in packs.available_skills(kit):
         raise SetupError(f"There is no skill {value}. Available: "
                          f"{', '.join(packs.available_skills(kit))}.")
     return value
+
+
+def _clean_skill_choices(kit, c, forget_added=True) -> list[str]:
+    """Repair skill names an older kit stored unchecked: `ai-sdlc-x` becomes `x`, and a skill
+    the kit does not have is forgotten (left-out ones always; added ones when forget_added,
+    update reports those itself). Returns a summary line for each repair."""
+    known, lines = set(packs.available_skills(kit)), []
+    for key in ("add_skills", "drop_skills"):
+        kept = []
+        for s in c[key]:
+            sid = _skill_id(s)
+            if sid in known:
+                if sid != s:
+                    lines.append(f"- Your choices named the skill {s}; it is {sid} now.")
+                kept.append(sid)
+            elif key == "drop_skills" or forget_added:
+                what = "left out" if key == "drop_skills" else "added"
+                lines.append(f"- Your choices {what} a skill the kit does not have ({s}); "
+                             "that entry is gone.")
+            else:
+                kept.append(s)
+        c[key] = sorted(set(kept))
+    return lines
 
 
 def _need_state(root) -> dict:
@@ -208,18 +238,21 @@ def cmd_change(args, cwd, kit):
         c["git_comfort"] = None if args.git_comfort == "default" else args.git_comfort
     if args.rituals is not None:
         c["rituals"] = None if args.rituals == "default" else args.rituals
-    for s in args.add_skill:
-        _skill(kit, s)
+    adds = [_skill(kit, s) for s in args.add_skill]            # every name checked first
+    drops = [_skill(kit, s, "left out") for s in args.drop_skill]
+    repaired = _clean_skill_choices(kit, c)
+    for s in adds:
         c["add_skills"] = sorted(set(c["add_skills"]) | {s})
         c["drop_skills"] = [x for x in c["drop_skills"] if x != s]
-    for s in args.drop_skill:
+    for s in drops:
         c["drop_skills"] = sorted(set(c["drop_skills"]) | {s})
         c["add_skills"] = [x for x in c["add_skills"] if x != s]
     if is_git:
         exclude.protect(root)
     report = place.apply(root, st, place.wanted_files(kit, all_packs, c))
     state.save(root, st)
-    return 0, _summary("Updated", root, is_git, kit, all_packs, st, report) + _check_lines(root)[1]
+    return 0, (_summary("Updated", root, is_git, kit, all_packs, st, report) + repaired
+               + _check_lines(root)[1])
 
 
 def cmd_update(args, cwd, kit):
@@ -239,6 +272,7 @@ def cmd_update(args, cwd, kit):
     c = st["choices"]
     gone = [r for r in c["roles"] if r not in packs.selectable(all_packs)]
     c["roles"] = [r for r in c["roles"] if r not in gone]
+    repaired = _clean_skill_choices(kit, c, forget_added=False)
     lost = [s for s in c["add_skills"] if s not in packs.available_skills(kit)]
     c["add_skills"] = [s for s in c["add_skills"] if s not in lost]
     wanted = place.wanted_files(kit, all_packs, c)  # prepared from the copy, before it moves
@@ -259,7 +293,7 @@ def cmd_update(args, cwd, kit):
         lines.append(f"- The newer kit has no {', '.join(gone)} role any more; it was dropped.")
     if lost:
         lines.append(f"- The newer kit has no {', '.join(lost)} skill any more; it was dropped.")
-    return 0, lines + _check_lines(root)[1]
+    return 0, lines + repaired + _check_lines(root)[1]
 
 
 def _remove_plan(root, st) -> tuple[int, list[str]]:

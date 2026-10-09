@@ -400,7 +400,7 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 | an extra skill | `--add-skill skill-creator` |
 | a skill left out | `--drop-skill drawio` |
 
-`--add-skill` and `--drop-skill` can be repeated. The skill names are the folder names in `.ai-sdlc/kit/template/.claude/skills/`; a wrong name lists the available ones. `git-verbs` cannot be added.
+`--add-skill` and `--drop-skill` can be repeated. The skill names are the folder names in `.ai-sdlc/kit/template/.claude/skills/`, such as `drawio` (`ai-sdlc-drawio` works too); a wrong name, for either option, lists the available ones. `git-verbs` cannot be added.
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py change --lang de --git-comfort guided --rituals none --add-skill skill-creator --drop-skill drawio
@@ -552,7 +552,7 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | The document skills: `pip` cannot reach the package index | A company proxy or internal package mirror is needed. | Ask IT for the pip proxy or index settings (for example `HTTPS_PROXY`, or `pip config set global.index-url <mirror>`), then try again. |
 | The LikeC4 skill cannot validate or export a `.c4` model: `npx` cannot reach the npm registry, or Node is not installed | The `likec4` CLI comes from npm, which the VM may block. | The `.c4` file is still kept. Validate and export with the LikeC4 VS Code extension, or ask IT for npm registry access. Copilot asks before it downloads the CLI. |
 | Copilot says it cannot find `ONBOARDING.md`, or does something else when you say "do the onboarding" | Copilot did not look in the kit folder. Its file search may skip folders that git ignores, such as `.ai-sdlc/kit/` after setup. | Point it there: *"follow ai-sdlc-kit/ONBOARDING.md"* before setup (your folder name), or *"follow .ai-sdlc/kit/ONBOARDING.md"* after setup. |
-| `There is no skill <name>. Available: …` | A wrong skill name in `--add-skill`. | Use a name from the list it prints. |
+| `There is no skill <name>. Available: …` | A wrong skill name in `--add-skill` or `--drop-skill`. | Use a name from the list it prints. |
 | `The kit is not set up in this repo yet` | `change`, `update`, `ack` or `remove` in a repo without the kit. | Check you are in the right repo (`git rev-parse --show-toplevel`), or do the [first-time setup](#1-first-time-setup-in-a-repo). |
 
 Still stuck? Run `python3 .ai-sdlc/kit/setup.py check` and `python3 .ai-sdlc/kit/setup.py connections`, and share the output with the kit owner. It never contains a secret. For connector problems, `AI_SDLC_DEBUG=1 python3 .ai-sdlc/kit/connectors.py <name> whoami` also prints each request, with the login hidden.

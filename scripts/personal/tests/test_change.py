@@ -104,6 +104,40 @@ class TestChange(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("cannot be added", out)
 
+    def test_an_unknown_skill_to_drop_is_refused_like_one_to_add(self):
+        before = helpers.snapshot(self.root)
+        code, out = helpers.cli(self.root, self.kit, "change", "--drop-skill", "nope")
+        self.assertEqual(code, 2, out)
+        self.assertIn("There is no skill nope.", out)
+        code, out = helpers.cli(self.root, self.kit, "change", "--drop-skill", "git-verbs")
+        self.assertEqual(code, 2, out)
+        self.assertEqual(helpers.snapshot(self.root), before)
+
+    def test_the_ai_sdlc_prefix_is_accepted_on_add_and_drop(self):
+        self.change("--add-skill", "ai-sdlc-skill-creator", "--drop-skill", "ai-sdlc-drawio")
+        self.assertTrue((self.root / ".agents/skills/ai-sdlc-skill-creator/SKILL.md").is_file())
+        self.assertFalse((self.root / ".agents/skills/ai-sdlc-drawio").exists())
+        st = json.loads((self.root / paths.STATE_REL).read_text())
+        self.assertEqual((st["choices"]["add_skills"], st["choices"]["drop_skills"]),
+                         (["skill-creator"], ["drawio"]))
+        user = (self.root / paths.USER_REL).read_text(encoding="utf-8")
+        self.assertIn("- **Skills left out:** drawio\n", user)
+
+    def test_a_bogus_skill_already_stored_is_cleaned_on_the_next_change(self):
+        state_file = self.root / paths.STATE_REL
+        st = json.loads(state_file.read_text())
+        st["choices"]["drop_skills"] = ["ai-sdlc-drawio", "nosuch"]   # as an older kit stored them
+        state_file.write_text(json.dumps(st))
+        out = self.change()
+        st = json.loads(state_file.read_text())
+        self.assertEqual(st["choices"]["drop_skills"], ["drawio"])
+        self.assertIn("- Your choices named the skill ai-sdlc-drawio; it is drawio now.", out)
+        self.assertIn("- Your choices left out a skill the kit does not have (nosuch); "
+                      "that entry is gone.", out)
+        self.assertFalse((self.root / ".agents/skills/ai-sdlc-drawio").exists())
+        self.assertIn("- **Skills left out:** drawio\n",
+                      (self.root / paths.USER_REL).read_text(encoding="utf-8"))
+
     def test_git_comfort_override_and_back_to_the_default(self):
         self.change("--git-comfort", "git-native")
         self.assertIn("They use git themselves.", (self.root / CORE).read_text())

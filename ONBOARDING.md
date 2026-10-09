@@ -35,6 +35,8 @@ Ask what they want to change, then run `python3 .ai-sdlc/kit/setup.py change` wi
 | an extra skill | `--add-skill <skill>` |
 | a skill left out | `--drop-skill <skill>` |
 
+`<skill>` is the skill id without `ai-sdlc-`, for example `drawio` for `ai-sdlc-drawio`. A wrong name is refused and the available ones are listed.
+
 Relay the summary. If it says it kept their edit, explain that the kit's newer copy is next to their file as `<file>.kit-new`, for them to compare.
 
 ## Update the kit
