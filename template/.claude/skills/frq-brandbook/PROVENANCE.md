@@ -39,7 +39,11 @@ Written for this kit (2026-10-09) from brand materials the client owns and provi
 3. The **OneATM style guide** (and the Defence guide), both "being updated" per PDF p.41.
 4. Confirmation of **C1** (which grey HEX values to use in Office files), **C2** (the master's off-palette title gradient, a template defect) and **C6** (formal register: active voice and "we", or third person and passive).
 5. A copy of the Word templates `Doknorme.dotm` and `Doknormd.dotm` (Word → Shared Templates, PDF p.45) and the "creating documents using templates" training material, whether a stripped copy may be bundled with this skill, whether there is an Excel template, and whether the key visuals may be used in material shared outside Frequentis.
-6. Permission for the kit to carry these brand materials once the client versions and extends the kit itself.
+6. **Rights (gating before the kit leaves Frequentis):** permission for the kit to carry the logos, key visuals and slim template, and for the client to version and extend them.
+7. **White on light blue** is used in the official template (C10) but fails WCAG contrast at any size; GCM should know.
+8. The policy on **"FRQ" in internal documents**, and which classification makes a file "external" (the checker fails "FRQ" only in Frequentis Public or unclassified files).
+9. A **link or request process for the Icon Stock and Photo stock** that the skill can point people to.
+10. A small-size logo rule for screens (below 5 mm the guidelines ask for a typographic logo in FF DIN Black, which cannot be bundled).
 
 ## Validation
 
