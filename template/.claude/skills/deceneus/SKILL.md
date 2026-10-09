@@ -5,7 +5,7 @@ description: Review the conversation for lasting preferences, recurring instruct
   preferences, personal notes, or personal skills. Propose exact content for approval
   BEFORE writing anything. Use when the user says "deceneus", asks what should be
   remembered from this chat, what to save from this session, or asks to turn what we
-  did into a skill.
+  did into a skill, or says "remember that", "from now on" or "always do X".
 ---
 
 # deceneus
@@ -13,7 +13,8 @@ description: Review the conversation for lasting preferences, recurring instruct
 Turn a finished conversation into durable configuration. **Propose first, write only
 what is approved.**
 
-Everything you propose is **personal and hidden from git**. You never propose
+Everything you propose is **personal and hidden from git**, on purpose: never offer to
+commit these files, and never stage them. You never propose
 editing a team file: `AGENTS.md`, `.github/copilot-instructions.md`, any file in
 `.github/instructions/` not named `ai-sdlc-*`, anything under `.claude/` or
 `.vscode/`. If a lesson belongs in a team file, say so in one line and leave it to

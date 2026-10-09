@@ -9,7 +9,7 @@ The kit reads five tools from the command line: `jira`, `confluence`, `bitbucket
 
 ## Rules
 
-- **Never touch a secret.** Never ask for, accept, look at, paste, store, repeat or write down a token, password, API key or client secret. Never set an `AI_SDLC_*` variable for the person, and never open or print the files in `~/.config/ai-sdlc/connectors/` (or `$AI_SDLC_CONFIG_DIR`). If the person pastes a secret into the chat, do not use it or repeat it. Tell them: "Please revoke that token now (it was shared in a chat) and create a new one; then save it yourself with the connect command in your own terminal."
+- **Never touch a secret.** Never ask for, accept, look at, paste, store, repeat or write down a token, password, API key or client secret. Never set an `AI_SDLC_*` variable for the person, and never open or print the files in `~/.config/ai-sdlc/connectors/` (or `$AI_SDLC_CONFIG_DIR`). If the person pastes a secret into the chat, do not use it, and never quote it back, not even in part or masked: call it "the token you pasted". Tell them: "Please revoke the token you pasted now (it was shared in a chat) and create a new one; then save it yourself with the connect command in your own terminal."
 - **Read-only.** These commands only read. Never say you created, changed, moved, commented on, approved, posted or triggered anything in those tools. To change something there, write the text for the person to post themselves.
 - **Cite every item.** Every item in the output has a `url`. Put the link next to each fact you use. No link, no claim.
 - **Facts only.** Summarise what the output says; never invent an issue, field, status, date or person. If a field is `null` or missing, say it is not set. If `truncated` is `true`, say there are more and offer a higher `--limit`.
@@ -46,6 +46,8 @@ Always add `--json`. The output is `{"connector", "command", "source", "item"}` 
 | `jama` | `whoami` · `item <id>` · `search "<words>" [--project ID] [--type ID] [--limit N]` · `relationships <id> [--direction up\|down\|both]` · `testruns (--cycle ID \| --plan ID) [--limit N]` |
 | `jenkins` | `whoami` · `job <folder/job>` · `build <folder/job> <number\|last\|lastSuccessful\|lastFailed>` · `tests <folder/job> <number\|last> [--all]` |
 
+**Jira sprints.** For "my current sprint" or "the open sprint", search by JQL; no board id is needed: `python3 .ai-sdlc/kit/connectors.py jira search "sprint in openSprints() AND assignee = currentUser()" --json` (drop the `assignee` part for the whole team's sprint, or add `AND project = KEY`). Ask for a board id only when the person wants a board's sprint list (`sprints <board-id>`).
+
 Exit codes: `0` ok, `1` error (a plain message on stderr), `2` wrong arguments, `3` not connected.
 
 ## When it fails
@@ -67,4 +69,15 @@ Never work around an error by asking for the login, by calling the tool's web AP
 
 ## Which connectors fit a role
 
-The person's setup summary names the connectors their roles usually need. Suggest those first; anyone may connect any of the five.
+Suggest connecting only the tools for the person's roles (the core instructions name the roles; `setup.py check` and the setup summary list them as "Connectors for your roles"):
+
+| Role | Connectors |
+|---|---|
+| Product Owner, Product Manager | jira, confluence, jama |
+| Scrum Master / Team Coach | jira, confluence |
+| Developer | bitbucket, jira, jenkins |
+| QA | jira, jama, jenkins |
+| Architect | confluence, bitbucket, jira |
+| Engineering Manager | jenkins, bitbucket, jira |
+
+When a task would use evidence from a tool outside that list (for example builds or pull requests for a Scrum Master), say what evidence is missing and do not suggest connecting the tool; anyone may connect any of the five if they ask.
