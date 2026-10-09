@@ -1,6 +1,6 @@
 # Phase 1 — Onboarding Global + Per-Seat Phasing: Design
 
-**Status:** approved · **Version:** 1.0 · **Author:** Georgian Dinca (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
+**Status:** approved · **Version:** 1.0 · **Author:** kit maintainers (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
 
 Design for Phase 1 of the [evolution roadmap](./2026-07-01-ai-sdlc-evolution-roadmap.md), built on top of [Phase 0](./2026-07-02-phase-0-shared-primitives-design.md) (branch `feat/phase-1-onboarding-phasing` stacks on `feat/phase-0-shared-primitives`). Phase 1 turns **seat** from a stored label into a real **phase**: onboarding splits into Global (Phase A) and Seat (Phase B), a `seat-profiles.json` manifest becomes the single source of per-seat data, and the SessionStart hook loads the seat's context live every session.
 

@@ -27,7 +27,7 @@ def _seed_db(path, rows):
 
 class TestSanitize(unittest.TestCase):
     def test_email_local_part_style(self):
-        self.assertEqual(ex.sanitize_user("Geo.Dinca+x"), "geo.dinca-x")
+        self.assertEqual(ex.sanitize_user("Ana.Pop+x"), "ana.pop-x")
 
     def test_empty_or_all_junk_is_none(self):
         self.assertIsNone(ex.sanitize_user("  "))
@@ -37,7 +37,7 @@ class TestSanitize(unittest.TestCase):
 
 class TestResolveUser(unittest.TestCase):
     def test_override_wins_and_is_sanitized(self):
-        self.assertEqual(ex.resolve_user("Geo@X"), "geo-x")
+        self.assertEqual(ex.resolve_user("Ana@X"), "ana-x")
 
 
 class TestExport(unittest.TestCase):

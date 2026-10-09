@@ -1,6 +1,6 @@
 # Phase 3 — Metrics Dashboard: Design
 
-**Status:** approved · **Version:** 1.0 · **Author:** Georgian Dinca (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
+**Status:** approved · **Version:** 1.0 · **Author:** kit maintainers (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
 
 Design for Phase 3 of the [evolution roadmap](./2026-07-01-ai-sdlc-evolution-roadmap.md), on `main` after Phases 0–2 merged (branch `feat/phase-3-metrics-dashboard`). Phase 3 adds **commit-attribution** metrics (AI / mixed / human by LOC) to the existing dashboard, using **git-ai line-level notes with a `Co-Authored-By` trailer fallback**, so a review/retro can see how much of the codebase AI is writing — paired with quality, never volume alone.
 

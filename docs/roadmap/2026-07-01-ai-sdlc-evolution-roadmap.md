@@ -1,6 +1,6 @@
 # AI-SDLC Bootstrap Kit — Evolution Roadmap
 
-**Status:** approved · **Version:** 0.1 · **Author:** Georgian Dinca (+ AI) · **Created:** 2026-07-01 · **Last reviewed:** 2026-07-01
+**Status:** approved · **Version:** 0.1 · **Author:** kit maintainers (+ AI) · **Created:** 2026-07-01 · **Last reviewed:** 2026-07-01
 
 This roadmap sequences four improvements to the kit into buildable phases. It is a **decomposition artefact**, not a design: each phase below earns its own design spec → implementation plan → build cycle. Approve the *shape and order* here; the detail is deferred to per-phase specs.
 
