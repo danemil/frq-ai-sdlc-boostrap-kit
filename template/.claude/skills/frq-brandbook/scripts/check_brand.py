@@ -424,7 +424,9 @@ def check_pptx(pkg, tokens, year) -> Report:
             report.add(severity.get(rule, "FAIL"), "slide", where, rule, detail)
         slide_texts.append((where, text))
         if re.search(r"\bthank(s| you)\b", text, re.I):
-            report.add("FAIL", "slide", where, "slide.thank-you", "A 'Thank you' slide.")
+            short = len(re.findall(r"\w+", text)) <= 12          # a closing slide, not a sentence of thanks
+            report.add("FAIL" if short else "WARN", "slide", where, "slide.thank-you",
+                       "A 'Thank you' slide." if short else "'Thank you' on a content slide; is it a closing slide?")
         text_findings(report, "slide", where, text, tokens)
         shapes = shapes_text(xml)
         paras = [p for _, ps in shapes for p in ps if p[3]]
