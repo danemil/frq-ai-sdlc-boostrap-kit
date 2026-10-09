@@ -70,7 +70,7 @@ The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
 Set up AI-SDLC 0.8.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 98 file(s): .agents/skills/ (94 in 16 skills), .ai-sdlc/ (1), .github/instructions/ (3)
+- Wrote 99 file(s): .agents/skills/ (94 in 16 skills), .ai-sdlc/ (1), .github/hooks/ (1), .github/instructions/ (3)
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
@@ -430,13 +430,14 @@ Your current choices are in `.ai-sdlc/USER.md`. Read it, but do not edit it by h
 
 ## 6. Check your setup
 
-**(a) Copilot:** say **"check the kit"**. Copilot also runs the short check at the start of each session and mentions anything it finds.
+**(a) Copilot:** say **"check the kit"**. Copilot also runs the short check at the start of each session and mentions anything it finds. In the Copilot CLI the kit's session hook (`.github/hooks/ai-sdlc-session.json`, hidden from git) runs it before your first message, in a folder you trusted when the CLI asked; elsewhere Copilot runs it because the instructions say so.
 
 **(b) Terminal:**
 
 ```bash
 python3 .ai-sdlc/kit/setup.py check           # full list, one finding per line, with its id
 python3 .ai-sdlc/kit/setup.py check --quiet   # one line, as at the start of a session
+python3 .ai-sdlc/kit/setup.py check --quiet --hook   # the same line as JSON, for the session hook
 ```
 
 ```text
