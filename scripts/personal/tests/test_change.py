@@ -150,8 +150,22 @@ class TestChange(unittest.TestCase):
         (self.root / CORE).write_text("my own core\n")
         out = self.change("--lang", "de")
         self.assertEqual((self.root / CORE).read_text(), "my own core\n")
-        self.assertIn(f"Kept your edit in {CORE}", out)
+        self.assertIn(f"- Kept your edit in {CORE}. The kit's newer copy is next to it as "
+                      f"{CORE}.kit-new, for you to compare.", out)
         self.assertIn("Always answer in German", (self.root / (CORE + ".kit-new")).read_text())
+
+    def test_an_edited_file_the_kit_did_not_change_has_nothing_to_compare(self):
+        (self.root / PO).write_text("my own po\n")
+        out = self.change("--lang", "de")              # the po file does not depend on it
+        self.assertIn(f"- Kept your edit in {PO}. The kit's copy has not changed, so there is "
+                      "nothing to compare.", out)
+        self.assertFalse((self.root / (PO + ".kit-new")).exists())
+
+    def test_change_verbose_lists_every_file(self):
+        out = helpers.cli(self.root, self.kit, "change", "--lang", "de", "--verbose")[1]
+        self.assertIn(f"- Wrote 2 file(s): {paths.USER_REL}, {CORE}\n", out)
+        out = self.change("--lang", "ro")
+        self.assertIn("- Wrote 2 file(s): .ai-sdlc/ (1), .github/instructions/ (1)\n", out)
         self.assertEqual(helpers.git(self.root, "status", "--porcelain").stdout, "")
 
     def test_change_with_no_options_repairs_missing_files(self):

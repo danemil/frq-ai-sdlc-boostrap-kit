@@ -45,9 +45,17 @@ class TestUpdate(unittest.TestCase):
         self.assertEqual(st["kit_version"], "9.9.9")
         self.assertEqual(st["choices"]["roles"], ["po", "dev"])
 
+    def test_the_summary_says_where_the_copy_went_and_what_it_replaced(self):
+        old = paths.kit_version(self.kit)
+        code, out = self.update()
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"- Moved kit-newer into .ai-sdlc/kit (replaced {old}).", out)
+
     def test_unedited_files_are_refreshed_and_edited_ones_kept(self):
         (self.root / PO).write_text("my po notes\n")
-        self.update()
+        code, out = self.update()
+        self.assertIn(f"- Kept your edit in {PO}. The kit's newer copy is next to it as "
+                      f"{PO}.kit-new, for you to compare.", out)
         self.assertIn("Newer kit line.", (self.root / CORE).read_text())
         self.assertEqual((self.root / PO).read_text(), "my po notes\n")
         self.assertIn("Newer kit line.", (self.root / (PO + ".kit-new")).read_text())

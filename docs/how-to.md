@@ -70,14 +70,14 @@ The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
 Set up AI-SDLC 0.8.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 98 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
+- Wrote 98 file(s): .agents/skills/ (94 in 16 skills), .ai-sdlc/ (1), .github/instructions/ (3)
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
 Check: all good.
 ```
 
-Now `git status` shows nothing new. Everything the kit added is hidden through `.git/info/exclude`, on your computer only.
+Now `git status` shows nothing new. Everything the kit added is hidden through `.git/info/exclude`, on your computer only. The summary counts the files per folder; add `--verbose` to `setup`, `change` or `update` to list every file.
 
 > **`setup` is only for this first time.** Running it again in the same repo is refused: *"A kit is already set up in this repo (.ai-sdlc/kit). To use this newer copy, say "update the kit"."* For a newer kit use [update](#2-update-the-kit-to-a-newer-version); for other choices use [change](#5-change-your-preferences). `setup` is also not the connect command. `setup.py setup jira` fails with `unrecognized arguments: jira`.
 
@@ -127,19 +127,20 @@ python3 ai-sdlc-kit-new/setup.py update
 
 - `.ai-sdlc/kit` is replaced by the newer copy, and the copied folder (`ai-sdlc-kit-new/`) disappears: it was moved there.
 - Your choices stay: name, roles, language, git comfort, session summary, skills added or left out. Files you never edited are refreshed.
-- A file **you edited** is kept as it is. If the kit's version of it changed, the new one is put next to it as `<file>.kit-new`.
+- A file **you edited** is kept as it is. If the kit's version of it changed, the new one is put next to it as `<file>.kit-new`, and the summary says so; otherwise it says there is nothing to compare.
 - An **older** copy is refused and nothing changes: *"This copy is older (0.4.0) than the kit set up here (0.4.1). Nothing was changed."*
 - A copy **outside** the repo is refused: *"Copy the newer kit folder into the repo first; it is at …"*
 - `git status` stays clean.
 
-Real output, with one edited file:
+Example output, with one edited file:
 
 ```text
 $ python3 ai-sdlc-kit-new/setup.py update
-Updated to AI-SDLC 0.4.1 for Ana: Product Owner, QA · English.
+Updated to AI-SDLC 0.8.1 for Ana: Product Owner, QA · English.
+- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.8.0).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 1 file(s): .github/instructions/ai-sdlc-po.instructions.md.kit-new
-- Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's copy, if it changed, is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new.
+- Wrote 1 file(s): .github/instructions/ (1)
+- Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's newer copy is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare.
 - Skills: … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Check: all good.
@@ -404,10 +405,10 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py change --lang de --git-comfort guided --rituals none --add-skill skill-creator --drop-skill drawio
-Updated AI-SDLC 0.4.1 for Ana: Product Owner, QA · German (Deutsch).
+Updated AI-SDLC 0.8.0 for Ana: Product Owner, QA · German (Deutsch).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 3 file(s): .agents/skills/ai-sdlc-skill-creator/SKILL.md, .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md
-- Removed 6 file(s) no longer needed: .agents/skills/ai-sdlc-drawio/LICENSE, …
+- Wrote 3 file(s): .agents/skills/ (1 in 1 skill), .ai-sdlc/ (1), .github/instructions/ (1)
+- Removed 6 file(s) no longer needed: .agents/skills/ (6 in 1 skill)
 - Skills: … · git: guided · session summary: off
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Check: all good.

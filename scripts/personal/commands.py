@@ -99,7 +99,28 @@ def _need_whole_kit(kit, copied: bool, command: str) -> None:
 
 # --- summaries -----------------------------------------------------------------
 
-def _summary(verb, root, is_git, kit, all_packs, st, report) -> list[str]:
+def _where(rels, verbose=False) -> str:
+    """The files as a list (verbose), or as counts per folder: a skill's files count under
+    .agents/skills/ with the number of skills, any other file under its own folder."""
+    if verbose:
+        return ", ".join(rels)
+    groups, skills = {}, {}
+    for rel in rels:
+        parts = rel.split("/")
+        if rel.startswith(".agents/skills/") and len(parts) > 3:
+            folder = ".agents/skills/"
+            skills.setdefault(folder, set()).add(parts[2])
+        else:
+            folder = rel.rsplit("/", 1)[0] + "/" if "/" in rel else "./"
+        groups[folder] = groups.get(folder, 0) + 1
+    out = []
+    for folder, n in sorted(groups.items()):
+        k = len(skills.get(folder, ()))
+        out.append(f"{folder} ({n} in {k} skill{'s' if k != 1 else ''})" if k else f"{folder} ({n})")
+    return ", ".join(out)
+
+
+def _summary(verb, root, is_git, kit, all_packs, st, report, verbose=False) -> list[str]:
     c = st["choices"]
     combined = packs.combine(all_packs, c)
     roles = ", ".join(all_packs[r]["label"] for r in c["roles"])
@@ -108,13 +129,21 @@ def _summary(verb, root, is_git, kit, all_packs, st, report) -> list[str]:
     lines.append("- Hidden from git: .ai-sdlc/ and every ai-sdlc-* file." if is_git else
                  "- This folder is not a git repo, so nothing hides these files from git.")
     if report["written"]:
-        lines.append(f"- Wrote {len(report['written'])} file(s): {', '.join(report['written'])}")
+        lines.append(f"- Wrote {len(report['written'])} file(s): "
+                     f"{_where(report['written'], verbose)}")
     if report["removed"]:
         lines.append(f"- Removed {len(report['removed'])} file(s) no longer needed: "
-                     f"{', '.join(report['removed'])}")
+                     f"{_where(report['removed'], verbose)}")
     for rel in report["kept"]:
-        lines.append(f"- Kept your edit in {rel}. The kit's copy, if it changed, is next to it "
-                     f"as {rel}{place.SIDECAR}.")
+        if rel + place.SIDECAR in report["written"]:
+            lines.append(f"- Kept your edit in {rel}. The kit's newer copy is next to it as "
+                         f"{rel}{place.SIDECAR}, for you to compare.")
+        elif rel in st["files"]:
+            lines.append(f"- Kept your edit in {rel}. The kit's copy has not changed, so there "
+                         "is nothing to compare.")
+        else:
+            lines.append(f"- Kept your edit in {rel}. Your choices no longer need it; delete it "
+                         "if you don't need it either.")
     for item in report["skipped"]:
         lines.append(f"- Left alone: {item}")
     skills = ", ".join(packs.PREFIX + s for s in combined["skills"]) or "none"
@@ -184,7 +213,7 @@ def cmd_setup(args, cwd, kit):
     report = place.apply(root, st, place.wanted_files(kit, all_packs, st["choices"]))
     st["kit_version"] = paths.kit_version(kit)
     state.save(root, st)                            # last
-    lines = _summary("Set up", root, is_git, kit, all_packs, st, report)
+    lines = _summary("Set up", root, is_git, kit, all_packs, st, report, args.verbose)
     lines.append('Say "change my preferences", "update the kit" or "remove the kit" at any time.')
     return 0, lines + _check_lines(root)[1]
 
@@ -251,7 +280,8 @@ def cmd_change(args, cwd, kit):
         exclude.protect(root)
     report = place.apply(root, st, place.wanted_files(kit, all_packs, c))
     state.save(root, st)
-    return 0, (_summary("Updated", root, is_git, kit, all_packs, st, report) + repaired
+    return 0, (_summary("Updated", root, is_git, kit, all_packs, st, report, args.verbose)
+               + repaired
                + _check_lines(root)[1])
 
 
@@ -278,17 +308,23 @@ def cmd_update(args, cwd, kit):
     wanted = place.wanted_files(kit, all_packs, c)  # prepared from the copy, before it moves
     if is_git:
         exclude.protect(root)                     # the newer kit may hide more paths
+    moved = None
     if kit != dest:
+        old_version = paths.kit_version(dest) if place.is_kit(dest) else None
         try:
             place.replace_kit(root, kit)
         except FileExistsError:
             raise SetupError(f"{paths.KIT_REL} is not a kit folder; it was left alone.") from None
+        moved = (f"- Moved {kit.relative_to(root).as_posix()} into {paths.KIT_REL}"
+                 + (f" (replaced {old_version})." if old_version else "."))
     report = place.apply(root, st, wanted)
     known = set(registry.names())                 # a skip for a connector the kit lost goes
     st["skipped_connectors"] = [n for n in st["skipped_connectors"] if n in known]
     st["kit_version"] = paths.kit_version(dest)
     state.save(root, st)
-    lines = _summary("Updated to", root, is_git, dest, all_packs, st, report)
+    lines = _summary("Updated to", root, is_git, dest, all_packs, st, report, args.verbose)
+    if moved:
+        lines.insert(1, moved)
     if gone:
         lines.append(f"- The newer kit has no {', '.join(gone)} role any more; it was dropped.")
     if lost:

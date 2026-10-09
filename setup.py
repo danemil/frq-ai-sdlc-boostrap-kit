@@ -52,6 +52,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--name")
     s.add_argument("--roles", help="comma-separated role ids, e.g. po,sm")
     s.add_argument("--lang", help="en, ro or de")
+    s.add_argument("--verbose", action="store_true", help="list every file written or removed")
 
     c = sub.add_parser("change", help="change your choices; only affected files change")
     c.add_argument("--name")
@@ -61,8 +62,10 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("--rituals", choices=[*packs.RITUALS, "default"])
     c.add_argument("--add-skill", action="append", default=[], metavar="SKILL")
     c.add_argument("--drop-skill", action="append", default=[], metavar="SKILL")
+    c.add_argument("--verbose", action="store_true", help="list every file written or removed")
 
-    sub.add_parser("update", help="run from a newer kit copy: refresh the kit and your files")
+    u = sub.add_parser("update", help="run from a newer kit copy: refresh the kit and your files")
+    u.add_argument("--verbose", action="store_true", help="list every file written or removed")
     k = sub.add_parser("check", help="files present and hidden, kit current, team overlaps")
     k.add_argument("--quiet", action="store_true", help="one line, for the start of a session")
     a = sub.add_parser("ack", help="note that you have seen a warning")

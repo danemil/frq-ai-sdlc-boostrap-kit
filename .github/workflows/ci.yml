@@ -202,7 +202,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/team"
-          out="$(python3 .ai-sdlc/kit/setup.py change --lang en)"
+          out="$(python3 .ai-sdlc/kit/setup.py change --lang en --verbose)"   # --verbose: every file
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -qF 'Wrote 2 file(s): .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md'
           grep -q 'Always answer in English' .github/instructions/ai-sdlc-core.instructions.md
@@ -266,7 +266,10 @@ jobs:
           printf '\nMy own note.\n' >> .github/instructions/ai-sdlc-po.instructions.md
           out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
           printf '%s\n' "$out" | grep -qF '[kit-copy:ai-sdlc-kit-new]'
-          python3 ai-sdlc-kit-new/setup.py update
+          out="$(python3 ai-sdlc-kit-new/setup.py update)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF -- '- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced '
+          printf '%s\n' "$out" | grep -qF "is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare."
           test "$(cat .ai-sdlc/kit/VERSION)" = 9.9.9 && test ! -e ai-sdlc-kit-new
           grep -q 'My own note' .github/instructions/ai-sdlc-po.instructions.md
           if grep -q 'Newer kit line' .github/instructions/ai-sdlc-po.instructions.md; then
