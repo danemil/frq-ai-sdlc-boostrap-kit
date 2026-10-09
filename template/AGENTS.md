@@ -164,7 +164,7 @@ When a question can be answered from the project's own knowledge, **ground on it
 
 ### 4.5 Commit attribution
 
-Every commit is classifiable as **human**, **AI**, or **mixed** so AI usage stays measurable (pillar 7). The primary signal is **git-ai** line-level notes (`refs/notes/ai`); the `Co-Authored-By: <agent> <email>` trailer is the fallback for un-noted commits. The convention and the dashboard collector are in [`docs/ai-context/attribution.md`](./docs/ai-context/attribution.md).
+Every commit is classifiable as **human**, **AI**, or **mixed** so AI usage stays measurable (pillar 7). The default signal is the `Co-Authored-By: <agent> <email>` trailer; line-level git-ai notes (`refs/notes/ai`) are read only when present — the kit installs nothing that writes them. The convention and the dashboard collector are in [`docs/ai-context/attribution.md`](./docs/ai-context/attribution.md).
 
 ## 5. Roles & named seats
 
