@@ -126,6 +126,22 @@ class TestRoleInstructions(unittest.TestCase):
         self.assertIn("Show the diff and wait for a yes before saving", text)
         self.assertIn('never just "Fixed"', text)
 
+    def test_tests_first_loads_the_tdd_skill_before_any_file(self):
+        """A "write tests first" run in a Developer repo skipped the TDD skill and tried to
+        create the test file without showing it."""
+        for role in ("dev", "qa"):
+            text = (KIT / packs.ROLES_REL / role / "instructions.md").read_text(encoding="utf-8")
+            self.assertIn('"write tests first", "test-first" or "TDD": load '
+                          "`ai-sdlc-test-driven-development` first", text, role)
+            self.assertIn("a failing test or a bug: load `ai-sdlc-systematic-debugging` first",
+                          text, role)
+            self.assertIn("A new file counts: show its full content first.", text, role)
+
+    def test_a_new_file_counts_as_a_change(self):
+        for name in ("test-driven-development", "systematic-debugging", "receiving-code-review"):
+            self.assertIn("before editing or creating any file (a new test file too), show the "
+                          "proposed diff or content and wait for a yes", skill(name), name)
+
 
 if __name__ == "__main__":
     unittest.main()

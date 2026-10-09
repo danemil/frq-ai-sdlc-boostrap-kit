@@ -36,7 +36,8 @@ GIT = re.compile(r"(?i)\bcommit(?:s|ted|ting)?\b|\bmerg(?:e|es|ed|ing)\b|"
                  r"\bpush(?:es|ed|ing)?\b(?!\s+back)")        # "push back" is review talk
 GIT_RULE = ("- **Git:** never commit, push or merge on your own. Follow the person's "
             "git-comfort setting and ask before each commit.")
-SHOW_RULE = ("- **Show before you change:** before editing any file, show the proposed diff and wait "
+SHOW_RULE = ("- **Show before you change:** before editing or creating any file (a new test file too), "
+             "show the proposed diff or content and wait "
              "for a yes; if you can't ask, stop after proposing. Report evidence (the test output), "
              "never just \"Fixed\".")
 SHOWS_FIRST = {"systematic-debugging", "test-driven-development", "receiving-code-review"}  # E2E 2026-10-09
