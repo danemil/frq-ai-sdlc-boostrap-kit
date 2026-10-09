@@ -27,7 +27,7 @@ Work with `.pptx` files by writing small Python snippets that use **python-pptx*
 - Never overwrite an existing file: ask, or write `<name>-v2.pptx`. Check with `os.path.exists` before saving.
 - Only write the output file. Read inputs and templates, never modify them in place.
 - Finish with a short summary: path, one line per slide (number, title), and which slides have notes.
-- For company branding, use `ai-sdlc-frq-brandbook` (if you have it): template, logo, colours and a brand check.
+- **Company brand by default:** if `ai-sdlc-frq-brandbook` is installed, every new deck starts from its template, logo and colours, unless the person asks for a plain file.
 
 ## 3. Plan, then create
 

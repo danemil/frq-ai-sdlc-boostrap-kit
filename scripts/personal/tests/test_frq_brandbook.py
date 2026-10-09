@@ -316,6 +316,25 @@ class TestSkillFiles(unittest.TestCase):
                 if "white" in line.lower():
                     self.assertNotRegex(line, r"(?i)(18 ?pt|large text)[^\n]{0,30}(only|\+)", line)
 
+    def test_brand_by_default_is_one_rule_in_each_file_skill(self):
+        """Owner decision, 2026-10-09: with the brand skill installed, the file skills use the
+        brand unless the person asks for a plain file."""
+        for skill in ("doc-powerpoint", "doc-word", "doc-excel", "doc-pdf", "visual-explainers", "drawio"):
+            text = (KIT / packs.SKILLS_REL / skill / "SKILL.md").read_text(encoding="utf-8")
+            rules_ = [l for l in text.splitlines() if "ai-sdlc-frq-brandbook" in l]
+            self.assertEqual(len(rules_), 1, skill)
+            self.assertIn("Company brand by default", rules_[0], skill)
+            self.assertRegex(rules_[0], r"unless the person asks for (a|the) plain", skill)
+        desc = re.search(r"(?m)^description: (.+)$", (SKILL / "SKILL.md").read_text(encoding="utf-8")).group(1)
+        self.assertIn("default", desc)
+        for word in ("branded", "our template", "our colours"):
+            self.assertIn(word, desc)
+
+    def test_customer_word_work_points_to_the_official_template(self):
+        for rel in ("SKILL.md", "references/documents.md"):
+            self.assertIn("Doknorme.dotm", (SKILL / rel).read_text(encoding="utf-8"), rel)
+        self.assertNotIn("no official Word", (SKILL / "references/documents.md").read_text(encoding="utf-8"))
+
     def test_size_budget(self):
         total = sum(p.stat().st_size for p in SKILL.rglob("*") if p.is_file())
         self.assertLessEqual(total, BUDGET, f"{total} bytes")
@@ -706,6 +725,39 @@ class TestNewDeck(unittest.TestCase):
                                 "--classification", "Frequentis General"],
                                capture_output=True, text=True, check=False)
             self.assertNotEqual(r.returncode, 0, "never overwrites")
+
+    def test_the_shape_table_and_chart_recipe_in_building_decks_is_on_brand(self):
+        from pptx import Presentation
+        from pptx.chart.data import CategoryChartData
+        from pptx.enum.chart import XL_CHART_TYPE
+        doc = (SKILL / "references/building-decks.md").read_text(encoding="utf-8")
+        recipe = doc.split("### Shapes, free text, tables and charts", 1)[1].split("```python", 1)[1].split("```", 1)[0]
+        ns = {}
+        exec(compile(recipe, "building-decks.md", "exec"), ns)
+        Inches = ns["Inches"]
+        with tempfile.TemporaryDirectory() as tmp:
+            prs = Presentation(str(TEMPLATE))
+            layouts = {l.name: l for l in prs.slide_layouts}
+            s = prs.slides.add_slide(layouts["Headline (standard)"])
+            s.shapes.title.text = "Three steps to a decision"
+            ns["flat_box"](s, Inches(0.5), Inches(1.2), Inches(2), Inches(1))
+            ns["text_box"](s, Inches(3), Inches(1.2), Inches(4), Inches(1), "Callout text")
+            s = prs.slides.add_slide(layouts["Headline (standard)"])
+            s.shapes.title.text = "Option B costs less"
+            ns["brand_table"](s, [("Option", "Cost"), ("A", "2,115"), ("B", "1,500")],
+                              Inches(0.5), Inches(1.2), Inches(5))
+            s = prs.slides.add_slide(layouts["Headline (standard)"])
+            s.shapes.title.text = "Load peaks in the third quarter"
+            data = CategoryChartData()
+            data.categories = ["Q1", "Q2", "Q3"]
+            data.add_series("Load", (3, 4, 7))
+            chart = s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(0.5), Inches(1.2),
+                                       Inches(8), Inches(3.5), data).chart
+            ns["brand_chart"](chart)
+            out = Path(tmp) / "recipe.pptx"
+            prs.save(str(out))
+            code, found = findings(out, "--year", "2024")
+            self.assertEqual([f for f in found if f["severity"] != "INFO"], [])
 
     def run_new_deck(self, tmp, text, *args):
         outline = Path(tmp) / "o.md"

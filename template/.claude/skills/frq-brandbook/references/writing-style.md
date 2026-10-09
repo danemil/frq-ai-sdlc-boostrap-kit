@@ -51,7 +51,7 @@ Colour-highlighting "Frequentis" in a headline: blue or grey only (p.25).
 
 ## Classification and copyright (p.26)
 
-- Every non-public document: **Frequentis Public** (for public use), **Frequentis General** (Frequentis Inner Circle) or **Frequentis Confidential** (a specific group of employees). Ask the person; never guess.
+- Every document except printed public material carries a class (p.26), including public ones: **Frequentis Public** (for public use), **Frequentis General** (Frequentis Inner Circle) or **Frequentis Confidential** (a specific group of employees). Ask the person; never guess.
 - "© Frequentis AG <year>" with the current year; print adds "all rights reserved" and the standard disclaimer.
 - Deck footer: `Frequentis <class> | © Frequentis AG <year>`, set in the slide master; for internal decks the author goes in the title-slide sub-title.
 

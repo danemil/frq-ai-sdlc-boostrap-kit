@@ -28,7 +28,7 @@ Upstream has no `NOTICE` file. The skill bundles no executable scripts.
 - **Plain requests in the examples.** The `/drawio:drawio …` plugin-command examples became plain requests with `docs/diagrams/` paths.
 - **MCP parameters.** A note that the references' MCP-tool parameters (`postLayout`, `routing`, `direction`) map to the CLI's `--layout`.
 - **`find-drawio.ps1`** is saved in a temporary folder outside the repo.
-- **Company branding.** One line in "Where diagrams go" points to `ai-sdlc-frq-brandbook` (if the person has it) for the diagram colours and fonts.
+- **Company brand by default.** One line in "Where diagrams go": if `ai-sdlc-frq-brandbook` is installed, its diagram styles are used unless the person asks for a plain diagram.
 
 The frontmatter (`name`, `description`) is unchanged; setup prefixes the name to `ai-sdlc-drawio` when it places the skill.
 

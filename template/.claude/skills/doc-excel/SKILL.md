@@ -29,7 +29,7 @@ Work with `.xlsx` files by writing small Python snippets that use **openpyxl**, 
 - Never overwrite an existing file: ask, or write `<name>-v2.xlsx`. Check with `os.path.exists` before saving.
 - Only write the output file. Read inputs, never modify them in place.
 - Finish with a short summary: path, sheets, rows per sheet, formulas used, charts.
-- For company branding, use `ai-sdlc-frq-brandbook` (if you have it): template, logo, colours and a brand check.
+- **Company brand by default:** if `ai-sdlc-frq-brandbook` is installed, every new workbook uses its fonts and colours, unless the person asks for a plain file.
 
 ## 3. Create a workbook
 
