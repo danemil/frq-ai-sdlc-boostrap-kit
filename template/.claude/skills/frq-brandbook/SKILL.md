@@ -22,11 +22,11 @@ Make files look and read like Frequentis, and check files that should. **A human
 | Name | Office (RGB → HEX) | Web HEX | Use |
 |---|---|---|---|
 | Blue | 0-65-130 → #004182 | #004182 | Lead colour: headlines, key shapes, side bars, logo |
-| Light blue | 0-170-225 → #00AAE1 | #00AAE1 | Secondary colour. White text on it fails contrast: large text only |
+| Light blue | 0-170-225 → #00AAE1 | #00AAE1 | Secondary colour. White text on it fails contrast at any size: use #333333 text on it, or #004182 for large text (WCAG, kit rule) |
 | Black | 51-51-51 → #333333 | #333333 | Body text (never pure black #000000) |
 | Cool grey | 98-100-105 → #626469 | #666666 | Text, lines, tagline |
-| Mid grey | 159-160-163 → #9FA0A3 | #999999 | Shapes, lines, recessed data; never body text |
-| Warm grey | 201-195-186 → #C9C3BA | #C9C3BA | Shapes, backgrounds; never text |
+| Mid grey | 159-160-163 → #9FA0A3 | #999999 | Text, lines, backgrounds; as text on white it fails contrast, so shapes and lines (WCAG, kit rule) |
+| Warm grey | 201-195-186 → #C9C3BA | #C9C3BA | Text, lines, backgrounds; not as text on white (WCAG, kit rule) |
 | White | #FFFFFF | #FFFFFF | Base colour: bright white, never cream |
 | Green / Orange / Red | #73B432 / #F0A51E / #A52846 | same | Accents: highlights and traffic lights, sparingly |
 
@@ -97,7 +97,7 @@ The PDF wins unless noted. Items marked **(GCM to confirm)** are this kit's choi
 | C7 | Tagline grey on white is #666666 in the PDF; the template shows it white on the globe | Blue logo file uses #666666; on blue or photos use the white file. |
 | C8 | PDF: BU title slide with one large BU image; template: globe plus five BU tiles | ATM decks keep the template title layout (ATM tile included) unless the person wants the ATM image as hero. A human picks. |
 | C9 | Stray fonts (Nirmala UI, Calibri, Nokia Pure, Arial Narrow) in the template's samples and navigation | Build from layouts only, never copy a sample slide. The checker reports inherited fonts as INFO. |
-| C10 | White on light blue (2.7:1) is used in the template | Large text (18 pt or more) only; the checker cannot see it, so look. |
+| C10 | White on light blue (2.7:1) is used in the template | It fails contrast at any size (large text needs 3:1). In new work use #333333 text on light blue, or blue #004182 for large text; flag the template's use. The checker cannot see it, so look. (WCAG, kit rule; GCM to know) |
 
 ## Never
 

@@ -4,16 +4,16 @@
   "colours": {
     "primary": [
       {"name": "Blue", "hex": "#004182", "rgb": [0, 65, 130], "cmyk": "100-60-0-6", "spot": "Pantone 286", "theme": "dk1", "use": "Lead colour, headlines, key shapes, side bars, logo", "text_on_white": "AAA", "source": "p.7"},
-      {"name": "Light blue", "hex": "#00AAE1", "rgb": [0, 170, 225], "cmyk": "65-5-0-0", "theme": "accent3", "use": "Secondary colour", "text_on_white": "fails AA (2.7:1): large text of 18 pt or more only", "source": "p.7"},
+      {"name": "Light blue", "hex": "#00AAE1", "rgb": [0, 170, 225], "cmyk": "65-5-0-0", "theme": "accent3", "use": "Secondary colour", "text_on_white": "fails (2.7:1), and white on it fails at any size: put #333333 text on it (4.7:1), or #004182 for large text (3.8:1) (WCAG, kit rule)", "source": "p.7"},
       {"name": "Black", "hex": "#333333", "rgb": [51, 51, 51], "cmyk": "95% black", "theme": "lt2", "use": "Body text (instead of pure black), lines", "text_on_white": "AAA", "source": "p.7"},
       {"name": "Cool grey", "hex": "#626469", "web_hex": "#666666", "rgb": [98, 100, 105], "cmyk": "70% black", "spot": "CG11", "theme": "dk2", "use": "Text, lines, tagline", "text_on_white": "AA", "source": "p.7 (conflict C1)"},
-      {"name": "Mid grey", "hex": "#9FA0A3", "web_hex": "#999999", "rgb": [159, 160, 163], "cmyk": "40% black", "spot": "CG7", "theme": "accent1", "use": "Shapes, lines, recessed data; never body text", "text_on_white": "fails", "source": "p.7 (conflict C1)"},
-      {"name": "Warm grey", "hex": "#C9C3BA", "rgb": [201, 195, 186], "cmyk": "21-19-24-0", "spot": "WG3", "theme": "accent2", "use": "Shapes, backgrounds; never text", "text_on_white": "fails", "source": "p.7"},
+      {"name": "Mid grey", "hex": "#9FA0A3", "web_hex": "#999999", "rgb": [159, 160, 163], "cmyk": "40% black", "spot": "CG7", "theme": "accent1", "use": "Text, lines, backgrounds (p.7); as text on white it fails contrast, so shapes and lines only (WCAG, kit rule)", "text_on_white": "fails", "source": "p.7 (conflict C1)"},
+      {"name": "Warm grey", "hex": "#C9C3BA", "rgb": [201, 195, 186], "cmyk": "21-19-24-0", "spot": "WG3", "theme": "accent2", "use": "Text, lines, backgrounds (p.7); as text on white it fails contrast, so shapes and backgrounds only (WCAG, kit rule)", "text_on_white": "fails", "source": "p.7"},
       {"name": "White", "hex": "#FFFFFF", "rgb": [255, 255, 255], "theme": "lt1", "use": "Base colour: bright white, never cream or off-white", "source": "p.7"}
     ],
     "accent": [
-      {"name": "Green", "hex": "#73B432", "rgb": [115, 180, 50], "cmyk": "50-0-100-0", "theme": "accent5", "use": "Highlights, traffic light; sparingly; never text", "source": "p.7"},
-      {"name": "Orange", "hex": "#F0A51E", "rgb": [240, 165, 30], "cmyk": "0-30-100-0", "theme": "accent4", "use": "Highlights, traffic light; sparingly; never text", "source": "p.7"},
+      {"name": "Green", "hex": "#73B432", "rgb": [115, 180, 50], "cmyk": "50-0-100-0", "theme": "accent5", "use": "Highlights, traffic light; sparingly; not as text on white (WCAG, kit rule)", "source": "p.7"},
+      {"name": "Orange", "hex": "#F0A51E", "rgb": [240, 165, 30], "cmyk": "0-30-100-0", "theme": "accent4", "use": "Highlights, traffic light; sparingly; not as text on white (WCAG, kit rule)", "source": "p.7"},
       {"name": "Red", "hex": "#A52846", "rgb": [165, 40, 70], "cmyk": "20-90-50-0", "theme": "accent6", "use": "Highlights, traffic light; sparingly", "source": "p.7"}
     ],
     "legend_only": [

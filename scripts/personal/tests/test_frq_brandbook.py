@@ -295,6 +295,26 @@ class TestSkillFiles(unittest.TestCase):
                 soft = sum(1 for v in ink if v < 245) / len(ink)
                 self.assertLess(soft, 0.3, "soft edges: re-render the PNG from the SVG")
 
+    def test_contrast_advice_holds(self):
+        def lum(h):
+            c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+            return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+        def ratio(a, b):
+            hi, lo = sorted((lum(a), lum(b)), reverse=True)
+            return (hi + 0.05) / (lo + 0.05)
+        self.assertLess(ratio("#FFFFFF", "#00AAE1"), 3)          # fails even for large text
+        self.assertGreaterEqual(ratio("#333333", "#00AAE1"), 4.5)
+        self.assertGreaterEqual(ratio("#004182", "#00AAE1"), 3)
+        texts = [(SKILL / f).read_text(encoding="utf-8") for f in
+                 ("SKILL.md", "brand-tokens.json", "references/brand-rules.md",
+                  "references/documents.md", "references/building-decks.md")]
+        for text in texts:
+            for line in text.splitlines():
+                if "white" in line.lower():
+                    self.assertNotRegex(line, r"(?i)(18 ?pt|large text)[^\n]{0,30}(only|\+)", line)
+
     def test_size_budget(self):
         total = sum(p.stat().st_size for p in SKILL.rglob("*") if p.is_file())
         self.assertLessEqual(total, BUDGET, f"{total} bytes")

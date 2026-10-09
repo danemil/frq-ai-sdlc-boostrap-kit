@@ -38,7 +38,7 @@ Written for this kit (2026-10-09) from brand materials the client owns and provi
 2. Access to the **Frequentis Icon Stock** and the **Frequentis Photo stock**, and whether any icons or photos may be bundled.
 3. The **OneATM style guide** (and the Defence guide), both "being updated" per PDF p.41.
 4. Confirmation of **C1** (which grey HEX values to use in Office files), **C2** (the master's off-palette title gradient, a template defect) and **C6** (formal register: active voice and "we", or third person and passive).
-5. An official Word and Excel template, and whether the key visuals may be used in material shared outside Frequentis.
+5. A copy of the Word templates `Doknorme.dotm` and `Doknormd.dotm` (Word → Shared Templates, PDF p.45) and the "creating documents using templates" training material, whether a stripped copy may be bundled with this skill, whether there is an Excel template, and whether the key visuals may be used in material shared outside Frequentis.
 6. Permission for the kit to carry these brand materials once the client versions and extends the kit itself.
 
 ## Validation

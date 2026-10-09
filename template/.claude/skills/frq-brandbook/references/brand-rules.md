@@ -68,13 +68,15 @@ The theme also sets `hlink` #0038A8 and `folHlink` #626469 (TPL theme). The PDF 
 
 ### 2.5 Contrast (WCAG 2.x, computed)
 
+These are accessibility rules this kit adds (WCAG 2.x: 4.5:1 for body text, 3:1 for large text of 18 pt, or 14 pt bold, and more); the PDF does not state them.
+
 | Foreground on background | Ratio | Verdict |
 |---|---|---|
 | Blue #004182 on white | 10.1 | AAA |
 | Black #333333 on white | 12.6 | AAA |
 | Cool grey #666666 / #626469 on white | 5.7 / 5.9 | AA |
 | White on blue #004182 | 10.1 | AAA (divider, side bar and title text) |
-| White on light blue #00AAE1 | 2.7 | **Fails AA.** The template does this (TPL s.7 "Keep in mind" box), so allow it only for large text of 18 pt or more and still flag it. |
+| White on light blue #00AAE1 | 2.7 | **Fails at any size** (large text needs 3:1). The template does this (TPL s.7 "Keep in mind" box): flag it. In new work use #333333 on light blue (4.7:1), or #004182 for large text (3.8:1). (Kit rule, WCAG) |
 | Mid grey #999999 / #9FA0A3 on white | 2.9 / 2.6 | Fails. Use it for shapes and lines, never for body text. |
 | Green, orange, warm grey on white | 2.5 / 2.1 / 1.8 | Fails. Use for fills and legends only, never as text colour. |
 | Red #A52846 on white | 7.0 | AAA (usable for text) |
@@ -213,5 +215,5 @@ The chosen resolution for each is in `../SKILL.md` (Known conflicts); this table
 | C7 | Tagline grey | Tagline #666666 (p.5) | Tagline shape on title layouts is white over the globe | – | The blue lock-up SVG uses #666666 per the PDF. |
 | C8 | Key visual on the title slide | BU title slides show one large BU image (p.28) | L"Standard TITLE" = globe plus five small SBU tiles | ATM aircraft on the title slide | For ATM decks keep the ATM tile, or use the ATM image as the hero. A human picks. |
 | C9 | Fonts in the template | Arial only for Office (p.8) | Stray Nirmala UI, Calibri, Nokia Pure, Arial Narrow overrides in samples and maps | Arial only | Build from layouts only. The checker fails explicit non-Arial typefaces on slides and reports inherited ones as INFO. |
-| C10 | White on light blue | – | Used in TPL s.7 | – | WCAG fail (2.7:1). Warn, do not block. |
+| C10 | White on light blue | – | Used in TPL s.7 | – | WCAG fail at any size (2.7:1). Use #333333 or, for large text, #004182 on light blue; flag the template. |
 | G1 | Gaps | No PowerPoint point sizes, no logo SVG/PNG in the package (only links to "Logo download"), no icon files, no audio. OneATM and DEF guides are pending. | – | – | Ask GCM for the official logo pack, Icon Stock access and the ATM style guide. |

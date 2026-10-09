@@ -86,4 +86,4 @@ Tables: `shapes.add_table(...)` inside the content area; header row fill #004182
 - LibreOffice renders the master's gradient-filled titles black (C2); PowerPoint shows them blue. Judge colours in PowerPoint, or trust the checker.
 - `Standard TITLE` already shows the globe and the five BU tiles; do not add a second key visual on top.
 - The template has no icon files. Where an icon helps, leave a blue #004182 square with an Arial descriptor below and a speaker note: "Insert icon from the Frequentis Icon Stock: <meaning>".
-- White text on light blue (#00AAE1) fails contrast; use it for 18 pt or larger only (C10).
+- White text on light blue (#00AAE1) fails contrast at any size (C10): in new slides put #333333 text on light blue, or #004182 for large text (WCAG, kit rule).
