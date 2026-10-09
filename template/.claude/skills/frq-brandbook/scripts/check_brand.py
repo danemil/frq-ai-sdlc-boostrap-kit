@@ -20,12 +20,15 @@ The checker flags evidence; a person reviews every finding before anything is ch
 """
 from __future__ import annotations
 
+import sys
+
+sys.dont_write_bytecode = True                         # no __pycache__ in the placed skill
+
 import argparse
 import datetime
 import json
 import posixpath
 import re
-import sys
 import zipfile
 import zlib
 import xml.etree.ElementTree as ET
@@ -76,7 +79,8 @@ DOCX_THEME_FIX = {
     "theme.colours": "Start customer documents from Doknorme.dotm (Word -> Shared Templates); otherwise set colours per style.",
     "theme.fonts": "Set the document's theme fonts to Arial, or start from Doknorme.dotm (Word -> Shared Templates).",
 }
-XLSX_FONT_FIX = "Set the workbook's Normal style to Arial (openpyxl: wb._named_styles['Normal'].font = Font(name='Arial'))."
+XLSX_FONT_FIX = ("Set Arial on every cell, keeping bold, size and colour (openpyxl: the arial_everywhere() "
+                 "snippet in references/documents.md, called just before wb.save()).")
 
 # rule: (proposed fix, source in the brand guidelines Q4/2025 or template)
 RULES = {
@@ -92,6 +96,7 @@ RULES = {
     "text.tagline": ("Use the logo-with-tagline file on title and closing slides; never type the tagline on its own.", "PDF p.5"),
     "slide.thank-you": ("Replace it with the template's 'Closing Slide' layout (globe, logo with tagline).", "PDF p.28; template slide 10"),
     "footer.classification": ("Set 'Frequentis Public', 'Frequentis General' or 'Frequentis Confidential' in the master footer.", "PDF p.26"),
+    "footer.classification-to-set": ("Ask the person which class it is and set it; never guess it.", "PDF p.26"),
     "footer.year": ("Set the current year in the master footer: '© Frequentis AG <year>'.", "PDF p.26, p.29"),
     "footer.copyright": ("Add '© Frequentis AG <year>' to the footer.", "PDF p.26"),
     "text.bold": ("Reduce bold; build hierarchy with size, not bold.", "PDF p.8, p.22"),
@@ -130,6 +135,7 @@ def load_tokens(path=TOKENS) -> dict:
         "legend": hexes(col["legend_only"]),
         "gradient": {col["gradient"]["from"].lstrip("#").upper(), col["gradient"]["to"].lstrip("#").upper()},
         "classes": data["classification"],
+        "placeholder": data.get("classification_placeholder", "Frequentis [classification to be set]"),
         "fonts": set(chk["allowed_latin_typefaces"]),
         "us": {k.lower(): v for k, v in chk["us_spellings"].items()},
         "bold_share": float(chk["bold_share_warn"]),
@@ -566,6 +572,9 @@ def footer_findings(report, texts_slides, texts_template, tokens, year, kind):
     if not on_slides and inherited:
         report.add("INFO", "file", inherited[0][0], "footer.classification",
                    f"Classification '{inherited[0][1]}' comes from the {inherited[0][0]}; confirm it is the right class.")
+    elif not on_slides and not inherited and any(tokens["placeholder"] in t for _, t in texts_slides + texts_template):
+        report.add("WARN", "file", "footer", "footer.classification-to-set",
+                   f"The classification is still '{tokens['placeholder']}'; the person sets it before the file is shared.")
     elif not on_slides and not inherited:
         severity = "WARN" if kind == "xlsx" else "FAIL"
         report.add(severity, "file", "footer", "footer.classification", "No classification found.")
@@ -829,19 +838,24 @@ def summary(items) -> dict:
     return {s: sum(1 for f in items if f["severity"] == s) for s in SEVERITIES}
 
 
+TEMPLATE_SCOPES = ("master", "layout", "theme")
+
+
 def as_markdown(path, items) -> str:
+    """A numbered table (the # is the finding's id, so a person can pick fixes by number)."""
     cell = lambda s: str(s).replace("|", "\\|").replace("\n", " ")
     lines = [f"Brand check: {path}", ""]
     if items:
-        lines += ["| Severity | Where | Rule | Finding | Proposed fix | Source |",
-                  "|---|---|---|---|---|---|"]
-        lines += [f"| {f['severity']} | {cell(f['location'])} | {f['rule']} | {cell(f['message'])} "
+        lines += ["| # | Severity | Where | Rule | Finding | Proposed fix | Source |",
+                  "|---|---|---|---|---|---|---|"]
+        lines += [f"| {f['id']} | {f['severity']} | {cell(f['location'])} | {f['rule']} | {cell(f['message'])} "
                   f"| {cell(f['fix'])} | {f['source']} |" for f in items]
         lines.append("")
     s = summary(items)
+    template = any(f["severity"] == "INFO" and f["scope"] in TEMPLATE_SCOPES for f in items)
     lines.append(f"{s['FAIL']} FAIL, {s['WARN']} WARN, {s['INFO']} INFO. "
-                 "Master, layout and theme findings come from the template. "
-                 "Nothing was changed: a person decides which fixes to make.")
+                 + ("Master, layout and theme INFO findings come from the template. " if template else "")
+                 + "Nothing was changed: a person decides which fixes to make.")
     return "\n".join(lines)
 
 
@@ -856,6 +870,8 @@ def check(path, year=None, tokens_path=TOKENS) -> dict:
     pkg = Package(path)
     report = checkers[kind](pkg, tokens, year)
     items = sorted(report.items, key=_order)
+    for n, f in enumerate(items, start=1):
+        f["id"] = n
     return {"file": str(path), "kind": kind, "year": year, "summary": summary(items), "findings": items}
 
 

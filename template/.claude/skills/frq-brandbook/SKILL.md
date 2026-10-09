@@ -11,7 +11,7 @@ metadata:
 
 # frq-brandbook
 
-Make files look and read like Frequentis, and check files that should. **Brand by default:** when this skill is installed, every new deck, document, spreadsheet, PDF, explainer or diagram uses the brand unless the person asks for a plain file. **A human validates every result**: you propose, the person decides. Paths below are relative to this skill's folder (in a personal setup: `.agents/skills/ai-sdlc-frq-brandbook/`).
+Make files look and read like Frequentis, and check files that should. **Brand by default:** when this skill is installed, every new deck, document, spreadsheet, PDF, explainer or diagram uses the brand unless the person asks for a plain file. **A human validates every result**: you propose, the person decides. Paths below are relative to this skill's folder (in a personal setup: `.agents/skills/ai-sdlc-frq-brandbook/`). That folder is hidden from git, so search tools skip it: read its files by exact path, never by glob or search. Run its scripts as commands; never import them.
 
 **Source of truth, in this order:** the *Frequentis Brand Guidelines Q4/2025* PDF (Group Communications and Marketing, GCM) → the official Frequentis PowerPoint template → this skill. When they disagree, the higher one wins; the known disagreements and the value to use are in [Known conflicts](#known-conflicts). Full facts with page citations: [references/brand-rules.md](references/brand-rules.md).
 
@@ -48,24 +48,24 @@ Business-unit colours (ATM #2364A0, Maritime #19555F, Defence #641E6E, Public Sa
 
 ## Create
 
-1. **Ask the classification** (Public, General or Confidential). Never guess it; `new_deck.py` will not run without it.
+1. **Ask the classification** (Public, General or Confidential) and wait for the answer. Never guess it, never pick a "safe" one. If you cannot ask (a one-shot run), stop, or use the literal `Frequentis [classification to be set]` wherever the class goes and list it in the hand-over. `new_deck.py` runs only with one of the three classes or that placeholder.
 2. **Infer the style.** Executive (board, steering, keynote): one headline per slide, "reduce to max". Self-explanatory (pre-read, handout, annex): more text and sub-headlines. No clear signal: ask once.
 3. **Business unit.** Default ATM; corporate or cross-BU content uses the globe. For an internal team deck, skip the question and keep `Standard TITLE` as it is. The key visual for each is in `assets/keyvisual/` ([references/assets.md](references/assets.md)).
-4. **Outline first.** Show one line per slide or section (headline = the key message) and build only after the person agrees.
+4. **Outline first, then stop.** Show one line per slide or section (headline = the key message) and wait. Build nothing until the person agrees; if you cannot ask, stop after the outline.
 5. **Build from the bundled template**, never from scratch:
-   - Deck: `assets/templates/frq-template-slim-core.pptx` (25 layouts, no sample slides). Quickest: `scripts/new_deck.py outline.md out.pptx --classification "<the class the person gave>"` (python-pptx; see [references/building-decks.md](references/building-decks.md) for the outline format, layouts by name, placeholder indexes, and on-brand shapes, text boxes, tables and charts).
+   - Deck: `assets/templates/frq-template-slim-core.pptx` (25 layouts, no sample slides). Use the script, as a command: `python3 scripts/new_deck.py outline.md out.pptx --classification "<the class the person gave>"` (python-pptx; see [references/building-decks.md](references/building-decks.md) for the outline format, layouts by name, placeholder indexes, and on-brand shapes, text boxes, tables and charts).
    - Word: customer-facing documents start from the official Word template `Doknorme.dotm` (English) or `Doknormd.dotm` (German), from Word → Shared Templates (PDF p.45): ask the person for it. Excel, PDF, HTML, diagrams, issues, mail: [references/documents.md](references/documents.md).
-6. **Check your own output** with `scripts/check_brand.py` (below), then **look at it** (render it, see step 3 of Check). Fix every FAIL in what you wrote. Report the result as evidence found or not found; never call the file "on-brand" or "compliant". Hand over with the path, a one-line summary per slide or section, and what is left for a human (photos from the Frequentis Photo stock, icons from the Icon Stock, the classification).
+6. **Check your own output** with `scripts/check_brand.py` (below), then **look at it** (render it, see step 3 of Check). Fix every FAIL and every font WARN in what you wrote; list any other WARN for the person. Report the result as evidence found or not found; never call the file "on-brand" or "compliant". Hand over with the path, a one-line summary per slide or section, and what is left for a human (photos from the Frequentis Photo stock, icons from the Icon Stock, a classification still to be set).
 
 ## Check
 
 1. Run the checker. It needs only Python 3.9+, no install, and changes nothing:
    `python3 <this skill's folder>/scripts/check_brand.py <file.pptx|.docx|.xlsx>` (add `--json` for machine-readable output).
-2. **Show the findings as a table** (it prints one: severity, where, rule, finding, proposed fix, source page). Change nothing yet.
+2. **Show the findings as a table** (it prints one: #, severity, where, rule, finding, proposed fix, source page; keep the # so the person can pick by number). Change nothing yet.
    - **FAIL**: breaks a rule (off-palette colour, non-Arial font, italics, shadow or 3D also when inherited from theme styles, wrong gradient, the tagline typed on its own, a "Thank you" or "Questions?" slide, no classification; "FRQ" when the file is Frequentis Public or has no class).
    - **WARN**: probably off-brand, a person judges (tints of brand colours, Title Case, US spelling, contractions, dates and numbers, bold, centred text, outlines, overloaded slide, "FREQUENTIS" in capitals, footer year, "FRQ" in an internal file, theme not from the template).
    - **INFO**: for the record. Master, layout and theme findings come from the template, not the author: report them, do not "fix" the official template.
-3. **Look at the file.** The checker sees colours, fonts and text in the XML, not layout, logo use or everything PowerPoint draws. If LibreOffice is available: `soffice --headless --convert-to pdf --outdir <tmp> <file>`, then `pdftoppm -r 50 -png <tmp>/<name>.pdf <tmp>/page`, and view the pages; otherwise ask the person to look in PowerPoint or Word. LibreOffice shows deck titles black and a shadow under the footer logo; both are right in PowerPoint. Check logo use and clear space, image sources, chart highlight logic, density and tone against [references/brand-rules.md](references/brand-rules.md).
+3. **Look at the file.** The checker sees colours, fonts and text in the XML, not layout, logo use or everything PowerPoint draws. If LibreOffice is available, render into `.ai-sdlc/tmp/` (hidden from git), always with these two commands: `soffice --headless --convert-to pdf --outdir .ai-sdlc/tmp <file>`, then `pdftoppm -png -r 80 .ai-sdlc/tmp/<name>.pdf .ai-sdlc/tmp/<name>`, and view the pages; otherwise ask the person to look in PowerPoint or Word. LibreOffice shows deck titles black and a shadow under the footer logo; both are right in PowerPoint. Check logo use and clear space, image sources, chart highlight logic, density and tone against [references/brand-rules.md](references/brand-rules.md).
 4. **Ask**: "Fix all, only the FAILs, or pick by number?" Apply **only** what the person confirmed, through the doc skill for that format, and never overwrite the original: write `<name>-on-brand.pptx` (or ask).
 5. Re-run the checker on the new file and report "evidence found" or "evidence not found" per fix, never "compliant".
 
@@ -77,7 +77,7 @@ The brand rules sit on top of the kit's file skills; use them for the mechanics 
 |---|---|---|
 | PowerPoint | `ai-sdlc-doc-powerpoint` | Start from the slim template; layouts by name; never set fonts or colours on placeholders. [building-decks.md](references/building-decks.md) |
 | Word | `ai-sdlc-doc-word` | Customer documents: start from `Doknorme.dotm` (ask for it). Otherwise Arial (remove python-docx's theme fonts), headings #004182, body #333333, classification in the footer. [documents.md](references/documents.md) |
-| Excel | `ai-sdlc-doc-excel` | Arial as the Normal style; header row #004182 with white text; series in palette order; accents as pass/fail fills. |
+| Excel | `ai-sdlc-doc-excel` | Arial in every cell (`arial_everywhere()` in [documents.md](references/documents.md), last before saving); header row #004182 with white text; series in palette order; accents as pass/fail fills. |
 | PDF | `ai-sdlc-doc-pdf` | Build the Word or PowerPoint file on-brand, check it, then export (`soffice --convert-to pdf`; LibreOffice may substitute Arial). |
 | HTML / web | `ai-sdlc-visual-explainers` | Roboto, web HEX values, CSS variables from [documents.md](references/documents.md). |
 | Diagrams | `ai-sdlc-drawio`, `ai-sdlc-likec4-dsl` | Copy-ready draw.io styles and a LikeC4 `specification` block in [documents.md](references/documents.md). |

@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """Build a new on-brand deck from a short Markdown outline and the bundled template.
 
-    python new_deck.py outline.md out.pptx --classification "Frequentis General" [--author "Ana Pop"]
+    python3 new_deck.py outline.md out.pptx --classification "<the class the person gave>" [--author "Ana Pop"]
 
---classification is required: ask the person (Frequentis Public, General or Confidential).
+--classification is required: ask the person (Frequentis Public, Frequentis General or
+Frequentis Confidential) and never guess it. If you cannot ask, pass the literal
+"Frequentis [classification to be set]" and say so in the hand-over. build() and
+set_footer() check the value too, so calling them from Python cannot skip the question.
+Run this file as a command; do not import it (an import leaves a __pycache__ folder in the
+placed skill).
 
 Needs python-pptx (run it with ~/.ai-sdlc/venv/bin/python when python3 has no pptx; install
 only with the person's consent, as ai-sdlc-doc-powerpoint describes). It never overwrites
@@ -29,15 +34,28 @@ theme applies. The master footer gets the classification, the year and the deck 
 """
 from __future__ import annotations
 
+import sys
+
+sys.dont_write_bytecode = True                         # no __pycache__ in the placed skill
+
 import argparse
 import datetime
 import re
-import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE = HERE.parent / "assets/templates/frq-template-slim-core.pptx"
 CLASSES = ("Frequentis Public", "Frequentis General", "Frequentis Confidential")
+PLACEHOLDER = "Frequentis [classification to be set]"  # when the person could not be asked
+ALLOWED = CLASSES + (PLACEHOLDER,)
+
+
+def checked_classification(value):
+    """The class the person gave, or the placeholder; anything else is refused."""
+    if value not in ALLOWED:
+        raise ValueError(f"classification {value!r} is not one of: " + ", ".join(ALLOWED)
+                         + ". Ask the person; never guess it.")
+    return value
 
 
 def plain(text):
@@ -101,20 +119,26 @@ def master_runs(shapes):
                 yield from p.runs
 
 
-def set_footer(prs, classification, year, title, author):
+def set_footer(prs, *, classification, year, title, author=None):
     """The master footer, text only (its formatting stays): class, year, title, presenter."""
+    classification = checked_classification(classification)
+    placed = False
     for run in master_runs(prs.slide_masters[0].shapes):
-        if run.text in CLASSES:
-            run.text = classification
+        if run.text in ALLOWED:
+            run.text, placed = classification, True
         elif re.fullmatch(r"© Frequentis AG \d{4}", run.text):
             run.text = f"© Frequentis AG {year}"
         elif run.text == "Presentation title":
             run.text = title
         elif run.text == "<by Presenter>":
             run.text = f"by {author}" if author else ""
+    if not placed:
+        raise ValueError("the slide master has no classification text to set")
 
 
-def build(outline, out, classification, year, author=None, template=TEMPLATE):
+def build(outline, out, *, classification, year=None, author=None, template=TEMPLATE):
+    classification = checked_classification(classification)   # before anything is read or written
+    year = year or datetime.date.today().year
     from pptx import Presentation                       # python-pptx, from the consented venv
 
     title, subtitle, slides, ignored = parse(Path(outline).read_text(encoding="utf-8"))
@@ -148,7 +172,7 @@ def build(outline, out, classification, year, author=None, template=TEMPLATE):
         s.shapes.title.text = headline
         fill(body.text_frame, bullets)
     prs.slides.add_slide(layouts["Closing Slide"])
-    set_footer(prs, classification, year, title, author)
+    set_footer(prs, classification=classification, year=year, title=title, author=author)
     prs.save(str(out))
 
 
@@ -156,8 +180,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="New on-brand deck from an outline and the bundled template.")
     ap.add_argument("outline")
     ap.add_argument("out")
-    ap.add_argument("--classification", choices=CLASSES, required=True,
-                    help="ask the person; never guess it")
+    ap.add_argument("--classification", choices=ALLOWED, required=True,
+                    help="ask the person; never guess it. If you cannot ask: " + repr(PLACEHOLDER))
     ap.add_argument("--year", type=int, default=datetime.date.today().year)
     ap.add_argument("--author")
     args = ap.parse_args(argv)
@@ -165,7 +189,8 @@ def main(argv=None) -> int:
         print(f"new_deck: {args.out} exists; choose another name (it is never overwritten)", file=sys.stderr)
         return 2
     try:
-        build(args.outline, args.out, args.classification, args.year, args.author)
+        build(args.outline, args.out, classification=args.classification, year=args.year,
+              author=args.author)
     except ImportError:
         print("new_deck: python-pptx is missing; see ai-sdlc-doc-powerpoint, section 1", file=sys.stderr)
         return 2
@@ -173,6 +198,9 @@ def main(argv=None) -> int:
         print(f"new_deck: {exc}", file=sys.stderr)
         return 2
     print(f"wrote {args.out}")
+    if args.classification == PLACEHOLDER:
+        print(f"new_deck: the footer says '{PLACEHOLDER}': the person sets the class before the "
+              "deck is shared", file=sys.stderr)
     return 0
 
 

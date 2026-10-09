@@ -53,6 +53,7 @@
     "template": "assets/templates/frq-template-slim-core.pptx"
   },
   "classification": ["Frequentis Public", "Frequentis General", "Frequentis Confidential"],
+  "classification_placeholder": "Frequentis [classification to be set]",
   "copyright": "© Frequentis AG {year}",
   "footer_format": "Frequentis <class> | © Frequentis AG <year>",
   "business_units": [

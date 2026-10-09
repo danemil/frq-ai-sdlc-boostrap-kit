@@ -23,6 +23,8 @@ from pathlib import Path
 import helpers
 from personal import packs, paths
 
+sys.dont_write_bytecode = True     # the tests import the skill's scripts: no __pycache__ in the skill
+
 KIT = helpers.KIT
 SKILL = KIT / packs.SKILLS_REL / "frq-brandbook"
 CHECK = SKILL / "scripts/check_brand.py"
@@ -319,16 +321,75 @@ class TestSkillFiles(unittest.TestCase):
     def test_brand_by_default_is_one_rule_in_each_file_skill(self):
         """Owner decision, 2026-10-09: with the brand skill installed, the file skills use the
         brand unless the person asks for a plain file."""
-        for skill in ("doc-powerpoint", "doc-word", "doc-excel", "doc-pdf", "visual-explainers", "drawio"):
+        for skill in ("doc-powerpoint", "doc-word", "doc-excel", "doc-pdf", "visual-explainers", "drawio",
+                      "likec4-dsl"):
             text = (KIT / packs.SKILLS_REL / skill / "SKILL.md").read_text(encoding="utf-8")
             rules_ = [l for l in text.splitlines() if "ai-sdlc-frq-brandbook" in l]
             self.assertEqual(len(rules_), 1, skill)
             self.assertIn("Company brand by default", rules_[0], skill)
             self.assertRegex(rules_[0], r"unless the person asks for (a|the) plain", skill)
+            # E2E 2026-10-09: Copilot's search skips the git-excluded placed folder, so it
+            # concluded the brand skill was missing. Read by exact path, never by search.
+            self.assertIn("If it is in your skill list, it is installed", rules_[0], skill)
+            self.assertIn("`.agents/skills/ai-sdlc-frq-brandbook/…`", rules_[0], skill)
+            self.assertIn("Never decide by glob or search", rules_[0], skill)
         desc = re.search(r"(?m)^description: (.+)$", (SKILL / "SKILL.md").read_text(encoding="utf-8")).group(1)
         self.assertIn("default", desc)
         for word in ("branded", "our template", "our colours"):
             self.assertIn(word, desc)
+
+    def test_the_classification_is_asked_and_never_guessed_in_every_recipe(self):
+        """E2E 2026-10-09: decks, explainers and footers got a guessed class."""
+        skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        for needed in ("Never guess it", "`Frequentis [classification to be set]`",
+                       "Outline first, then stop", "Build nothing until the person agrees",
+                       "Fix every FAIL and every font WARN", "never import them"):
+            self.assertIn(needed, skill)
+        docs = (SKILL / "references/documents.md").read_text(encoding="utf-8")
+        self.assertIn("**Classification: ask, never guess.**", docs)
+        self.assertIn("`Frequentis [classification to be set]`", docs)
+        self.assertEqual(json.loads(TOKENS.read_text(encoding="utf-8"))["classification_placeholder"],
+                         "Frequentis [classification to be set]")
+        decks = (SKILL / "references/building-decks.md").read_text(encoding="utf-8")
+        self.assertNotRegex(decks + skill, r'--classification "Frequentis (Public|General|Confidential)"',
+                            "an example with a real class gets copied as is")
+
+    def test_render_step_is_one_fixed_command_into_the_hidden_tmp_folder(self):
+        skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("`soffice --headless --convert-to pdf --outdir .ai-sdlc/tmp <file>`", skill)
+        self.assertIn("`pdftoppm -png -r 80 .ai-sdlc/tmp/<name>.pdf .ai-sdlc/tmp/<name>`", skill)
+
+    def test_the_font_snippets_come_first_in_the_word_and_excel_recipes(self):
+        docs = (SKILL / "references/documents.md").read_text(encoding="utf-8")
+        for head, snippet in (("## Word (with", "w:asciiTheme"), ("## Excel (with", "def arial_everywhere")):
+            section = docs.split(head, 1)[1]
+            first = section.split("\n\n", 2)[1]
+            self.assertIn("first" if "Word" in head else "every openpyxl script", first, head)
+            self.assertLess(section.index(snippet), section.index("\n- "), head)
+
+    @unittest.skipUnless(importlib.util.find_spec("openpyxl"), "openpyxl is not installed here")
+    def test_the_excel_recipe_leaves_no_font_warning(self):
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill
+        docs = (SKILL / "references/documents.md").read_text(encoding="utf-8")
+        recipe = docs.split("## Excel (with", 1)[1].split("```python", 1)[1].split("```", 1)[0]
+        ns = {}
+        exec(compile(recipe, "documents.md", "exec"), ns)
+        with tempfile.TemporaryDirectory() as tmp:
+            wb = Workbook()
+            ws = wb.active
+            ws.append(["Team", "Days"])
+            ws.append(["Ana", 9])
+            for c in ws[1]:
+                c.font = Font(bold=True, color="FFFFFF")
+                c.fill = PatternFill("solid", fgColor="004182")
+            ws.oddFooter.left.text = "Frequentis General | © Frequentis AG 2026"
+            ns["arial_everywhere"](wb)
+            out = Path(tmp) / "x.xlsx"
+            wb.save(str(out))
+            code, found = findings(out, "--year", "2026")
+            self.assertEqual([f for f in found if f["rule"] == "font.non-brand"], [])
+            self.assertTrue(Font is not None and ws["A1"].font.b)
 
     def test_customer_word_work_points_to_the_official_template(self):
         for rel in ("SKILL.md", "references/documents.md"):
@@ -453,6 +514,42 @@ class TestCheckBrandScript(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("FAIL", out)
         self.assertRegex(out, r"\d+ FAIL, \d+ WARN, \d+ INFO")
+
+    def test_findings_are_numbered_so_a_person_can_pick_by_number(self):
+        code, found = findings(GOLDEN)
+        self.assertEqual([f["id"] for f in found], list(range(1, len(found) + 1)))
+        _, out, _ = run_check(GOLDEN)
+        self.assertIn("| # | Severity | Where |", out)
+        rows = [l for l in out.splitlines() if re.match(r"^\| \d+ \| (FAIL|WARN|INFO) \|", l)]
+        self.assertEqual([int(r.split("|")[1]) for r in rows], list(range(1, len(found) + 1)))
+
+    def test_the_template_note_is_there_only_with_template_findings(self):
+        note = "come from the template"
+        with tempfile.TemporaryDirectory() as tmp:
+            deck = build_pptx(Path(tmp) / "ok.pptx", on_brand_slides())
+            _, out, _ = run_check(deck)
+            self.assertIn(note, out)
+            xlsx = minimal_xlsx(Path(tmp) / "x.xlsx", font="Arial", rgb="FF004182",
+                                strings=("Budget", "Frequentis General"))
+            _, out, _ = run_check(xlsx)
+            self.assertNotIn(note, out)
+
+    def test_a_classification_still_to_be_set_is_a_warning_not_a_guess(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            doc = minimal_docx(Path(tmp) / "d.docx", [
+                ('<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>', "Report")],
+                footer_text="Frequentis [classification to be set] | © Frequentis AG 2026")
+            code, found = findings(doc, "--year", "2026")
+            self.assertEqual(code, 0)
+            self.assertIn("footer.classification-to-set", rules(found, "WARN", "file"))
+            self.assertNotIn("footer.classification", rules(found))
+
+    def test_the_scripts_leave_no_bytecode_behind(self):
+        """E2E 2026-10-09: a __pycache__ in the placed skill showed up in `check`."""
+        for script in (CHECK, NEW_DECK):
+            src = script.read_text(encoding="utf-8")
+            self.assertIn("\nsys.dont_write_bytecode = True", src, script.name)
+            self.assertLess(src.index("sys.dont_write_bytecode = True"), src.index("import argparse"))
 
     def test_a_deck_built_from_the_template_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -699,6 +796,36 @@ class TestCheckBrandScript(unittest.TestCase):
         self.assertTrue(json.loads(out)["findings"])
 
 
+def load_new_deck():
+    spec = importlib.util.spec_from_file_location("new_deck_mod", NEW_DECK)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestNewDeckClassification(unittest.TestCase):
+    """E2E 2026-10-09: Copilot imported new_deck and called build()/set_footer() with a class
+    it picked itself. The internals check the value too; no python-pptx needed for this."""
+
+    def test_build_and_set_footer_take_the_class_by_keyword_only_and_check_it(self):
+        nd = load_new_deck()
+        with tempfile.TemporaryDirectory() as tmp:
+            outline = Path(tmp) / "o.md"
+            outline.write_text("# T\n\n## One\n- a\n", encoding="utf-8")
+            out = Path(tmp) / "d.pptx"
+            with self.assertRaises(TypeError):
+                nd.build(outline, out, "Frequentis General", 2026)          # positional: refused
+            for guess in ("internal", "Confidential", "", None):
+                with self.subTest(guess=guess), self.assertRaises(ValueError):
+                    nd.build(outline, out, classification=guess)
+                with self.subTest(guess=guess), self.assertRaises(ValueError):
+                    nd.set_footer(object(), classification=guess, year=2026, title="T")
+            self.assertFalse(out.exists())
+        self.assertEqual(nd.ALLOWED, nd.CLASSES + ("Frequentis [classification to be set]",))
+        for value in nd.ALLOWED:
+            self.assertEqual(nd.checked_classification(value), value)
+
+
 @unittest.skipUnless(importlib.util.find_spec("pptx"), "python-pptx is not installed here")
 class TestNewDeck(unittest.TestCase):
     def test_new_deck_from_an_outline_passes_the_check(self):
@@ -772,6 +899,19 @@ class TestNewDeck(unittest.TestCase):
             r, out = self.run_new_deck(tmp, "# Title\n\n## One\n- a\n")
             self.assertNotEqual(r.returncode, 0)
             self.assertIn("classification", r.stderr)
+            self.assertFalse(out.exists())
+
+    def test_the_placeholder_builds_and_the_check_flags_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r, out = self.run_new_deck(tmp, "# Title\n\n## One\n- a\n",
+                                       "--classification", "Frequentis [classification to be set]")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("classification to be set", r.stderr)
+            code, found = findings(out)
+            self.assertEqual(code, 0)
+            self.assertIn("footer.classification-to-set", rules(found, "WARN"))
+            r, out = self.run_new_deck(tmp, "# Title\n\n## One\n- a\n", "--classification", "Internal")
+            self.assertNotEqual(r.returncode, 0)
             self.assertFalse(out.exists())
 
     def test_numbered_lists_paragraphs_and_bold_are_kept(self):
