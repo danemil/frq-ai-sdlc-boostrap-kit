@@ -1,11 +1,11 @@
 ---
 name: visual-explainers
-description: Explain a concept as a self-contained HTML explainer — spatial layout, inline SVG diagrams, interactive demos — replicating Thariq Shihipar's html-effectiveness gallery patterns. Use when the user wants a concept, system, process, tradeoff, plan, or comparison explained or taught visually, asks for an "HTML explainer" or "visual explanation", or another skill needs a rendered artifact instead of markdown.
+description: Explain a concept as a self-contained HTML explainer — spatial layout, inline SVG diagrams, interactive demos — using proven HTML explainer patterns. Use when the user wants a concept, system, process, tradeoff, plan, or comparison explained or taught visually, asks for an "HTML explainer" or "visual explanation", or another skill needs a rendered artifact instead of markdown.
 ---
 
 # Visual explainers
 
-Produce one self-contained `.html` **explainer** for the given concept. The thesis (from the source gallery): markdown flattens spatial information; an explainer trades a document the reader would skim for one they actually read.
+Produce one self-contained `.html` **explainer** for the given concept. The thesis: markdown flattens spatial information; an explainer trades a document the reader would skim for one they actually read.
 
 ## Steps
 

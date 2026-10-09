@@ -1,6 +1,6 @@
 # Pattern catalog — the 9 families and when to reach for each
 
-From Thariq Shihipar's html-effectiveness gallery (thariqs.github.io/html-effectiveness). Each pattern replaces a specific kind of markdown wall. Pick the pattern by asking: *what would the reader otherwise have to hold in their head?*
+Each pattern replaces a specific kind of markdown wall. Pick the pattern by asking: *what would the reader otherwise have to hold in their head?*
 
 ## 01 Exploration & Planning
 *When you're not sure what you want yet — fan out across directions and lay them next to each other so the reader can point at one.*
