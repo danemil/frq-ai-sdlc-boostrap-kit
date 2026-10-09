@@ -218,6 +218,21 @@ class TestSkillFiles(unittest.TestCase):
                       "drawio", "likec4-dsl"):
             self.assertIn(f"`{packs.PREFIX}{skill}`", text)
 
+    def test_every_file_of_the_skill_is_tracked_by_git(self):
+        """An ignore rule (template/.gitignore has *.pptx) must not keep a skill file out of a
+        clone; a dirty worktree would hide it, so ask git, not the disk."""
+        r = subprocess.run(["git", "ls-files", "--", str(SKILL.relative_to(KIT))], cwd=KIT,
+                           capture_output=True, text=True, check=False)
+        if r.returncode != 0 or not (KIT / ".git").exists():
+            self.skipTest("not a git checkout")
+        tracked = {Path(x).relative_to(SKILL.relative_to(KIT)).as_posix() for x in r.stdout.split("\n") if x}
+        on_disk = {p.relative_to(SKILL).as_posix() for p in SKILL.rglob("*")
+                   if p.is_file() and "__pycache__" not in p.parts}
+        self.assertEqual(sorted(on_disk - tracked), [])
+        r = subprocess.run(["git", "check-ignore", "--no-index", "-q", str(TEMPLATE.relative_to(KIT))],
+                           cwd=KIT, capture_output=True, check=False)
+        self.assertEqual(r.returncode, 1, "the slim template is git-ignored")
+
     def test_size_budget(self):
         total = sum(p.stat().st_size for p in SKILL.rglob("*") if p.is_file())
         self.assertLessEqual(total, BUDGET, f"{total} bytes")
