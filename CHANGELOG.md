@@ -34,6 +34,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - `frq-brandbook`: fix every FAIL and every font WARN in your own output; the python-docx theme-font snippet and a working openpyxl Arial recipe (`arial_everywhere()`; changing the Normal style alone left every cell in Calibri) come first in the Word and Excel recipes; one fixed render command into `.ai-sdlc/tmp/`; the scripts set `sys.dont_write_bytecode` and say to run them as commands, not import them.
 - `check_brand.py`: the Markdown table has a running `#` column and `--json` findings an `id`, so a person can pick fixes by number; the "findings come from the template" note appears only when there are template INFO findings.
 - `visual-explainers`: no "Prompt" panel echoing the request on a page unless the person asks for one.
+- Core instructions: "do the onboarding" always goes to `ONBOARDING.md`, also when the kit is already set up (Copilot answered "already complete"); German replies use "Sie" throughout unless the person asks for "du", and every language reads naturally, not word for word.
+- `connectors`: `disconnect` is run first without `--yes` (it only shows what it would remove), and with `--yes` only after the person says yes.
 
 ## [0.7.0] — 2026-10-08
 ### Added
