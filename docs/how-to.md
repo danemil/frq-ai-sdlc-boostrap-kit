@@ -43,7 +43,7 @@ Pick one:
 Any folder name inside the repo works. Leave out the kit's own `.git` folder. The ZIP has none; a clone does:
 
 ```bash
-cd ~/work/my-repo                                         # your repo's top folder
+cd ~/repos/my-repo                                         # your repo's top folder
 rsync -a --exclude .git ~/ai-sdlc-kit-source/ ./ai-sdlc-kit/
 ```
 
@@ -109,7 +109,7 @@ python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,sm --lang en
 Use any folder name inside the repo:
 
 ```bash
-cd ~/work/my-repo
+cd ~/repos/my-repo
 rsync -a --exclude .git ~/ai-sdlc-kit-source/ ./ai-sdlc-kit-new/
 ```
 
