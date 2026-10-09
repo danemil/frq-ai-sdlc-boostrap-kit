@@ -28,6 +28,7 @@ All in one new section of `SKILL.md`, "Where models go (this kit's copy)", place
 - **The CLI is optional and needs consent.** Prefer an already-installed `likec4` (a `package.json` dependency or `likec4` on the PATH). `npx`/`bunx`/`pnpm dlx likec4 …` downloads a package from the npm registry, so Copilot asks before running it the first time. Without Node or npm access, or if the person says no, the `.c4` file is kept, validation is skipped, and the person is told that validation and export need the LikeC4 CLI or the LikeC4 VS Code extension.
 - **No writes to other systems unasked.** `likec4 sync leanix --apply` (which writes to LeanIX) runs only when the person asks for it.
 - **No runtime fetches.** A line that the bundled `references/` are read locally and nothing is fetched from the internet at runtime.
+- **Company brand by default.** One line: the brand skill's LikeC4 `specification` colours are used unless the person asks for a plain model. The line says to load `ai-sdlc-frq-brandbook`, that it is installed when it is in the skill list, and to read its files by exact path, never deciding by glob or search (the placed folder is hidden from git, so search tools skip it).
 
 The frontmatter (`name`, `description`) is unchanged; setup prefixes the name to `ai-sdlc-likec4-dsl` when it places the skill.
 
