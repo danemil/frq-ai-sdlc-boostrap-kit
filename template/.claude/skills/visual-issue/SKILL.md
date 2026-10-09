@@ -48,11 +48,11 @@ GitHub **sanitizes** the markdown and runs a trailing Mermaid version; a Bitbuck
 
 ## Validate before filing — don't ship an unrendered block
 
-A block that fails to parse renders as a raw code box, not a diagram — and you only find out *after* the issue is public. So compile every diagram first. Write each block's body to a `.mmd` file (in a temp folder, not the repo) and run it through the Mermaid CLI; only proceed when it exits clean. Use `mmdc` when it is installed, otherwise `npx`:
+A block that fails to parse renders as a raw code box, not a diagram — and you only find out *after* the issue is public. So compile every diagram first. Write each block's body to a `.mmd` file (in a temp folder, not the repo) and run it through the Mermaid CLI; only proceed when it exits clean. Use `mmdc` when it is installed (`command -v mmdc`). **`npx` downloads mermaid-cli from the npm registry: ask the person before you run it**, every session. If they say no, or there is no Node, hand over the diagram marked **"not compiled"** and say why.
 
 ```bash
 mmdc -i diagram.mmd -o "${TMPDIR:-/tmp}/check.svg"
-npx -y @mermaid-js/mermaid-cli -i diagram.mmd -o "${TMPDIR:-/tmp}/check.svg"
+npx -y @mermaid-js/mermaid-cli -i diagram.mmd -o "${TMPDIR:-/tmp}/check.svg"   # only after the person says yes
 ```
 
 Two traps in that one line, both of which fail a *valid* diagram:
@@ -60,11 +60,13 @@ Two traps in that one line, both of which fail a *valid* diagram:
 - The output path must end in `.svg`/`.png`/`.pdf`/`.md`. mermaid-cli rejects anything else (`/dev/null` included) *before* it parses the diagram — so discarding the output that way fails every run. Write a real temp file and ignore it.
 - **Always write `${TMPDIR:-/tmp}`, never bare `$TMPDIR`.** macOS sets `TMPDIR`; most Linux shells and containers don't, and there the path collapses to `/check.svg` — unwritable, non-zero exit, diagram blamed for it.
 
-A non-zero exit means the diagram is broken — fix it and re-run until it compiles. (No network/CLI? Fall back to a https://mermaid.live preview, but the CLI is the bar — and only when the diagram may leave the team's machines. Otherwise tell the person the diagram could not be compiled.)
+A non-zero exit means the diagram is broken — fix it and re-run until it compiles. (No network/CLI, or no to `npx`? Mark the diagram "not compiled" in the hand-over. Suggest a https://mermaid.live preview only when the diagram may leave the team's machines.)
 
 ## Assemble and deliver
 
 In every case: write the full body — prose plus the *validated* ` ```mermaid ` block(s) — to a temp markdown file, and **show the person the drafted title and body before anything is filed or handed over.** Nothing is filed, posted or attached without their approval.
+
+**Only the person's own requirements.** Acceptance criteria, scope and decisions in the body are only the ones the person gave (or that are in the source they pointed to). Anything you would add goes in a separate section headed **"Suggested, to confirm"**, for the person to keep or delete.
 
 ### GitHub: file with `gh`
 
@@ -94,4 +96,4 @@ Jira does not render Mermaid. Give the person:
 
 You post and attach nothing yourself: the person does.
 
-**Done when:** every ` ```mermaid ` block has compiled clean under the Mermaid CLI (or the person has been told it could not be); the body carries one block per concept, each of a type that matches its situation, all passing the limits checklist; the person has seen and approved the title and body; on GitHub the issue or PR is filed and its URL reported; on Bitbucket or Jira the text (and image, if any) is handed over with the paths, and nothing is claimed as filed.
+**Done when:** every ` ```mermaid ` block has compiled clean under the Mermaid CLI (or is marked "not compiled" and the person knows why); the body carries one block per concept, each of a type that matches its situation, all passing the limits checklist; the person has seen and approved the title and body; on GitHub the issue or PR is filed and its URL reported; on Bitbucket or Jira the text (and image, if any) is handed over with the paths, and nothing is claimed as filed.

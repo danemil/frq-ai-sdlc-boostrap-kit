@@ -28,7 +28,7 @@ Work with `.docx` files by writing small Python snippets that use **python-docx*
 - Never overwrite an existing file: ask, or write `<name>-v2.docx`. Check with `os.path.exists` before saving.
 - Only write the output file. Read inputs, never modify them in place.
 - Finish with a short summary: path, headings, number of tables/images, anything that needs a manual step (for example "update the table of contents in Word").
-- **Company brand by default:** if `ai-sdlc-frq-brandbook` is installed, every new document follows its Word guidance (the official template for customer documents), fonts and colours, unless the person asks for a plain file.
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Every new document follows its Word guidance (`references/documents.md`: the official template for customer documents, fonts, colours, the classification footer), unless the person asks for a plain file.
 
 ## 3. Create a document
 

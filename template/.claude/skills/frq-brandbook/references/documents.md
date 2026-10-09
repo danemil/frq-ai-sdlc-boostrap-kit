@@ -2,6 +2,8 @@
 
 Values come from `../brand-tokens.json`. Office files use the Office HEX values and web pages the web HEX values (conflict C1).
 
+**Classification: ask, never guess.** Every footer below (Word, Excel, HTML, diagrams) carries `Frequentis <class> | © Frequentis AG <year>`. Ask the person for the class (Public, General or Confidential) before you write it. If you cannot ask, write the literal `Frequentis [classification to be set]` and list it in the hand-over; never pick one yourself.
+
 ## Common mapping
 
 | Element | Office (Word, Excel, PowerPoint) | Web (HTML, CSS) |
@@ -19,35 +21,48 @@ Never italics, never shadows, no tints of brand colours (grey tints are fine), l
 
 ## Word (with `ai-sdlc-doc-word`)
 
+**Do this first, in every python-docx script** (else Word shows Calibri and the checker warns): `style.font.name = "Arial"` leaves `w:asciiTheme`/`w:hAnsiTheme` on the heading styles, and Word then uses the theme font (Calibri). Remove the theme attributes:
+
+```python
+from docx.oxml.ns import qn
+for name in ("Normal", "Heading 1", "Heading 2", "Heading 3", "Title"):
+    rpr = doc.styles[name].element.get_or_add_rPr()
+    fonts = rpr.find(qn("w:rFonts"))
+    if fonts is None:
+        fonts = rpr.makeelement(qn("w:rFonts"), {}); rpr.append(fonts)
+    for att in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
+        fonts.attrib.pop(qn(att), None)
+    fonts.set(qn("w:ascii"), "Arial"); fonts.set(qn("w:hAnsi"), "Arial")
+```
+
 **Customer-facing documents start from the official Word template.** The guidelines (PDF p.45) say the Word templates `Doknorme.dotm` (English) and `Doknormd.dotm` (German), from Word → *Shared Templates*, are for **all publications, manuals, descriptions and instructions delivered to customers**, and strongly recommended for internal ones. Ask the person for a copy of the `.dotm` (it is not bundled), then build on it: `Document("Doknorme.dotm")` does not open a `.dotm` directly with python-docx, so ask them to save an empty document from the template as `.docx` first, and use that file as the base. The **letterhead** (PDF p.44) and the **visitor agenda** (PDF p.48) also come from Word → Shared Templates; never rebuild them.
 
 Use the mapping below only for internal notes, or when the person cannot get the template (say so in the hand-over):
 
-- Styles, not direct formatting: `Normal` Arial 10.5 pt, #333333 (the letter body size, PDF p.44); `Heading 1–3` Arial, #004182, sentence case.
-- **python-docx trap**: `style.font.name = "Arial"` leaves `w:asciiTheme`/`w:hAnsiTheme` on the heading styles, and Word then uses the theme font (Calibri). Remove the theme attributes:
-
-  ```python
-  from docx.oxml.ns import qn
-  for name in ("Normal", "Heading 1", "Heading 2", "Heading 3", "Title"):
-      rpr = doc.styles[name].element.get_or_add_rPr()
-      fonts = rpr.find(qn("w:rFonts"))
-      if fonts is None:
-          fonts = rpr.makeelement(qn("w:rFonts"), {}); rpr.append(fonts)
-      for att in ("w:asciiTheme", "w:hAnsiTheme", "w:eastAsiaTheme", "w:cstheme"):
-          fonts.attrib.pop(qn(att), None)
-      fonts.set(qn("w:ascii"), "Arial"); fonts.set(qn("w:hAnsi"), "Arial")
-  ```
+- Styles, not direct formatting: `Normal` Arial 10.5 pt, #333333 (the letter body size, PDF p.44); `Heading 1–3` Arial, #004182, sentence case (the snippet above sets the fonts).
 - Footer on every page: `Frequentis <class> | © Frequentis AG <year>` and the page number. Logo top right in the header, at least 5 mm high: `header.paragraphs[0].add_run().add_picture("../assets/logo/logo-frequentis-wordmark-blue.png", height=Mm(6))` (python-docx cannot place the SVG).
 - Tables: header row fill #004182 with white text, white body, thin #9FA0A3 rules, no zebra colours. Set the fill per header cell (`w:shd w:fill="004182"`) instead of a built-in table style, which brings its own colours.
 - Run `../scripts/check_brand.py file.docx`: it checks colours, fonts (including theme fonts), italics, the internal abbreviation and the classification, for styles the document uses.
 
 ## Excel (with `ai-sdlc-doc-excel`)
 
-- openpyxl's default font is Calibri 11. Change it once, so every cell follows: `wb._named_styles["Normal"].font = Font(name="Arial", size=10)` before you add sheets, or set `Font(name="Arial")` on every cell you write.
+**Put this in every openpyxl script and call it last, just before `wb.save()`.** openpyxl writes every cell in Calibri 11 (changing the Normal style does not change that), and the checker warns on it. This keeps each cell's bold, size and colour:
+
+```python
+from openpyxl.styles import Font
+
+def arial_everywhere(wb):
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows():
+            for c in row:
+                f = c.font
+                c.font = Font(name="Arial", size=f.sz, bold=f.b, color=f.color)
+```
+
 - Header row fill #004182 with white bold text; number formats with commas from four digits (2,115) and a decimal point.
 - Pass/fail and status: the accents green #73B432, orange #F0A51E, red #A52846 as cell fills (conditional formatting), with #333333 text; never as text colour on white.
 - Charts: 2D only; series colours in order #004182, #00AAE1, #626469, #9FA0A3, #C9C3BA; highlight one item with one accent; BU colours only in legends.
-- Classification in the sheet header or footer (Page Layout → Header/Footer) and, for shared workbooks, in a cell on the first sheet.
+- Classification (asked, never guessed) in the sheet header or footer (Page Layout → Header/Footer) and, for shared workbooks, in a cell on the first sheet.
 
 ## PDF (with `ai-sdlc-doc-pdf`)
 
@@ -71,6 +86,7 @@ body { font-family: var(--frq-font); color: var(--frq-black); background: #FFFFF
 h1, h2, h3 { color: var(--frq-blue); font-weight: 400; }
 ```
 
+- Footer: `Frequentis <class> | © Frequentis AG <year>`, the class asked, never guessed (see the top of this file).
 - Logo: inline `../assets/logo/logo-frequentis-wordmark-blue.svg` (or the white version on blue), with `alt="Frequentis"`, at least 5 mm (about 19 px) high, clear space equal to its height.
 - Roboto: use it if the system has it, else the stack falls back to Arial; do not bundle font files.
 - Dark mode is not defined by the guidelines: keep white backgrounds for anything branded, or ask.
@@ -84,6 +100,7 @@ h1, h2, h3 { color: var(--frq-blue); font-weight: 400; }
 - supporting node: `rounded=0;whiteSpace=wrap;fillColor=#C9C3BA;strokeColor=none;fontColor=#333333;fontFamily=Arial;shadow=0;`
 - edge: `endArrow=block;endFill=1;strokeColor=#626469;strokeWidth=1;fontFamily=Arial;fontColor=#333333;edgeStyle=orthogonalEdgeStyle;`
 - label or note: `text;fontFamily=Arial;fontColor=#333333;align=left;`
+- footer: a label at the bottom left, `Frequentis <class> | © Frequentis AG <year>`, the class asked, never guessed.
 
 **LikeC4 (with `ai-sdlc-likec4-dsl`).** Define the colours once in the specification and use them by kind:
 

@@ -15,6 +15,7 @@ design, and get your human partner's approval.
 
 - **Git:** never commit, push or merge on your own. Follow the person's git-comfort setting and ask before each commit.
 - **Specs** go to `docs/specs/`, or where the person asks.
+- **After a spec, offer a plan.** Once a spec is written, the next step you offer is always a plan with the `ai-sdlc-writing-plans` skill: never offer to start implementing, create a branch or skip the plan.
 
 ## Establish Shared Understanding
 

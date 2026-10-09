@@ -23,7 +23,7 @@ Not bundled: upstream `visual-companion.md` and `scripts/` (a browser companion 
 All in `SKILL.md`, listed top to bottom:
 
 - **Description softened.** The frontmatter `description` starts "Use before any creative work" instead of "You MUST use this before any creative work"; the rest is unchanged.
-- **New section "This kit's copy"** before "Establish Shared Understanding": never commit, push or merge on its own, follow the person's git-comfort setting and ask before each commit; specs go to `docs/specs/`, or where the person asks.
+- **New section "This kit's copy"** before "Establish Shared Understanding": never commit, push or merge on its own, follow the person's git-comfort setting and ask before each commit; specs go to `docs/specs/`, or where the person asks; after a spec, the next step offered is always a plan with `ai-sdlc-writing-plans`, never implementation, a branch or skipping the plan (E2E finding, 2026-10-09: the AI offered to skip the plan).
 - **Hard gate.** The architectural path no longer "selects its execution method" after the plan review; written-spec approval only permits invoking `ai-sdlc-writing-plans`.
 - **Three Paths.** The architectural path ends with the `ai-sdlc-writing-plans` skill.
 - **Architectural checklist.** The visual-companion step is removed and the steps renumbered 1–8; the design doc is saved to `docs/specs/YYYY-MM-DD-<topic>-design.md` and the AI asks before committing it; the last step invokes the `ai-sdlc-writing-plans` skill.

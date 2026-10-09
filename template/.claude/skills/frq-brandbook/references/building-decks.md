@@ -53,10 +53,10 @@ Not in the slim template (in the full template only): `Map` and the world/region
 Get python-pptx as `ai-sdlc-doc-powerpoint` describes (ask first; personal venv `~/.ai-sdlc/venv`). The quickest path is the script:
 
 ```bash
-python3 scripts/new_deck.py outline.md docs/remote-towers.pptx --classification "Frequentis General" --author "Ana Pop"
+python3 scripts/new_deck.py outline.md docs/remote-towers.pptx --classification "<the class the person gave>" --author "Ana Pop"
 ```
 
-Outline: `# Deck title`, the next line is the sub-title; each `## Headline` is a slide (`Headline + field`, `Sub-headline + field` when a `> sub-headline` line follows, `Headline (standard)` when it has no content); `- bullet` or `1. item`, two spaces per level; plain lines become paragraphs; `**bold**` markers are removed. Tables and code blocks are not placed: the script lists them, and stops without writing if a slide would end up empty. `--classification` is required (ask the person). It adds the `Closing Slide`, sets the footer, and refuses to overwrite.
+Outline: `# Deck title`, the next line is the sub-title; each `## Headline` is a slide (`Headline + field`, `Sub-headline + field` when a `> sub-headline` line follows, `Headline (standard)` when it has no content); `- bullet` or `1. item`, two spaces per level; plain lines become paragraphs; `**bold**` markers are removed. Tables and code blocks are not placed: the script lists them, and stops without writing if a slide would end up empty. `--classification` is required: ask the person; if you cannot ask, pass `Frequentis [classification to be set]` and say so. Run the script as a command, never import it. It adds the `Closing Slide`, sets the footer, and refuses to overwrite.
 
 By hand, for other layouts:
 

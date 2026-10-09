@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: Use when implementing any feature or bugfix, before writing implementation code, and when someone says "write tests first", "test-first", "TDD", "red-green", "a failing test" or "tests for this function"
 ---
 
 # Test-Driven Development (TDD)
@@ -16,6 +16,7 @@ Write the test first. Watch it fail. Write minimal code to pass.
 ## This kit's copy
 
 - **Git:** never commit, push or merge on your own. Follow the person's git-comfort setting and ask before each commit.
+- **Show before you change:** before editing any file, show the proposed diff and wait for a yes; if you can't ask, stop after proposing. Report evidence (the test output), never just "Fixed".
 
 ## When to Use
 

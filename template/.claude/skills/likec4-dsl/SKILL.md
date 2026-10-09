@@ -12,6 +12,7 @@ Architecture-as-code tool. Describe systems in `.c4`/`.likec4` files and LikeC4 
 - Write LikeC4 models to `docs/architecture/` in the person's repo (create the folder if needed), or wherever the person asks. Show the file name and content before you save it; the person checks every file before it is kept.
 - The `likec4` CLI is **optional**. Prefer one that is already installed: a `likec4` dependency in `package.json`, or `likec4` on the PATH. Running `npx`/`bunx`/`pnpm dlx likec4 …` downloads a package from the npm registry, so ask the person before you run it the first time. A command that writes to another system (`likec4 sync leanix --apply`) runs only when the person asks for it.
 - Without Node or npm access, or if the person says no, keep the `.c4` file, skip validation, and tell the person that validation and export need the LikeC4 CLI or the LikeC4 VS Code extension. Never claim the file was validated.
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Use its LikeC4 `specification` colours (`references/documents.md`, Diagrams), unless the person asks for a plain model.
 - The references in `references/` are bundled with this skill; read them from there. Do not fetch anything from the internet at runtime.
 
 ## Rules
