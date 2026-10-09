@@ -39,12 +39,14 @@ The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or
 | Product Owner | `po` | `ai-sdlc-playbook-product` | done for you, in plain words |
 | Product Manager | `pm` | `ai-sdlc-playbook-product` | done for you, in plain words |
 | Scrum Master / Team Coach (SAFe) | `sm` | `ai-sdlc-playbook-sm` | done for you, explained |
-| Developer | `dev` | `ai-sdlc-playbook-dev` | you drive git |
-| QA | `qa` | `ai-sdlc-playbook-qa` | done for you, explained |
-| Architect | `architect` | `ai-sdlc-playbook-architect` | you drive git |
-| Engineering Manager | `em` | `ai-sdlc-playbook-em` | you drive git |
+| Developer | `dev` | `ai-sdlc-playbook-dev`, `ai-sdlc-brainstorming`, `ai-sdlc-receiving-code-review`, `ai-sdlc-systematic-debugging`, `ai-sdlc-test-driven-development`, `ai-sdlc-verification-before-completion`, `ai-sdlc-writing-plans` | you drive git |
+| QA | `qa` | `ai-sdlc-playbook-qa`, `ai-sdlc-systematic-debugging`, `ai-sdlc-test-driven-development`, `ai-sdlc-verification-before-completion` | done for you, explained |
+| Architect | `architect` | `ai-sdlc-playbook-architect`, `ai-sdlc-brainstorming`, `ai-sdlc-receiving-code-review`, `ai-sdlc-writing-plans` | you drive git |
+| Engineering Manager | `em` | `ai-sdlc-playbook-em`, `ai-sdlc-writing-plans` | you drive git |
 
 **Every role also gets ten skills** (the `core` pack, so a future role gets them too): `ai-sdlc-connectors` (read-only facts from Jira, Confluence, Bitbucket, Jama and Jenkins, each with its link; see below), `ai-sdlc-doc-word`, `ai-sdlc-doc-excel`, `ai-sdlc-doc-powerpoint` and `ai-sdlc-doc-pdf` (Word, Excel, PowerPoint and PDF files, written for this kit; libraries are installed only with your consent into `~/.ai-sdlc/venv`), `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-likec4-dsl` (LikeC4 architecture-as-code models in `.c4` files, saved in `docs/architecture/`; the `likec4` CLI is optional and Copilot asks before downloading it), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira) and `ai-sdlc-deceneus` (what to remember from a chat, saved only to your own hidden files after you approve). Leave one out with "change my preferences". Each skill's folder has a `PROVENANCE.md`.
+
+**Six process skills go by role** (table above), taken from [obra/superpowers](https://github.com/obra/superpowers) v6.4.2 (MIT): `ai-sdlc-brainstorming` (shape an idea into an approved design), `ai-sdlc-writing-plans` (a step-by-step plan a person carries out or reviews task by task), `ai-sdlc-test-driven-development` (test first, red then green), `ai-sdlc-systematic-debugging` (find the root cause before fixing), `ai-sdlc-verification-before-completion` (evidence before saying "done") and `ai-sdlc-receiving-code-review` (check review comments before acting; replies are drafted for you to post). They never commit, push or merge on their own: they follow your git setting and ask before each commit. Specs go to `docs/specs/`, plans to `docs/plans/`. Add one or leave one out with "change my preferences".
 
 Your own notes (`.github/instructions/ai-sdlc-personal.instructions.md`) and personal skills (`.agents/skills/ai-sdlc-personal-*/`) are hidden from git like the kit's files, but they are yours: the kit never changes them, and `remove` keeps and lists them.
 

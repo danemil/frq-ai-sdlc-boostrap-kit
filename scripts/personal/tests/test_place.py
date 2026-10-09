@@ -44,7 +44,8 @@ class TestPlace(unittest.TestCase):
             ".github/instructions/ai-sdlc-dev.instructions.md", PO]))
         skills = {r.split("/")[2] for r in wanted if r.startswith(".agents/")}
         self.assertEqual(skills, {f"ai-sdlc-{s}" for s in (
-            "playbook-dev", "playbook-product", *self.packs["core"]["skills"])})
+            *self.packs["dev"]["skills"], *self.packs["po"]["skills"],
+            *self.packs["core"]["skills"])})
         self.assertIn(".agents/skills/ai-sdlc-drawio/references/xml-reference.md", wanted)
         self.assertIn("- **Roles:** Product Owner, Developer", self.wanted()[".ai-sdlc/USER.md"])
 

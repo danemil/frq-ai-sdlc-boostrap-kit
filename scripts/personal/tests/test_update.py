@@ -167,6 +167,27 @@ class TestUpdate(unittest.TestCase):
         st = json.loads((self.root / paths.STATE_REL).read_text())
         self.assertEqual(st["choices"]["add_skills"], [])
 
+    def test_a_skill_a_newer_kit_adds_to_a_role_arrives_and_a_left_out_one_stays_out(self):
+        root = helpers.make_repo(Path(self.tmp.name).resolve() / "repo-0.6", {"README.md": "x\n"})
+        old = helpers.copy_kit(root / "kit-old")
+        role = old / "roles/dev/role.json"
+        data = json.loads(role.read_text())
+        data["skills"] = ["playbook-dev"]                  # a kit before the process skills
+        role.write_text(json.dumps(data))
+        code, out = helpers.cli(root, old, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
+        self.assertEqual(code, 0, out)
+        skills = root / ".agents/skills"
+        self.assertFalse((skills / "ai-sdlc-writing-plans").exists())
+        code, out = helpers.cli(root, root / paths.KIT_REL, "change", "--drop-skill", "brainstorming")
+        self.assertEqual(code, 0, out)
+        newer = helpers.copy_kit(root / "kit-newer")
+        (newer / "VERSION").write_text("9.9.9\n")
+        code, out = helpers.cli(root, newer, "update")
+        self.assertEqual(code, 0, out)
+        self.assertTrue((skills / "ai-sdlc-writing-plans/SKILL.md").is_file())
+        self.assertFalse((skills / "ai-sdlc-brainstorming").exists())
+        self.assertEqual(helpers.git(root, "status", "--porcelain").stdout, "")
+
 
 if __name__ == "__main__":
     unittest.main()

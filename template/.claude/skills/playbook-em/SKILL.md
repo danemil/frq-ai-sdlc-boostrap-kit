@@ -64,7 +64,7 @@ The **Engineering Manager (EM)** seat owns how `<PROJECT_NAME>` is built and shi
 
 Ties to the board's Roles × Skills × MCP matrix. See [`AGENTS.md`](../../../AGENTS.md) and [`WORKING-AGREEMENT.md`](../../../WORKING-AGREEMENT.md).
 
-- **Invokable skills** — this playbook; a tdd / test skill and a code-review skill where present; `skill-creator` to author new seat skills.
+- **Invokable skills** — this playbook; `ai-sdlc-writing-plans` for delivery and improvement plans; `ai-sdlc-test-driven-development`, `ai-sdlc-verification-before-completion` and `ai-sdlc-receiving-code-review` (if you have them; code review itself follows the team's review process); `ai-sdlc-skill-creator` (if you have it) to author new seat skills.
 - **MCP connectors** (from [`.mcp.json`](../../../.mcp.json)) — *issue-tracker* to manage iterations and capacity views; *docs-wiki* to draft runbooks and specs; *knowledge* to ground engineering decisions in prior context; *context7* for up-to-date library docs.
 - **The EM OWNS the CI/CD AI-governance gates** — the [`scripts/validate-*.py`](../../../scripts/) checks and [`.github/workflows/ai-governance.yml`](../../../.github/workflows/ai-governance.yml) are this seat's "rules as scripts" pillar: governance is executable, not advisory.
 - **Scoped-write guardrail** — AI agents write only within their granted scope and never push to a protected branch; merges are human-approved through the gates above.

@@ -10,6 +10,10 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-08
+### Added
+- Six process skills from obra/superpowers v6.4.2 (commit 8ca22dba9a94, MIT), vendored with a `PROVENANCE.md` each, given by role: `ai-sdlc-brainstorming`, `ai-sdlc-writing-plans`, `ai-sdlc-test-driven-development`, `ai-sdlc-systematic-debugging`, `ai-sdlc-verification-before-completion`, `ai-sdlc-receiving-code-review` (Developer all six; QA test-driven-development, systematic-debugging, verification-before-completion; Architect brainstorming, writing-plans, receiving-code-review; Engineering Manager writing-plans). They never commit, push or merge on their own: they follow the person's git-comfort setting and ask before each commit. Specs go to `docs/specs/`, plans to `docs/plans/`. Not taken: the skills that run work without a person in between (see the design). Add or leave one out with "change my preferences"; `update` brings them to existing setups.
+
 ## [0.6.0] — 2026-10-08
 ### Added
 - `likec4-dsl` skill in the core pack (`ai-sdlc-likec4-dsl`), for every role: LikeC4 architecture-as-code (`.c4`/`.likec4` files). Upstream likec4/likec4 `skills/likec4-dsl` @4e6ee7afc526, MIT; references bundled, upstream `evals/` not bundled. Models go to `docs/architecture/`; the `likec4` CLI is optional, and Copilot asks before running it through `npx`/`bunx`/`pnpm dlx` the first time.
