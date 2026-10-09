@@ -2,7 +2,7 @@
  "schema": "frq-brandbook-assets/1",
  "generated": "2026-10-09",
  "note": "Every bundled asset, its size and use. Brand materials owned by Frequentis AG; see ../PROVENANCE.md for what was left out and why.",
- "total_bytes": 1996447,
+ "total_bytes": 1891126,
  "assets": [
   {
    "file": "assets/background/bg-gradient-frequentis.svg",
@@ -108,11 +108,11 @@
    "file": "assets/logo/logo-frequentis-tagline-black.png",
    "type": "logo",
    "variant": "tagline / black / png",
-   "bytes": 23669,
-   "dimensions": "1200x294",
+   "bytes": 21139,
+   "dimensions": "1200x295",
    "use": "Logo with tagline where blue or white is not legible (PDF p.5).",
-   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape, rendered 1200 px wide, transparent",
-   "sha256": "485725a32e00fca5c748cdac0e1498d3cd684daf705b8d9ab46dd4cebc7ebfd1"
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "82dac249176895bc4dc2e6cde74705f93cae299cda402af068fa8646037563b4"
   },
   {
    "file": "assets/logo/logo-frequentis-tagline-black.svg",
@@ -128,11 +128,11 @@
    "file": "assets/logo/logo-frequentis-tagline-blue.png",
    "type": "logo",
    "variant": "tagline / blue / png",
-   "bytes": 33670,
-   "dimensions": "1200x294",
+   "bytes": 29073,
+   "dimensions": "1200x295",
    "use": "Logo with tagline on white: title and closing pages, covers (PDF p.5). Tagline #666666.",
-   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape, rendered 1200 px wide, transparent",
-   "sha256": "fe8ef78ac1cd4b691cc2bee7f8bcbc98ef79945ac5b004af2107b2787ab38bc5"
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "8a9872e49cb5737ecfd7447dbb47b5ec1f09a6c0fa7c24ff854ca9ec422de6e9"
   },
   {
    "file": "assets/logo/logo-frequentis-tagline-blue.svg",
@@ -148,11 +148,11 @@
    "file": "assets/logo/logo-frequentis-tagline-white.png",
    "type": "logo",
    "variant": "tagline / white / png",
-   "bytes": 26603,
-   "dimensions": "1200x294",
+   "bytes": 23428,
+   "dimensions": "1200x295",
    "use": "Logo with tagline on blue or the key visual (PDF p.5).",
-   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape, rendered 1200 px wide, transparent",
-   "sha256": "f38782cd567b99e6886666c9c75bd9cdf6a1a3cc8e64d966dd01fa2a10251728"
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "6bc421af24cdbc755e287b4f48e3bbaf4afcf1539bad4a184d9e116e838e083e"
   },
   {
    "file": "assets/logo/logo-frequentis-tagline-white.svg",
@@ -168,61 +168,61 @@
    "file": "assets/logo/logo-frequentis-wordmark-black.png",
    "type": "logo",
    "variant": "wordmark / black / png",
-   "bytes": 40696,
-   "dimensions": "1200x205",
+   "bytes": 11420,
+   "dimensions": "1200x210",
    "use": "Only where blue or white is not legible (PDF p.4).",
-   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape, rendered 1200 px wide, transparent",
-   "sha256": "436aa27eb0aeb65efc7ae58974e2eb29bcdee2b5569dddeb55f45161b3944261"
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "5a6634d5249085f1639ef5de19d6d2168b147547ed25db54daae224925b65b33"
   },
   {
    "file": "assets/logo/logo-frequentis-wordmark-black.svg",
    "type": "logo",
    "variant": "wordmark / black / svg",
-   "bytes": 11433,
+   "bytes": 11435,
    "dimensions": "viewBox 0 0 1057447 184740",
    "use": "Only where blue or white is not legible (PDF p.4).",
    "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
-   "sha256": "d77f7328d93a5d883df52d4facf545716c92b05bdd3fc535af94ebe1b5b4982b"
+   "sha256": "05e7fea916a86188931db9087c0275740dd34028422410276924949e7a084920"
   },
   {
    "file": "assets/logo/logo-frequentis-wordmark-blue.png",
    "type": "logo",
    "variant": "wordmark / blue / png",
-   "bytes": 52180,
-   "dimensions": "1200x205",
+   "bytes": 15201,
+   "dimensions": "1200x210",
    "use": "Preferred logo: on white backgrounds. Min height 5 mm; clear space = logo height (PDF p.4).",
-   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape, rendered 1200 px wide, transparent",
-   "sha256": "e36eb05cacdc3abca8af5c271660e96d8cdf36bc9f3536a649ce54bf2497a527"
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "675cb0e938d3385015733efe2eafa98adf87931acd47cef1544dad12cf6b7e9e"
   },
   {
    "file": "assets/logo/logo-frequentis-wordmark-blue.svg",
    "type": "logo",
    "variant": "wordmark / blue / svg",
-   "bytes": 11433,
+   "bytes": 11435,
    "dimensions": "viewBox 0 0 1057447 184740",
    "use": "Preferred logo: on white backgrounds. Min height 5 mm; clear space = logo height (PDF p.4).",
    "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
-   "sha256": "e0fdc8eb173c4b7f7d90abc09a934b3e66a55292d4e5ee3b24acac1c8ef00315"
+   "sha256": "4400380b5da5f1c9863cd894c34e1a9f90abd79a8adcdd04419869f60a72b95b"
   },
   {
    "file": "assets/logo/logo-frequentis-wordmark-white.png",
    "type": "logo",
    "variant": "wordmark / white / png",
-   "bytes": 41610,
-   "dimensions": "1200x205",
+   "bytes": 12840,
+   "dimensions": "1200x210",
    "use": "On blue #004182 or calm dark photos (PDF p.4).",
-   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape, rendered 1200 px wide, transparent",
-   "sha256": "2a2229e9370934bbbf9e7632c7e982cd79eb05cb47b83308b53e66f80f23ad43"
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "5f38470629d71201bbf78bc6d8e5294851538dbae7d3f3513a55cff072a71f62"
   },
   {
    "file": "assets/logo/logo-frequentis-wordmark-white.svg",
    "type": "logo",
    "variant": "wordmark / white / svg",
-   "bytes": 11433,
+   "bytes": 11435,
    "dimensions": "viewBox 0 0 1057447 184740",
    "use": "On blue #004182 or calm dark photos (PDF p.4).",
    "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
-   "sha256": "916f1d8f81b42130ad63261b88e589a5990755517dbc24b571c89c162aea3a92"
+   "sha256": "c5c173a4517702388ddb8821abf2a00a054b08ec64ef7413ca78c40cb2d56bfa"
   },
   {
    "file": "assets/templates/frq-template-slim-core.pptx",

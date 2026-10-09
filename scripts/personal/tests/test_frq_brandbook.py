@@ -9,6 +9,7 @@ decks are built here with zipfile from the template the skill ships, so no pytho
 is needed (the CI has none); the new_deck.py test runs only where python-pptx is installed.
 """
 import ast
+import hashlib
 import importlib.util
 import json
 import re
@@ -40,6 +41,51 @@ REL_LAYOUT = "http://schemas.openxmlformats.org/officeDocument/2006/relationship
 REL_CHART = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"
 CT_SLIDE = "application/vnd.openxmlformats-officedocument.presentationml.slide+xml"
 CT_CHART = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"
+
+
+def png_alpha(path):
+    """(width, height, colour type, [alpha rows]) of an 8-bit RGBA, non-interlaced PNG (stdlib only)."""
+    import struct
+    import zlib
+    b = Path(path).read_bytes()
+    i, idat, w, h, ctype = 8, b"", 0, 0, None
+    while i < len(b):
+        n, typ = struct.unpack(">I4s", b[i:i + 8])
+        data = b[i + 8:i + 8 + n]
+        i += 12 + n
+        if typ == b"IHDR":
+            w, h, depth, ctype = struct.unpack(">IIBB", data[:10])
+            if (depth, ctype, data[12]) != (8, 6, 0):
+                return w, h, (depth, ctype, data[12]), []
+        elif typ == b"IDAT":
+            idat += data
+    raw, bpp = zlib.decompress(idat), 4
+    stride, prev, rows = w * bpp, bytearray(w * bpp), []
+    for y in range(h):
+        f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        for x in range(stride):
+            a = line[x - bpp] if x >= bpp else 0
+            up, c = prev[x], (prev[x - bpp] if x >= bpp else 0)
+            if f == 1:
+                line[x] = (line[x] + a) & 255
+            elif f == 2:
+                line[x] = (line[x] + up) & 255
+            elif f == 3:
+                line[x] = (line[x] + (a + up) // 2) & 255
+            elif f == 4:
+                p_ = a + up - c
+                pa, pb, pc = abs(p_ - a), abs(p_ - up), abs(p_ - c)
+                line[x] = (line[x] + (a if pa <= pb and pa <= pc else up if pb <= pc else c)) & 255
+        rows.append(line[3::4])
+        prev = line
+    return w, h, (8, 6, 0), rows
+
+
+def svg_box(path):
+    head = Path(path).read_text(encoding="utf-8")[:400]
+    vb = [float(x) for x in re.search(r'viewBox="([^"]+)"', head).group(1).split()]
+    w, h = (float(re.search(rf'{k}="([\d.]+)"', head).group(1)) for k in ("width", "height"))
+    return vb[2] / vb[3], w / h
 
 
 def run_check(path, *args, python=None):
@@ -233,6 +279,22 @@ class TestSkillFiles(unittest.TestCase):
                            cwd=KIT, capture_output=True, check=False)
         self.assertEqual(r.returncode, 1, "the slim template is git-ignored")
 
+    def test_logo_svgs_keep_their_proportions(self):
+        for svg in sorted((SKILL / "assets/logo").glob("*.svg")):
+            vb, wh = svg_box(svg)
+            self.assertAlmostEqual(wh / vb, 1, delta=0.005, msg=svg.name)
+
+    def test_logo_pngs_are_sharp_renders_of_the_svgs(self):
+        for png in sorted((SKILL / "assets/logo").glob("*.png")):
+            with self.subTest(png=png.name):
+                w, h, mode, rows = png_alpha(png)
+                self.assertEqual(mode, (8, 6, 0), "8-bit RGBA, not interlaced")
+                vb, _ = svg_box(png.with_suffix(".svg"))
+                self.assertAlmostEqual((w / h) / vb, 1, delta=0.006)     # same geometry as the SVG
+                ink = [v for r in rows for v in r if v > 10]
+                soft = sum(1 for v in ink if v < 245) / len(ink)
+                self.assertLess(soft, 0.3, "soft edges: re-render the PNG from the SVG")
+
     def test_size_budget(self):
         total = sum(p.stat().st_size for p in SKILL.rglob("*") if p.is_file())
         self.assertLessEqual(total, BUDGET, f"{total} bytes")
@@ -245,6 +307,7 @@ class TestSkillFiles(unittest.TestCase):
         self.assertEqual(sorted(listed), sorted(on_disk))
         for rel, a in listed.items():
             self.assertEqual(a["bytes"], on_disk[rel], rel)
+            self.assertEqual(a["sha256"], hashlib.sha256((SKILL / rel).read_bytes()).hexdigest(), rel)
             for key in ("file", "type", "variant", "bytes", "use"):
                 self.assertIn(key, a, rel)
 
