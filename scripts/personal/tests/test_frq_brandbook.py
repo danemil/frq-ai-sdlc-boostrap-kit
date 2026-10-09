@@ -369,7 +369,7 @@ class TestCheckBrandScript(unittest.TestCase):
         src = CHECK.read_text(encoding="utf-8")
         tree = ast.parse(src, feature_version=(3, 9))
         allowed = {"__future__", "argparse", "datetime", "json", "re", "sys", "zipfile", "xml",
-                   "pathlib", "posixpath", "os", "collections"}
+                   "pathlib", "posixpath", "os", "collections", "zlib"}
         mods = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
@@ -480,6 +480,80 @@ class TestCheckBrandScript(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertIn("broken.pptx", err)
             self.assertEqual(run_check(Path(tmp) / "missing.pptx")[0], 2)
+
+    def malformed(self, tmp, name, slide_bytes, compress=zipfile.ZIP_DEFLATED):
+        """A copy of the golden deck whose slide1.xml is replaced by `slide_bytes`."""
+        dest = Path(tmp) / name
+        with zipfile.ZipFile(GOLDEN) as zin, zipfile.ZipFile(dest, "w", compress) as zout:
+            for n in zin.namelist():
+                zout.writestr(n, slide_bytes if n == "ppt/slides/slide1.xml" else zin.read(n))
+        return dest
+
+    def assert_refused(self, path, words):
+        code, out, err = run_check(path)
+        self.assertEqual(code, 2, out + err)
+        self.assertNotIn("Traceback", err)
+        self.assertRegex(err, words)
+
+    def test_entity_expansion_is_refused_in_any_encoding(self):
+        lol = ('<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "FRQ FRQ FRQ FRQ">'
+               '<!ENTITY b "&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;">]>'
+               f'<p:sld xmlns:p="{NS_P}" xmlns:a="{NS_A}"><a:t>&c;</a:t></p:sld>')
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assert_refused(self.malformed(tmp, "lol8.pptx", lol.encode("utf-8")), "DTD|entit")
+            utf16 = lol.replace('version="1.0"', 'version="1.0" encoding="UTF-16"').encode("utf-16")
+            self.assert_refused(self.malformed(tmp, "lol16.pptx", utf16), "UTF-8")
+            nobom = lol.encode("utf-16-le")                        # no BOM: NUL bytes give it away
+            self.assert_refused(self.malformed(tmp, "lol16le.pptx", nobom), "UTF-8")
+            latin = ('<?xml version="1.0" encoding="ISO-8859-1"?>'
+                     f'<p:sld xmlns:p="{NS_P}"/>').encode("latin-1")
+            self.assert_refused(self.malformed(tmp, "latin.pptx", latin), "UTF-8")
+
+    def test_a_corrupt_member_is_exit_2_not_a_brand_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            body = ("<a:t>" + "x" * 5000 + "</a:t>").encode()
+            path = self.malformed(tmp, "crc.pptx", body)
+            data = bytearray(path.read_bytes())
+            with zipfile.ZipFile(path) as z:
+                info = z.getinfo("ppt/slides/slide1.xml")
+            start = info.header_offset + 30 + len(info.filename.encode()) + len(info.extra)
+            for k in range(start + 2, start + 12):
+                data[k] ^= 0xFF
+            path.write_bytes(bytes(data))
+            self.assert_refused(path, "crc.pptx.*(damaged|corrupt|cannot be read)")
+
+    def test_size_and_ratio_budgets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bomb = (f'<p:sld xmlns:p="{NS_P}"><!--' + " " * 3_000_000 + "--></p:sld>").encode()
+            self.assert_refused(self.malformed(tmp, "ratio.pptx", bomb), "compress")
+            spec = importlib.util.spec_from_file_location("check_brand_mod", CHECK)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            self.assertLessEqual(mod.MAX_PART, 16 * 1024 * 1024)
+            mod.MAX_PART = 2000                                        # a slide master is larger
+            with self.assertRaisesRegex(mod.CheckError, "too large"):
+                mod.check(GOLDEN)
+            mod.MAX_PART, mod.MAX_TOTAL = 16 * 1024 * 1024, 20_000      # the whole file over budget
+            with self.assertRaisesRegex(mod.CheckError, "budget"):
+                mod.check(GOLDEN)
+            mod.MAX_TOTAL, mod.MAX_SLIDES = 256 * 1024 * 1024, 3
+            with self.assertRaisesRegex(mod.CheckError, "slides"):
+                mod.check(GOLDEN)
+
+    def test_an_unexpected_error_is_exit_2_with_a_plain_message(self):
+        spec = importlib.util.spec_from_file_location("check_brand_mod2", CHECK)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+
+        def boom(*_):
+            raise ValueError("unexpected")
+        mod.check_pptx = boom
+        import contextlib
+        import io
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(mod.main([str(GOLDEN)]), 2)
+        self.assertIn("could not be checked", err.getvalue())
 
     @unittest.skipUnless(Path("/usr/bin/python3").is_file(), "no system python3")
     def test_runs_on_the_system_python_too(self):

@@ -27,11 +27,16 @@ import posixpath
 import re
 import sys
 import zipfile
+import zlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 TOKENS = Path(__file__).resolve().parent.parent / "brand-tokens.json"
-MAX_PART = 64 * 1024 * 1024          # refuse a single XML part above 64 MB (zip bombs)
+# Limits against hostile files: the largest real part (a map layout) is about 3.3 MB of XML.
+MAX_PART = 16 * 1024 * 1024          # one XML part, uncompressed
+MAX_TOTAL = 256 * 1024 * 1024        # all XML parts read, uncompressed
+MAX_RATIO = 100                      # compression ratio of a part above 1 MB (zip bombs)
+MAX_SLIDES = 500
 SEVERITIES = ("FAIL", "WARN", "INFO")
 
 NS = {
@@ -116,23 +121,56 @@ class Package:
             raise CheckError(f"{self.path}: no such file")
         try:
             self.zip = zipfile.ZipFile(self.path)
-        except (zipfile.BadZipFile, OSError) as exc:
-            raise CheckError(f"{self.path}: not an Office file ({exc})") from None
-        self.names = set(self.zip.namelist())
+            self.names = set(self.zip.namelist())
+        except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, ValueError) as exc:
+            raise CheckError(f"{self.path}: not an Office file, or it is damaged ({exc})") from None
+        self.read_total = 0
+        self.cache = {}
+
+    def read(self, name) -> bytes:
+        """The bytes of one XML part, within the size, ratio and total budgets."""
+        info = self.zip.getinfo(name)
+        if info.file_size > MAX_PART:
+            raise CheckError(f"{self.path}: part {name} is too large to check ({info.file_size} bytes)")
+        if info.file_size > 1024 * 1024 and info.file_size > MAX_RATIO * max(info.compress_size, 1):
+            raise CheckError(f"{self.path}: part {name} is compressed more than {MAX_RATIO}:1; "
+                             "refusing it (a zip bomb?)")
+        self.read_total += info.file_size
+        if self.read_total > MAX_TOTAL:
+            raise CheckError(f"{self.path}: the file is larger than the checker's budget "
+                             f"({MAX_TOTAL // (1024 * 1024)} MB of XML)")
+        try:
+            return self.zip.read(name)
+        except (zipfile.BadZipFile, zlib.error, EOFError, RuntimeError, NotImplementedError,
+                OSError) as exc:
+            raise CheckError(f"{self.path}: part {name} is damaged or encrypted and cannot be read "
+                             f"({exc})") from None
 
     def xml(self, name):
         if name not in self.names:
             return None
-        if self.zip.getinfo(name).file_size > MAX_PART:
-            raise CheckError(f"{self.path}: part {name} is too large to check")
-        data = self.zip.read(name)
-        if b"<!DOCTYPE" in data or b"<!ENTITY" in data:
-            # OOXML never uses a DTD; refusing one blocks entity expansion (stdlib only, no defusedxml)
-            raise CheckError(f"{self.path}: part {name} declares a DTD; refusing to parse it")
+        if name in self.cache:
+            return self.cache[name]
+        data = self.read(name)
+        # Office writes UTF-8. Anything else (UTF-16 with or without a BOM, Latin-1) is refused
+        # before the DTD check, so an entity declaration cannot hide in another encoding.
+        decl = re.match(rb"\s*<\?xml[^>]*?encoding=[\"']([A-Za-z0-9._-]+)", data)
+        if (data[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in data[:400]
+                or (decl and decl.group(1).lower() not in (b"utf-8", b"utf8"))):
+            raise CheckError(f"{self.path}: part {name} is not UTF-8; refusing to parse it")
         try:
-            return ET.fromstring(data)
+            data.decode("utf-8")
+        except UnicodeDecodeError:
+            raise CheckError(f"{self.path}: part {name} is not UTF-8; refusing to parse it") from None
+        if re.search(rb"<!\s*(DOCTYPE|ENTITY)", data, re.I):
+            # OOXML never uses a DTD; refusing one blocks entity expansion (stdlib only, no defusedxml)
+            raise CheckError(f"{self.path}: part {name} declares a DTD or an entity; refusing to parse it")
+        try:
+            root = ET.fromstring(data)
         except ET.ParseError as exc:
             raise CheckError(f"{self.path}: part {name} is not valid XML ({exc})") from None
+        self.cache[name] = root
+        return root
 
     def rels(self, part) -> dict:
         """{rId: (type tail, absolute target)} for a part."""
@@ -383,6 +421,8 @@ def check_pptx(pkg, tokens, year) -> Report:
         rid = sid.get(R + "id")
         if rid in prels:
             slides.append(prels[rid][1])
+    if len(slides) > MAX_SLIDES:
+        raise CheckError(f"{pkg.path}: {len(slides)} slides; the checker reads at most {MAX_SLIDES}")
     masters = sorted(t for typ, t in prels.values() if typ == "slideMaster")
     theme_part = next((t for m in masters for typ, t in pkg.rels(m).values() if typ == "theme"), None)
     theme = theme_findings(report, pkg, theme_part, tokens)
@@ -595,6 +635,10 @@ def main(argv=None) -> int:
         result = check(args.file, args.year, args.tokens)
     except CheckError as exc:
         print(f"check_brand: {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # noqa: BLE001  a damaged or unusual file must not read as a brand FAIL
+        print(f"check_brand: {args.file} could not be checked ({type(exc).__name__}: {exc}). "
+              "Open it in Office and save it again, or check it by eye.", file=sys.stderr)
         return 2
     print(json.dumps(result, indent=1, ensure_ascii=False) if args.json
           else as_markdown(args.file, result["findings"]))
