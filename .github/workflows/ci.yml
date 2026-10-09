@@ -177,10 +177,9 @@ jobs:
           test -f .agents/skills/ai-sdlc-likec4-dsl/references/cli.md
           # Binary skill files (a template, images) are placed byte for byte, and the checker runs there.
           B=.agents/skills/ai-sdlc-frq-brandbook
-          cmp .ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/templates/frq-template-slim-core.pptx \
-              "$B/assets/templates/frq-template-slim-core.pptx"
-          cmp .ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/logo/logo-frequentis-wordmark-blue.png \
-              "$B/assets/logo/logo-frequentis-wordmark-blue.png"
+          K=.ai-sdlc/kit/template/.claude/skills/frq-brandbook
+          test -n "$(ls "$B"/assets/templates/*.pptx)"
+          (cd "$K" && find assets -type f) | while read -r f; do cmp "$K/$f" "$B/$f" || exit 1; done
           rc=0; python3 "$B/scripts/check_brand.py" --json \
             "$GITHUB_WORKSPACE/scripts/personal/tests/fixtures/frq-brandbook/offbrand-test.pptx" > /dev/null || rc=$?
           test "$rc" -eq 1                               # the off-brand deck fails the brand check
