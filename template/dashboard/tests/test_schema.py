@@ -90,7 +90,7 @@ class TestSchema(unittest.TestCase):
         raw.commit(); raw.close()
         conn = dbmod.connect(path)
         self.assertIn("user", self._cols(conn, "sessions"))
-        conn.execute("INSERT INTO sessions (ts, seat, user) VALUES ('t','QA','geo')")
+        conn.execute("INSERT INTO sessions (ts, seat, user) VALUES ('t','QA','ana')")
 
 
 if __name__ == "__main__":

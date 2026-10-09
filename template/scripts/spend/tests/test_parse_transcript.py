@@ -111,16 +111,16 @@ class TestMainUpsert(unittest.TestCase):
             db = Path(tmp) / "u.db"
             args = ["--transcript", str(HERE / "fixtures" / "transcript_ok.jsonl"),
                     "--session-id", "sess-u", "--db", str(db)]
-            self.assertEqual(pt.main(args + ["--user", "geo"]), 0)
+            self.assertEqual(pt.main(args + ["--user", "ana"]), 0)
             conn = sqlite3.connect(db)
             self.assertEqual(conn.execute(
-                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
+                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "ana")
             conn.close()
             # a re-run WITHOUT --user must not erase the recorded identity
             self.assertEqual(pt.main(args), 0)
             conn = sqlite3.connect(db)
             self.assertEqual(conn.execute(
-                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
+                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "ana")
 
 
 if __name__ == "__main__":

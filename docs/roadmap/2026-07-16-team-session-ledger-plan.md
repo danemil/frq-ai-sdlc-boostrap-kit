@@ -67,7 +67,7 @@ ai-trust: working
         raw.commit(); raw.close()
         conn = dbmod.connect(path)
         self.assertIn("user", self._cols(conn, "sessions"))
-        conn.execute("INSERT INTO sessions (ts, seat, user) VALUES ('t','QA','geo')")
+        conn.execute("INSERT INTO sessions (ts, seat, user) VALUES ('t','QA','ana')")
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -132,22 +132,22 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
             db = Path(tmp) / "u.db"
             args = ["--transcript", str(HERE / "fixtures" / "transcript_ok.jsonl"),
                     "--session-id", "sess-u", "--db", str(db)]
-            self.assertEqual(pt.main(args + ["--user", "geo"]), 0)
+            self.assertEqual(pt.main(args + ["--user", "ana"]), 0)
             conn = sqlite3.connect(db)
             self.assertEqual(conn.execute(
-                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
+                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "ana")
             conn.close()
             # a re-run WITHOUT --user must not erase the recorded identity
             self.assertEqual(pt.main(args), 0)
             conn = sqlite3.connect(db)
             self.assertEqual(conn.execute(
-                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "geo")
+                "SELECT user FROM sessions WHERE session_id='sess-u'").fetchone()[0], "ana")
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `python3 template/scripts/spend/tests/test_parse_transcript.py`
-Expected: FAIL — `error: unrecognized arguments: --user geo` (argparse SystemExit)
+Expected: FAIL — `error: unrecognized arguments: --user ana` (argparse SystemExit)
 
 - [ ] **Step 3: Implement.** In `parse_transcript.py`, replace `upsert_session` with:
 
@@ -252,7 +252,7 @@ class TestResolveUser(unittest.TestCase):
 
 
 class TestExport(unittest.TestCase):
-    def _export(self, tmp, rows, user="geo"):
+    def _export(self, tmp, rows, user="ana"):
         db = Path(tmp) / "u.db"
         _seed_db(db, rows)
         out = Path(tmp) / "ledger"
@@ -263,7 +263,7 @@ class TestExport(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             rc, path = self._export(tmp, [
                 ("2026-07-02T10:00:00", "QA", "s2", None, 20, 2),
-                ("2026-07-01T10:00:00", "Developer", "s1", "geo", 10, 1),
+                ("2026-07-01T10:00:00", "Developer", "s1", "ana", 10, 1),
             ])
             self.assertEqual(rc, 0)
             with open(path, encoding="utf-8", newline="") as f:
@@ -271,22 +271,22 @@ class TestExport(unittest.TestCase):
             self.assertEqual(got[0], ex.HEADER)
             self.assertEqual(len(got), 3)
             self.assertEqual(got[1][0], "s1")                       # ts sort
-            self.assertEqual([r[2] for r in got[1:]], ["geo", "geo"])  # NULL claimed
+            self.assertEqual([r[2] for r in got[1:]], ["ana", "ana"])  # NULL claimed
 
     def test_regeneration_is_byte_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
-            rc, path = self._export(tmp, [("2026-07-01T10:00:00", "QA", "s1", "geo", 1, 1)])
+            rc, path = self._export(tmp, [("2026-07-01T10:00:00", "QA", "s1", "ana", 1, 1)])
             first = path.read_bytes()
             rc = ex.main(["--db", str(Path(tmp) / "u.db"),
-                          "--out-dir", str(Path(tmp) / "ledger"), "--user", "geo"])
+                          "--out-dir", str(Path(tmp) / "ledger"), "--user", "ana"])
             self.assertEqual(rc, 0)
             self.assertEqual(path.read_bytes(), first)
 
     def test_teammate_rows_never_reexported(self):
         with tempfile.TemporaryDirectory() as tmp:
             rc, path = self._export(tmp, [
-                ("2026-07-01T10:00:00", "QA", "mine", "geo", 1, 1),
-                ("2026-07-01T11:00:00", "QA", "theirs", "ana", 2, 2),
+                ("2026-07-01T10:00:00", "QA", "mine", "ana", 1, 1),
+                ("2026-07-01T11:00:00", "QA", "theirs", "ben", 2, 2),
             ])
             with open(path, encoding="utf-8", newline="") as f:
                 ids = [r[0] for r in csv.reader(f)][1:]
@@ -294,14 +294,14 @@ class TestExport(unittest.TestCase):
 
     def test_no_session_id_rows_excluded_and_no_empty_file(self):
         with tempfile.TemporaryDirectory() as tmp:
-            rc, path = self._export(tmp, [("2026-07-01T10:00:00", "QA", None, "geo", 1, 1)])
+            rc, path = self._export(tmp, [("2026-07-01T10:00:00", "QA", None, "ana", 1, 1)])
             self.assertEqual(rc, 0)
             self.assertFalse(path.exists())
 
     def test_missing_db_is_noop(self):
         with tempfile.TemporaryDirectory() as tmp:
             rc = ex.main(["--db", str(Path(tmp) / "none.db"),
-                          "--out-dir", str(Path(tmp) / "ledger"), "--user", "geo"])
+                          "--out-dir", str(Path(tmp) / "ledger"), "--user", "ana"])
             self.assertEqual(rc, 0)
             self.assertFalse((Path(tmp) / "none.db").exists())  # export never creates a DB
 
@@ -343,7 +343,7 @@ run never leaves a torn file. Stdlib only.
 
 Usage:
   export_sessions.py --db dashboard/utilization.db \
-      --out-dir docs/metrics/sessions [--user geo]
+      --out-dir docs/metrics/sessions [--user ana]
 """
 from __future__ import annotations
 
@@ -510,7 +510,7 @@ def _csv(*lines):
     return io.StringIO("\n".join((HDR,) + lines) + "\n")
 
 
-def _row(session_id="s1", user="geo", tin=10, tout=2, **kw):
+def _row(session_id="s1", user="ana", tin=10, tout=2, **kw):
     d = {"session_id": session_id, "ts": "2026-07-01T10:00:00", "user": user,
          "seat": "Developer", "tool": "claude", "task": "", "ticket": "PROJ-1",
          "model": "claude-opus-4-8", "tokens_in": str(tin), "tokens_out": str(tout),
@@ -523,24 +523,24 @@ def _row(session_id="s1", user="geo", tin=10, tout=2, **kw):
 class TestRowsFromCsv(unittest.TestCase):
     def test_header_mismatch_raises_loudly(self):
         bad = io.StringIO("session_id,nope\nx,y\n")
-        with self.assertRaisesRegex(ValueError, "geo.csv"):
-            im.rows_from_csv(bad, "geo", "geo.csv")
+        with self.assertRaisesRegex(ValueError, "ana.csv"):
+            im.rows_from_csv(bad, "ana", "ana.csv")
 
     def test_malformed_rows_name_file_and_line(self):
-        with self.assertRaisesRegex(ValueError, r"geo\.csv line 2"):
-            im.rows_from_csv(_csv("only,two"), "geo", "geo.csv")
-        with self.assertRaisesRegex(ValueError, r"geo\.csv line 2"):
-            im.rows_from_csv(_csv(_row(tokens_in="NaN")), "geo", "geo.csv")
-        with self.assertRaisesRegex(ValueError, r"geo\.csv line 2"):
-            im.rows_from_csv(_csv(_row(session_id="")), "geo", "geo.csv")
+        with self.assertRaisesRegex(ValueError, r"ana\.csv line 2"):
+            im.rows_from_csv(_csv("only,two"), "ana", "ana.csv")
+        with self.assertRaisesRegex(ValueError, r"ana\.csv line 2"):
+            im.rows_from_csv(_csv(_row(tokens_in="NaN")), "ana", "ana.csv")
+        with self.assertRaisesRegex(ValueError, r"ana\.csv line 2"):
+            im.rows_from_csv(_csv(_row(session_id="")), "ana", "ana.csv")
 
     def test_stem_mismatch_takes_filename_and_notes_it(self):
-        rows = im.rows_from_csv(_csv(_row(user="impostor")), "geo", "geo.csv")
-        self.assertEqual(rows[0]["user"], "geo")
+        rows = im.rows_from_csv(_csv(_row(user="impostor")), "ana", "ana.csv")
+        self.assertEqual(rows[0]["user"], "ana")
         self.assertIn("impostor", rows[0]["notes"])
 
     def test_clean_rows_parse(self):
-        rows = im.rows_from_csv(_csv(_row(), _row(session_id="s2")), "geo", "geo.csv")
+        rows = im.rows_from_csv(_csv(_row(), _row(session_id="s2")), "ana", "ana.csv")
         self.assertEqual([r["session_id"] for r in rows], ["s1", "s2"])
         self.assertEqual(rows[0]["tokens_in"], 10)
         self.assertEqual(rows[0]["cost_usd"], 0.5)
@@ -568,28 +568,28 @@ class TestImportMerge(unittest.TestCase):
     def test_merges_two_users(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = self._import(tmp, {
-                "geo.csv": [_row("s1", "geo")],
-                "ana.csv": [_row("s2", "ana")],
+                "ana.csv": [_row("s1", "ana")],
+                "ben.csv": [_row("s2", "ben")],
             })
             got = dict(self._q(db, "SELECT session_id, user FROM sessions "
                                    "WHERE session_id IN ('s1','s2')"))
-            self.assertEqual(got, {"s1": "geo", "s2": "ana"})
+            self.assertEqual(got, {"s1": "ana", "s2": "ben"})
 
     def test_greater_total_wins(self):
         with tempfile.TemporaryDirectory() as tmp:
-            db = self._import(tmp, {"geo.csv": [_row("s1", "geo", tin=100, tout=10)]})
+            db = self._import(tmp, {"ana.csv": [_row("s1", "ana", tin=100, tout=10)]})
             # smaller incoming total must NOT overwrite
-            self._import(tmp, {"geo.csv": [_row("s1", "geo", tin=5, tout=1)]}, db=db)
+            self._import(tmp, {"ana.csv": [_row("s1", "ana", tin=5, tout=1)]}, db=db)
             self.assertEqual(self._q(db, "SELECT tokens_in FROM sessions "
                                          "WHERE session_id='s1'"), [(100,)])
             # larger incoming total replaces
-            self._import(tmp, {"geo.csv": [_row("s1", "geo", tin=200, tout=10)]}, db=db)
+            self._import(tmp, {"ana.csv": [_row("s1", "ana", tin=200, tout=10)]}, db=db)
             self.assertEqual(self._q(db, "SELECT tokens_in FROM sessions "
                                          "WHERE session_id='s1'"), [(200,)])
 
     def test_rerun_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
-            files = {"geo.csv": [_row("s1"), _row("s9", tin=1)]}
+            files = {"ana.csv": [_row("s1"), _row("s9", tin=1)]}
             db = self._import(tmp, files)
             self._import(tmp, files, db=db)
             self.assertEqual(self._q(db, "SELECT COUNT(*) FROM sessions "

@@ -8,7 +8,7 @@ run never leaves a torn file. Stdlib only.
 
 Usage:
   export_sessions.py --db dashboard/utilization.db \
-      --out-dir docs/metrics/sessions [--user geo]
+      --out-dir docs/metrics/sessions [--user ana]
 """
 from __future__ import annotations
 
