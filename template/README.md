@@ -10,7 +10,7 @@ This repository is an **AI-augmented SDLC** workspace, bootstrapped from the [AI
 
 ```bash
 # 1. First-run setup (installs tooling, creates your per-user USER.md)
-#    Open this folder in Claude Code and let it run ONBOARDING.md, or do it manually:
+#    Open this folder in Claude Code and let it run ONBOARDING.retired.md, or do it manually:
 pip install pre-commit && pre-commit install
 
 # 2. (optional) Build the knowledge index so agents can ground on project sources
@@ -38,7 +38,7 @@ What the installer manages here is recorded in `.ai-sdlc/manifest.json`.
 |---|---|
 | [`AGENTS.md`](./AGENTS.md) | **Canonical brief** — mission, constraints, trust tiers, MCP posture, seats. Read first. |
 | [`CLAUDE.md`](./CLAUDE.md) | Thin pointer to `AGENTS.md` for Claude Code. |
-| [`ONBOARDING.md`](./ONBOARDING.md) | First-run setup (loaded only when `USER.md` is missing). |
+| [`ONBOARDING.retired.md`](./ONBOARDING.retired.md) | First-run setup (loaded only when `USER.md` is missing). |
 | [`WORKING-AGREEMENT.md`](./WORKING-AGREEMENT.md) | How we organise across tools; lifecycle & session ritual. |
 | [`FOLDER-INDEX.md`](./FOLDER-INDEX.md) | Directory map. |
 | [`INDEX.md`](./INDEX.md) | Cross-artefact index. |

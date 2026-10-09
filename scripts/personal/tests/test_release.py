@@ -29,6 +29,15 @@ class TestRelease(unittest.TestCase):
                      "one exception"):
             self.assertIn(text, entry)
 
+    def test_changelog_0_8_0_has_the_lifecycle_fixes(self):
+        entry = read("CHANGELOG.md").split("## [0.8.0]", 1)[1].split("\n## [", 1)[0]
+        self.assertIn("\n### Fixed\n", entry)
+        for text in ("**`remove` and `disconnect` ask first.**", "notice(s) to read", "`--verbose`",
+                     "Moved <copy> into .ai-sdlc/kit", "warns when it runs as root",
+                     "detected dubious ownership", "`--drop-skill`", "`template/ONBOARDING.retired.md`",
+                     "asks the three questions again"):
+            self.assertIn(text, entry)
+
     def test_changelog_0_7_0_has_the_process_skills(self):
         entry = read("CHANGELOG.md").split("## [0.7.0]", 1)[1].split("\n## [", 1)[0]
         for text in ("obra/superpowers v6.4.2", "`ai-sdlc-brainstorming`", "`ai-sdlc-writing-plans`",

@@ -42,7 +42,7 @@ This project treats AI agents as **first-class collaborators across the whole so
 One-command setup of a governed, AI-ready repository — the kit's `install.sh` adopts the template into a target repo, **new or already populated**: it classifies every file it would write (kit-owned / yours-to-edit / structured-merge), asks on each conflict, merges config key-by-key rather than overwriting, records what it wrote in `.ai-sdlc/manifest.json` so a re-run is an upgrade, and wires each detected AI harness off one canonical brief. **Where:** the kit's `install.sh` + `scripts/install/`, [`../../README.md`](../../README.md).
 
 ### 2. Onboarding
-Per-machine, per-user first-run that installs tooling, activates hooks, optionally seeds the knowledge index, and creates the git-ignored `USER.md` so the agent can tailor itself to each person. **Where:** [`../../ONBOARDING.md`](../../ONBOARDING.md), [`../onboarding/`](../onboarding/).
+Per-machine, per-user first-run that installs tooling, activates hooks, optionally seeds the knowledge index, and creates the git-ignored `USER.md` so the agent can tailor itself to each person. **Where:** [`../../ONBOARDING.retired.md`](../../ONBOARDING.retired.md), [`../onboarding/`](../onboarding/).
 
 ### 3. Governance & internal rules
 The canonical brief, the working agreement, the **trust tiers** (what an AI may rely on), and the **scoped-write MCP posture** (what an AI may change, and how it stays attributable). No silent changes to load-bearing artefacts. **Where:** [`../../AGENTS.md`](../../AGENTS.md), [`../../WORKING-AGREEMENT.md`](../../WORKING-AGREEMENT.md), [`../ai-context/README.md`](../ai-context/README.md), [`../governance/`](../governance/).

@@ -8,7 +8,7 @@ A **personal AI setup for everyone on a software team**: developers, QA, archite
 
 1. Copy this kit folder anywhere into your repo (a GitHub ZIP or a colleague's copy; any folder name).
 2. Open the repo in VS Code and start Copilot Chat in Agent mode, or run `copilot` in a terminal.
-3. Say **"do the onboarding"**. Copilot finds the kit's [`ONBOARDING.md`](./ONBOARDING.md) and follows it.
+3. Say **"do the onboarding"**. Copilot finds the kit's [`ONBOARDING.md`](./ONBOARDING.md), the one next to `setup.py`, and follows it. If it picks another file, say *"follow the ONBOARDING.md next to setup.py in <your kit folder>"*.
 4. Answer three questions: your name, your role(s), and your language (English, Romanian or German).
 
 Copilot tells you what it set up. `git status` shows nothing: every file the kit adds is hidden from git through `.git/info/exclude`, so it never reaches the shared history. Setup is once per repo.
@@ -47,7 +47,7 @@ From the terminal, the same in one line:
 python3 .ai-sdlc/kit/setup.py setup --name "Ana Pop" --roles po,sm --lang en
 ```
 
-To start completely fresh instead, run `python3 .ai-sdlc/kit/setup.py remove` (see [Remove the kit](./docs/how-to.md#8-remove-the-kit-from-a-repo)), copy the kit in again and say "do the onboarding". Your connector logins stay in both cases: they are kept per user in `~/.config/ai-sdlc/connectors/`, not in the repo.
+To start completely fresh instead, run `python3 .ai-sdlc/kit/setup.py remove` (it only says what it would remove and asks), then `python3 .ai-sdlc/kit/setup.py remove --yes` (see [Remove the kit](./docs/how-to.md#8-remove-the-kit-from-a-repo)), copy the kit in again and say "do the onboarding". Your connector logins stay in both cases: they are kept per user in `~/.config/ai-sdlc/connectors/`, not in the repo.
 
 ### Change roles
 
@@ -90,7 +90,7 @@ The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or
 
 **Six process skills go by role** (table above), taken from [obra/superpowers](https://github.com/obra/superpowers) v6.4.2 (MIT): `ai-sdlc-brainstorming` (shape an idea into an approved design), `ai-sdlc-writing-plans` (a step-by-step plan a person carries out or reviews task by task), `ai-sdlc-test-driven-development` (test first, red then green), `ai-sdlc-systematic-debugging` (find the root cause before fixing), `ai-sdlc-verification-before-completion` (evidence before saying "done") and `ai-sdlc-receiving-code-review` (check review comments before acting; replies are drafted for you to post). They never commit, push or merge on their own: they follow your git setting and ask before each commit. Specs go to `docs/specs/`, plans to `docs/plans/`. Add one or leave one out with "change my preferences".
 
-Your own notes (`.github/instructions/ai-sdlc-personal.instructions.md`) and personal skills (`.agents/skills/ai-sdlc-personal-*/`) are hidden from git like the kit's files, but they are yours: the kit never changes them, and `remove` keeps and lists them.
+Your own notes (`.github/instructions/ai-sdlc-personal.instructions.md`) and personal skills (`.agents/skills/ai-sdlc-personal-*/`) are hidden from git like the kit's files, but they are yours: the kit never changes them, and `remove` keeps and lists them, still hidden from git.
 
 You can hold several roles: their skills are combined, each keeps its own instructions file, and where their defaults differ the more guided one wins. Every role works under one rule: **a human validates everything** the AI writes or decides.
 
@@ -109,7 +109,7 @@ python3 .ai-sdlc/kit/setup.py connect jira          # asks the URL and your logi
 python3 .ai-sdlc/kit/setup.py connect --suggested   # your roles' tools one at a time: y connect, s skip, a skip the rest
 python3 .ai-sdlc/kit/setup.py connect jira --test   # checks the saved login with one read-only call
 python3 .ai-sdlc/kit/setup.py connections           # what is connected: URL, user, last test; never a secret
-python3 .ai-sdlc/kit/setup.py disconnect jira       # deletes the saved login
+python3 .ai-sdlc/kit/setup.py disconnect jira --yes # deletes the saved login (without --yes it only asks)
 ```
 
 The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot then reads with `python3 .ai-sdlc/kit/connectors.py <name> <command> --json`; run `python3 .ai-sdlc/kit/connectors.py` to see every command.
@@ -148,7 +148,7 @@ Coming from 0.3.x (team mode)? Team mode is retired and `install.sh` no longer i
 
 Copilot runs the conversation from `ONBOARDING.md`; a small, tested, stdlib-only script does the file work: `python3 .ai-sdlc/kit/setup.py setup | change | update | check | ack | remove`. You never need to run it yourself (only `connect`, which asks for your login, is yours to run).
 
-Those commands never use the network (only the connectors do, read-only), never runs a git command that changes anything (only `rev-parse`, `ls-files` and `check-ignore`), never writes to a path git tracks, and never touches a file it did not create. A file you edit is yours: `update` and `change` keep it and put the kit's newer copy next to it as `<file>.kit-new`; `remove` keeps it and tells you. After `remove`, the repo is byte for byte what it was before setup.
+Those commands never use the network (only the connectors do, read-only), never runs a git command that changes anything (only `rev-parse`, `ls-files` and `check-ignore`), never writes to a path git tracks, and never touches a file it did not create. A file you edit is yours: `update` and `change` keep it and put the kit's newer copy next to it as `<file>.kit-new`; `remove` keeps it and tells you. `remove` and `disconnect` only say what they would delete until they get `--yes`, which Copilot adds only after you say yes. After `remove`, the repo is byte for byte what it was before setup (your personal notes and skills, if any, are kept and stay hidden by a small entry in `.git/info/exclude`).
 
 **Known limit:** `git add -f` can still add hidden files. The kit installs no git hooks, because they could clash with the team's own.
 

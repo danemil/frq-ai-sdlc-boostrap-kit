@@ -25,7 +25,7 @@ You need **Python 3.9 or newer** on the VM. Check it with `python3 --version`. I
 
 ## 1. First-time setup in a repo
 
-Do this **once per repo**. After that, use [update](#2-update-the-kit-to-a-newer-version) and [change](#5-change-your-preferences), never setup again.
+Do this **once per repo**. After that, use [update](#2-update-the-kit-to-a-newer-version) for a newer kit and [change](#5-change-your-preferences) for other choices. To answer the three questions again (for example, with other roles), say **"do the onboarding"** again; see [Redo the onboarding](#redo-the-onboarding) below.
 
 ### Step 1: get the kit
 
@@ -43,7 +43,7 @@ Pick one:
 Any folder name inside the repo works. Leave out the kit's own `.git` folder. The ZIP has none; a clone does:
 
 ```bash
-cd ~/work/my-repo                                         # your repo's top folder
+cd ~/repos/my-repo                                         # your repo's top folder
 rsync -a --exclude .git ~/ai-sdlc-kit-source/ ./ai-sdlc-kit/
 ```
 
@@ -53,7 +53,7 @@ For a moment `git status` shows `?? ai-sdlc-kit/`. The next step moves the folde
 
 ### Step 3: set up
 
-**(a) Copilot:** say **"do the onboarding"**. Copilot checks Python, then asks three questions (your name, your role or roles, your language) and sets everything up. If it cannot find the instructions, say: *"follow ai-sdlc-kit/ONBOARDING.md"* (use your folder name).
+**(a) Copilot:** say **"do the onboarding"**. Copilot checks Python, then asks three questions (your name, your role or roles, your language) and sets everything up. If it cannot find the instructions, or picks another file, say: *"follow ai-sdlc-kit/ONBOARDING.md"* (use your folder name: it is the `ONBOARDING.md` next to `setup.py`).
 
 **(b) Terminal:** two commands. The first moves the kit to `.ai-sdlc/kit` and hides it from git. The second places your files:
 
@@ -70,16 +70,24 @@ The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
 Set up AI-SDLC 0.8.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 98 file(s): .agents/skills/ai-sdlc-connectors/SKILL.md, …
+- Wrote 98 file(s): .agents/skills/ (94 in 16 skills), .ai-sdlc/ (1), .github/instructions/ (3)
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
 Check: all good.
 ```
 
-Now `git status` shows nothing new. Everything the kit added is hidden through `.git/info/exclude`, on your computer only.
+Now `git status` shows nothing new. Everything the kit added is hidden through `.git/info/exclude`, on your computer only. The summary counts the files per folder; add `--verbose` to `setup`, `change` or `update` to list every file.
 
-> **`setup` is only for this first time.** Running it again in the same repo is refused: *"A kit is already set up in this repo (.ai-sdlc/kit). To use this newer copy, say "update the kit"."* For a newer kit use [update](#2-update-the-kit-to-a-newer-version); for other choices use [change](#5-change-your-preferences). `setup` is also not the connect command. `setup.py setup jira` fails with `unrecognized arguments: jira`.
+### Redo the onboarding
+
+Say **"do the onboarding"** again. Copilot sees the kit is already set up, checks it (and offers to update first if a newer kit copy is waiting), tells you who it is set up for, and asks the three questions again. Files for new roles are added, the ones no longer needed removed. Your other preferences and your connector logins stay. In the terminal, run `setup` again from the kit's place, with the new answers:
+
+```bash
+python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,sm --lang en
+```
+
+> **A newer kit copy goes through `update`, not `setup`.** Running `setup` from a newly copied kit folder in a repo that is already set up is refused: *"A kit is already set up in this repo (.ai-sdlc/kit). To use this newer copy, say "update the kit"."* For a newer kit use [update](#2-update-the-kit-to-a-newer-version); for single choices use [change](#5-change-your-preferences). `setup` is also not the connect command. `setup.py setup jira` fails with `unrecognized arguments: jira`.
 
 ---
 
@@ -101,7 +109,7 @@ Now `git status` shows nothing new. Everything the kit added is hidden through `
 Use any folder name inside the repo:
 
 ```bash
-cd ~/work/my-repo
+cd ~/repos/my-repo
 rsync -a --exclude .git ~/ai-sdlc-kit-source/ ./ai-sdlc-kit-new/
 ```
 
@@ -127,19 +135,20 @@ python3 ai-sdlc-kit-new/setup.py update
 
 - `.ai-sdlc/kit` is replaced by the newer copy, and the copied folder (`ai-sdlc-kit-new/`) disappears: it was moved there.
 - Your choices stay: name, roles, language, git comfort, session summary, skills added or left out. Files you never edited are refreshed.
-- A file **you edited** is kept as it is. If the kit's version of it changed, the new one is put next to it as `<file>.kit-new`.
+- A file **you edited** is kept as it is. If the kit's version of it changed, the new one is put next to it as `<file>.kit-new`, and the summary says so; otherwise it says there is nothing to compare.
 - An **older** copy is refused and nothing changes: *"This copy is older (0.4.0) than the kit set up here (0.4.1). Nothing was changed."*
 - A copy **outside** the repo is refused: *"Copy the newer kit folder into the repo first; it is at …"*
 - `git status` stays clean.
 
-Real output, with one edited file:
+Example output, with one edited file:
 
 ```text
 $ python3 ai-sdlc-kit-new/setup.py update
-Updated to AI-SDLC 0.4.1 for Ana: Product Owner, QA · English.
+Updated to AI-SDLC 0.8.1 for Ana: Product Owner, QA · English.
+- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.8.0).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 1 file(s): .github/instructions/ai-sdlc-po.instructions.md.kit-new
-- Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's copy, if it changed, is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new.
+- Wrote 1 file(s): .github/instructions/ (1)
+- Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's newer copy is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare.
 - Skills: … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Check: all good.
@@ -249,7 +258,8 @@ Use the URL you open in the browser, without a page path: `https://jira.example.
 ```bash
 python3 .ai-sdlc/kit/setup.py connect jira --test     # test the saved login; asks nothing
 python3 .ai-sdlc/kit/setup.py connections             # what is connected; never shows a secret
-python3 .ai-sdlc/kit/setup.py disconnect jira         # delete the saved login
+python3 .ai-sdlc/kit/setup.py disconnect jira         # what it would delete; deletes nothing
+python3 .ai-sdlc/kit/setup.py disconnect jira --yes   # delete the saved login
 ```
 
 ```text
@@ -262,13 +272,15 @@ Connectors (saved in /home/ana/.config/ai-sdlc/connectors):
 - jama: not connected (python3 .ai-sdlc/kit/setup.py connect jama)
 - jenkins: not connected (python3 .ai-sdlc/kit/setup.py connect jenkins)
 - jira: https://jira.example.com · Data Center · user ana · last test OK 2026-10-08T12:30:26Z · from file
-$ python3 .ai-sdlc/kit/setup.py disconnect jira
+$ python3 .ai-sdlc/kit/setup.py disconnect jira --yes
 Removed the saved Jira connection.
 ```
 
-Copilot can run `--test`, `connections` and `disconnect` for you: say *"test my Jira connection"*, *"what is connected?"* or *"disconnect Jira"*.
+Copilot can run `--test`, `connections` and `disconnect` for you: say *"test my Jira connection"*, *"what is connected?"* or *"disconnect Jira"*. For `disconnect`, Copilot asks you first and adds `--yes` only after you say yes.
 
 Your login is saved **on this computer only**, outside every repo: `~/.config/ai-sdlc/connectors/<name>.json` (folder readable only by you; file mode 600). All your repos share it, so you connect once per computer, not once per repo.
+
+> **Working as root?** Then "you" is the root account: the login goes to root's home folder, and everyone who uses root on this computer (for example, everyone who logs in to a shared VM as root) can use it. `connect` warns you when it runs as root. If you can, log in as your own user and connect there; otherwise use a token with read access only, and disconnect when you are done.
 
 ### Corporate network: proxy and company certificates
 
@@ -399,14 +411,14 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 | an extra skill | `--add-skill skill-creator` |
 | a skill left out | `--drop-skill drawio` |
 
-`--add-skill` and `--drop-skill` can be repeated. The skill names are the folder names in `.ai-sdlc/kit/template/.claude/skills/`; a wrong name lists the available ones. `git-verbs` cannot be added.
+`--add-skill` and `--drop-skill` can be repeated. The skill names are the folder names in `.ai-sdlc/kit/template/.claude/skills/`, such as `drawio` (`ai-sdlc-drawio` works too); a wrong name, for either option, lists the available ones. `git-verbs` cannot be added.
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py change --lang de --git-comfort guided --rituals none --add-skill skill-creator --drop-skill drawio
-Updated AI-SDLC 0.4.1 for Ana: Product Owner, QA · German (Deutsch).
+Updated AI-SDLC 0.8.0 for Ana: Product Owner, QA · German (Deutsch).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 3 file(s): .agents/skills/ai-sdlc-skill-creator/SKILL.md, .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md
-- Removed 6 file(s) no longer needed: .agents/skills/ai-sdlc-drawio/LICENSE, …
+- Wrote 3 file(s): .agents/skills/ (1 in 1 skill), .ai-sdlc/ (1), .github/instructions/ (1)
+- Removed 6 file(s) no longer needed: .agents/skills/ (6 in 1 skill)
 - Skills: … · git: guided · session summary: off
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Check: all good.
@@ -429,13 +441,18 @@ python3 .ai-sdlc/kit/setup.py check --quiet   # one line, as at the start of a s
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py check --quiet
-AI-SDLC 0.4.0 · roles: PO, QA · en · ok
+AI-SDLC 0.8.0 · roles: PO, QA · en · ok
 $ python3 .ai-sdlc/kit/setup.py check
 Check: 3 to look at:
 - [missing:.github/instructions/ai-sdlc-qa.instructions.md] .github/instructions/ai-sdlc-qa.instructions.md is missing.
 - [unknown:.github/instructions/ai-sdlc-extra.instructions.md] .github/instructions/ai-sdlc-extra.instructions.md looks like a kit file, but the kit did not write it.
 - [team-agents-md] The team has its own AGENTS.md. Copilot reads it together with the kit's instructions.
+- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 ```
+
+`check` also names the tools your roles usually connect to, marking the ones connected or skipped.
+
+**Notices and problems.** `team-…`, `skill-clash:…` and `kit-copy:…` are *notices*: something to read, nothing is broken. With notices only, `check` says *"Check: nothing to fix; N notice(s) to read:"* and exits `0`. Every other finding is a *problem* to fix, and `check` exits `1`.
 
 | Finding id | What it means | What to do |
 |---|---|---|
@@ -482,36 +499,44 @@ applyTo: '**'
 
 ## 8. Remove the kit from a repo
 
-**(a) Copilot:** say **"remove the kit"**. Copilot asks you to confirm first.
+**(a) Copilot:** say **"remove the kit"**. Copilot tells you what would be removed and kept, and asks you to confirm. It removes nothing until you say yes.
 
-**(b) Terminal:**
+**(b) Terminal:** two steps. Without `--yes`, `remove` changes nothing: it says what it would do and asks. With `--yes` it removes.
 
 ```bash
-python3 .ai-sdlc/kit/setup.py remove
+python3 .ai-sdlc/kit/setup.py remove           # what it would do; changes nothing
+python3 .ai-sdlc/kit/setup.py remove --yes     # remove it
 ```
 
 ```text
+$ python3 .ai-sdlc/kit/setup.py remove
+Nothing was removed yet. remove takes out 27 kit file(s) you never edited, the kit folder .ai-sdlc/kit and your settings.
+Kept, because you edited them: .github/instructions/ai-sdlc-qa.instructions.md
+Kept, your personal notes and skills: .github/instructions/ai-sdlc-personal.instructions.md, .agents/skills/ai-sdlc-personal-standup/SKILL.md
+Your connector logins stay.
+Remove the kit from this repo? Only after a yes: python3 .ai-sdlc/kit/setup.py remove --yes
+$ python3 .ai-sdlc/kit/setup.py remove --yes
 Removed the kit: 27 file(s), the kit folder and your settings.
 Kept, because you edited them (git now shows them; delete them if you don't need them): .github/instructions/ai-sdlc-qa.instructions.md
-Kept your personal notes and skills (git now shows them; delete them if you don't need them): .github/instructions/ai-sdlc-personal.instructions.md, .agents/skills/ai-sdlc-personal-standup/SKILL.md
+Kept your personal notes and skills, still hidden from git: .github/instructions/ai-sdlc-personal.instructions.md, .agents/skills/ai-sdlc-personal-standup/SKILL.md. If you set the kit up again it uses them; delete them if you don't need them.
 ```
 
 | Removed | Kept |
 |---|---|
 | every kit file you never edited | files you edited (listed) |
-| `.ai-sdlc/kit`, `USER.md`, `state.json` | your personal notes and personal skills (listed) |
-| the kit's block in `.git/info/exclude` | your connector logins in `~/.config/ai-sdlc/connectors/` |
+| `.ai-sdlc/kit`, `USER.md`, `state.json` | your personal notes and personal skills (listed), still hidden from git |
+| the kit's block in `.git/info/exclude` (a two-line entry stays while you keep personal notes or skills) | your connector logins in `~/.config/ai-sdlc/connectors/` |
 
-The kept files are no longer hidden, so `git status` shows them. Delete them, or move them somewhere safe, before you commit. With nothing kept, the repo is back to exactly how it was before setup: *"The repo is back to how it was before setup."*
+Edited kit files are no longer hidden, so `git status` shows them. Delete them, or move them somewhere safe, before you commit. Your personal notes and skills stay hidden by a two-line entry in `.git/info/exclude`; a later setup uses them again, and once you delete them, the next setup and remove take that entry away too. With nothing kept, the repo is back to exactly how it was before setup: *"The repo is back to how it was before setup."*
 
 **Connector logins are not removed.** They live in your home folder and are shared by all your repos. To delete them, run this **before** `remove`, while the kit is still there, for each connected tool:
 
 ```bash
-python3 .ai-sdlc/kit/setup.py connections        # which ones are saved
-python3 .ai-sdlc/kit/setup.py disconnect jira    # repeat per tool
+python3 .ai-sdlc/kit/setup.py connections             # which ones are saved
+python3 .ai-sdlc/kit/setup.py disconnect jira --yes   # repeat per tool
 ```
 
-Already removed the kit? Run `disconnect` from the kit in another repo or from your kit clone (`python3 ~/ai-sdlc-kit-source/setup.py disconnect jira`), or delete the file: `rm ~/.config/ai-sdlc/connectors/jira.json`. Revoke the token in the tool too if you no longer need it.
+Already removed the kit? Run `disconnect` from the kit in another repo or from your kit clone (`python3 ~/ai-sdlc-kit-source/setup.py disconnect jira --yes`), or delete the file: `rm ~/.config/ai-sdlc/connectors/jira.json`. Revoke the token in the tool too if you no longer need it.
 
 ---
 
@@ -526,8 +551,9 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `This kit copy is incomplete (missing …)` or `The kit folder .ai-sdlc/kit is incomplete (missing …)` | Some files did not come along when the kit was copied (an interrupted copy or unzip, or only part of the folder). | Nothing changed. Copy the whole kit folder into the repo again, without `.git` (`rsync -a --exclude .git <kit>/ ./ai-sdlc-kit-new/`), and run `setup` or `update` from that copy. |
 | `AI-SDLC stopped on an unexpected problem: …` (exit code 4) | Something the kit did not expect, such as a full disk or a file it could not read. | Run the command it names (for an update: `python3 .ai-sdlc/kit/setup.py update`). If it happens again, share the message and the output of `check` with the kit owner. |
 | `Copy the newer kit folder into the repo first` | The copy is outside the repo. | `rsync -a --exclude .git <kit>/ ./ai-sdlc-kit-new/`, then run `ai-sdlc-kit-new/setup.py update`. |
+| `Git refuses to work in <folder> (git says: fatal: detected dubious ownership …)` | The repo folder belongs to another user on this computer (for example, it was made as root or by another account), so git will not read it. The kit stops rather than leave its files visible to git. | Nothing changed. Ask IT to give the folder to your user. If you trust the folder, run the command the message names: `git config --global --add safe.directory <folder>`. |
 | `python3: command not found`, or `AI-SDLC needs Python 3.9 or newer` | Python is missing or older than 3.9 (`python3 --version`). | Ask IT to install Python 3.9 or newer on the VM. Nothing was changed. |
-| `git status` shows kit files | (1) A kit copy you put in is waiting for `setup` or `update`. (2) After `remove`: your edited files and personal notes were kept. (3) `check` reports `unexcluded:`. (4) Someone ran `git add -f`. | (1) Finish the setup or update, or delete the copy. (2) Delete or move them. (3) `python3 .ai-sdlc/kit/setup.py change`. (4) `git restore --staged <file>`; never commit them. |
+| `git status` shows kit files | (1) A kit copy you put in is waiting for `setup` or `update`. (2) After `remove`: files you edited were kept. (3) `check` reports `unexcluded:`. (4) Someone ran `git add -f`. | (1) Finish the setup or update, or delete the copy. (2) Delete or move them. (3) `python3 .ai-sdlc/kit/setup.py change`. (4) `git restore --staged <file>`; never commit them. |
 | `The TLS certificate of <host> could not be verified` | Your company inspects TLS traffic with its own certificate authority. | Get the CA bundle (PEM) from IT, then run `connect <name>` again and give its path, or set `AI_SDLC_CA_BUNDLE`. See [Corporate network](#corporate-network-proxy-and-company-certificates). |
 | `The proxy … asks for credentials (407 Proxy Authentication Required)` | The proxy needs a login. | Ask IT how to set the proxy for command-line tools on the VM (often `HTTPS_PROXY=http://user:password@proxy:port`, or a proxy that does not need a login). |
 | `The proxy … refused the connection` / `could not be found`, or a `timeout` | Wrong proxy address, VPN off, or the tool's host must bypass the proxy. | Check `HTTPS_PROXY` and the VPN. For an internal host, add it to `NO_PROXY`. |
@@ -536,13 +562,13 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `403 Forbidden from <host> for <path>` | You are signed in, but this account may not read it. | Ask for read access. After several failed logins, some servers want one sign-in in the browser first. |
 | `404 Not Found from <host> for <path>` | The id, key or path is wrong, or your account cannot see it. Or the URL in `connect` has an extra path. | Check the id (Confluence page id, Jama API id, `PRJ/repo`, Jenkins job path). Check the saved URL with `connections`. |
 | `<Tool> is not connected` (exit code 3) | No saved login for that tool. | `python3 .ai-sdlc/kit/setup.py connect <name>`, in your own terminal. |
-| `connect asks for secrets, so it runs only in your own terminal` | `connect` was run through Copilot or a script, without a terminal. | Open a terminal (**Terminal → New Terminal**) and run it there yourself. |
+| `connect asks for secrets, so it runs only in your own terminal` (exit code 2; the same for `connect --suggested`) | `connect` was run through Copilot or a script, without a terminal. | Open a terminal (**Terminal → New Terminal**) and run it there yourself. For scripts and CI, `python3 .ai-sdlc/kit/setup.py connect --help` names the environment variables to set instead. |
 | `Bitbucket Cloud is not supported yet` | The URL is `bitbucket.org`. | Only Bitbucket Data Center is supported. |
 | The document skills (Word, Excel, PowerPoint, PDF) cannot install their library: `ensurepip is not available`, or `python3 -m venv` fails | The `python3-venv` package is missing on the VM. | Ask IT to install `python3-venv`. The skills install into `~/.ai-sdlc/venv` only, and only with your consent. |
 | The document skills: `pip` cannot reach the package index | A company proxy or internal package mirror is needed. | Ask IT for the pip proxy or index settings (for example `HTTPS_PROXY`, or `pip config set global.index-url <mirror>`), then try again. |
 | The LikeC4 skill cannot validate or export a `.c4` model: `npx` cannot reach the npm registry, or Node is not installed | The `likec4` CLI comes from npm, which the VM may block. | The `.c4` file is still kept. Validate and export with the LikeC4 VS Code extension, or ask IT for npm registry access. Copilot asks before it downloads the CLI. |
-| Copilot says it cannot find `ONBOARDING.md`, or does something else when you say "do the onboarding" | Copilot did not look in the kit folder. Its file search may skip folders that git ignores, such as `.ai-sdlc/kit/` after setup. | Point it there: *"follow ai-sdlc-kit/ONBOARDING.md"* before setup (your folder name), or *"follow .ai-sdlc/kit/ONBOARDING.md"* after setup. |
-| `There is no skill <name>. Available: …` | A wrong skill name in `--add-skill`. | Use a name from the list it prints. |
+| Copilot says it cannot find `ONBOARDING.md`, says the onboarding is already done, or does something else when you say "do the onboarding" | Copilot did not look in the kit folder, or read another file. Its file search may skip folders that git ignores, such as `.ai-sdlc/kit/` after setup. | Point it there: *"follow ai-sdlc-kit/ONBOARDING.md"* before setup (your folder name), or *"follow .ai-sdlc/kit/ONBOARDING.md"* after setup. It is the `ONBOARDING.md` next to `setup.py`. |
+| `There is no skill <name>. Available: …` | A wrong skill name in `--add-skill` or `--drop-skill`. | Use a name from the list it prints. |
 | `The kit is not set up in this repo yet` | `change`, `update`, `ack` or `remove` in a repo without the kit. | Check you are in the right repo (`git rev-parse --show-toplevel`), or do the [first-time setup](#1-first-time-setup-in-a-repo). |
 
 Still stuck? Run `python3 .ai-sdlc/kit/setup.py check` and `python3 .ai-sdlc/kit/setup.py connections`, and share the output with the kit owner. It never contains a secret. For connector problems, `AI_SDLC_DEBUG=1 python3 .ai-sdlc/kit/connectors.py <name> whoami` also prints each request, with the login hidden.

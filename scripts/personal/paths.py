@@ -27,6 +27,10 @@ def is_personal(rel: str) -> bool:
                                          rel[len(PERSONAL_SKILLS_REL):])
 
 
+class SetupError(Exception):
+    """A plain-language reason to stop. Raised before anything else is changed."""
+
+
 def git(root, *args):
     """Run a read-only git command in `root`. None when git cannot run at all."""
     try:
@@ -36,12 +40,33 @@ def git(root, *args):
         return None
 
 
+def _git_folder(start: Path) -> Path | None:
+    """The nearest folder, `start` or a parent, that holds a .git (folder or file)."""
+    for d in (start, *start.parents):
+        if (d / ".git").exists():
+            return d
+    return None
+
+
 def repo_root(start) -> tuple[Path, bool]:
-    """(root, is_git). Outside a git repo the folder itself is the root."""
+    """(root, is_git). Outside a git repo the folder itself is the root.
+
+    Inside a repo that git refuses to read (most often "detected dubious ownership": the
+    folder belongs to another user), it stops with SetupError: treating the repo as a
+    plain folder would leave every kit file visible to git."""
     start = Path(start).resolve()
     r = git(start, "rev-parse", "--show-toplevel")
     if r is not None and r.returncode == 0 and r.stdout.strip():
         return Path(r.stdout.strip()).resolve(), True
+    repo = _git_folder(start)
+    if repo is not None:
+        said = " ".join((r.stderr or r.stdout or "").split()[:40]) if r is not None else ""
+        raise SetupError(
+            f"Nothing was changed. Git refuses to work in {repo} (git says: "
+            + (said or "git could not run here") + "). This usually means git refuses this "
+            "folder because it belongs to another user on this computer. To fix it, ask IT to "
+            "give the folder to your user, or, if you trust this folder, run: "
+            f"git config --global --add safe.directory {repo}")
     return start, False
 
 

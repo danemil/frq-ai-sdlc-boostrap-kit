@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """setup.py: the CLI surface, and imports that hold wherever the kit folder sits."""
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import helpers
 from personal import paths, reuse
@@ -67,6 +69,45 @@ class TestPaths(unittest.TestCase):
         helpers.make_repo(self.root)
         (self.root / "a/b").mkdir(parents=True)
         self.assertEqual(paths.repo_root(self.root / "a/b"), (self.root.resolve(), True))
+
+    def fake_git_refusing(self):
+        """A `git` first on PATH that refuses every repo, as git does for a folder another
+        user owns ("detected dubious ownership")."""
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        fake = bin_dir / "git"
+        fake.write_text("#!/bin/sh\n"
+                        "echo \"fatal: detected dubious ownership in repository at '$PWD'\" >&2\n"
+                        "exit 128\n")
+        fake.chmod(0o755)
+        return mock.patch.dict(os.environ, {"PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"})
+
+    def test_a_repo_git_refuses_is_a_plain_error_with_the_fix(self):
+        helpers.make_repo(self.root / "repo")
+        (self.root / "repo/a").mkdir()
+        with self.fake_git_refusing():
+            with self.assertRaises(paths.SetupError) as cm:
+                paths.repo_root(self.root / "repo/a")
+        text = str(cm.exception)
+        self.assertIn("detected dubious ownership", text)
+        self.assertIn("belongs to another user", text)
+        self.assertIn("ask IT", text)
+        self.assertIn(f"git config --global --add safe.directory {(self.root / 'repo').resolve()}",
+                      text)
+        self.assertIn("Nothing was changed.", text)
+
+    def test_setup_stops_in_a_repo_git_refuses_and_changes_nothing(self):
+        root = helpers.make_repo(self.root / "repo")
+        copy = helpers.copy_kit(root / "ai-sdlc-kit")
+        before = helpers.snapshot(root)
+        with self.fake_git_refusing():
+            code, out = helpers.cli(root, copy, "setup", "--protect-only")
+            quiet_code, quiet = helpers.cli(root, copy, "check", "--quiet")
+        self.assertEqual(code, 2, out)
+        self.assertIn("safe.directory", out)
+        self.assertEqual(helpers.snapshot(root), before)
+        self.assertEqual(quiet_code, 0)                 # the session-start check never fails
+        self.assertIn("safe.directory", quiet)
 
     def test_tracked_lists_only_tracked_paths(self):
         helpers.make_repo(self.root, {"AGENTS.md": "team\n"})

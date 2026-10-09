@@ -827,7 +827,7 @@ class TestPlacement(unittest.TestCase):
             r = subprocess.run([sys.executable, "-I", str(root / PLACED / "scripts/check_brand.py"),
                                 str(GOLDEN), "--json"], capture_output=True, text=True, check=False)
             self.assertEqual(r.returncode, 1, r.stderr)
-            code, out = helpers.cli(root, kit, "remove")
+            code, out = helpers.cli(root, kit, "remove", "--yes")
             self.assertEqual(code, 0, out)
             self.assertFalse((root / PLACED).exists())
             self.assertEqual(helpers.snapshot(root), before)

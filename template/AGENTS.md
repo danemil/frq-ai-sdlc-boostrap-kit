@@ -15,10 +15,10 @@ This is the single source of truth that **all AI tools read** — Claude (Claude
 Every AI agent **must** execute this sequence at the start of every session in this repo:
 
 1. **Check for `USER.md`** at the repo root.
-2. **If `USER.md` does not exist** → load and follow [`ONBOARDING.md`](./ONBOARDING.md). Do not proceed with project work until onboarding is complete and `USER.md` has been created.
+2. **If `USER.md` does not exist** → load and follow [`ONBOARDING.retired.md`](./ONBOARDING.retired.md). Do not proceed with project work until onboarding is complete and `USER.md` has been created.
 3. **If `USER.md` exists** → read it. Use the user's name, role/seat, and communication preferences to tailor all responses for the rest of this session.
 
-> **Onboarding runs in two phases.** `ONBOARDING.md` runs **Phase A (Global)** — identity, environment, preferences (every seat) — then **Phase B (Seat)** — seat, git-comfort, the seat's playbook, MCP profile, and a first task. Seat and git-comfort are recorded in `USER.md` and load live each session via the SessionStart hook. Switch seats later with `scripts/session/switch-seat.sh <seat>`.
+> **Onboarding runs in two phases.** `ONBOARDING.retired.md` runs **Phase A (Global)** — identity, environment, preferences (every seat) — then **Phase B (Seat)** — seat, git-comfort, the seat's playbook, MCP profile, and a first task. Seat and git-comfort are recorded in `USER.md` and load live each session via the SessionStart hook. Switch seats later with `scripts/session/switch-seat.sh <seat>`.
 
 > **Non-git operators work through verbs, not git.** For `guided`/`hidden` git-comfort seats, use the **`git-verbs`** skill — "save my work" (`checkpoint.sh`), "get the latest" (`sync.sh`), "send for review" (`wrapup.sh`) — never raw git. The SessionStart hook, SessionEnd safety net, and a debounced Stop reminder keep their work synced and never lost (`scripts/session/moments.json`).
 
@@ -68,7 +68,7 @@ This repository is bootstrapped from the **AI-SDLC Bootstrap Kit**. The kit enco
 ├── AGENTS.md                  # this brief — canonical, read first
 ├── CLAUDE.md                  # thin pointer → AGENTS.md
 ├── README.md                  # human setup
-├── ONBOARDING.md              # first-run gatekeeper (loaded only when USER.md is missing)
+├── ONBOARDING.retired.md              # first-run gatekeeper (loaded only when USER.md is missing)
 ├── WORKING-AGREEMENT.md       # how we organise across tools, lifecycle, MCP posture
 ├── USER.md                    # per-user, git-ignored (created at onboarding)
 ├── FOLDER-INDEX.md            # directory map
@@ -204,4 +204,4 @@ Per-seat data — git-comfort default, role playbook, MCP connectors, and the on
 
 ---
 
-**Companion files:** [`WORKING-AGREEMENT.md`](./WORKING-AGREEMENT.md) (how we organise across tools), [`CLAUDE.md`](./CLAUDE.md) (thin pointer), [`README.md`](./README.md) (setup), [`ONBOARDING.md`](./ONBOARDING.md) (first-run), [`FOLDER-INDEX.md`](./FOLDER-INDEX.md) (directory map), [`INDEX.md`](./INDEX.md) (cross-artefact index), [`docs/ai-context/README.md`](./docs/ai-context/README.md) (AI context contract).
+**Companion files:** [`WORKING-AGREEMENT.md`](./WORKING-AGREEMENT.md) (how we organise across tools), [`CLAUDE.md`](./CLAUDE.md) (thin pointer), [`README.md`](./README.md) (setup), [`ONBOARDING.retired.md`](./ONBOARDING.retired.md) (first-run), [`FOLDER-INDEX.md`](./FOLDER-INDEX.md) (directory map), [`INDEX.md`](./INDEX.md) (cross-artefact index), [`docs/ai-context/README.md`](./docs/ai-context/README.md) (AI context contract).

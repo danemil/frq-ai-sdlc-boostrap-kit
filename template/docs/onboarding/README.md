@@ -1,10 +1,12 @@
 # Onboarding (pillar 2)
 
-The first-run flow lives in [`../../ONBOARDING.md`](../../ONBOARDING.md) — an AI agent executes it automatically when `USER.md` is missing. This folder holds the **human-readable, project-specific** onboarding extras the gatekeeper can't generate:
+> **Retired team-mode onboarding.** If you were asked to "do the onboarding" for the AI-SDLC kit, stop here and follow the `ONBOARDING.md` next to `setup.py`, at the kit's top folder, instead.
+
+The first-run flow lives in [`../../ONBOARDING.retired.md`](../../ONBOARDING.retired.md) — an AI agent executes it automatically when `USER.md` is missing. This folder holds the **human-readable, project-specific** onboarding extras the gatekeeper can't generate:
 
 | Doc | Add when you need to cover… |
 |---|---|
-| `prerequisites-<os>.md` | OS-specific install notes beyond the table in `ONBOARDING.md` |
+| `prerequisites-<os>.md` | OS-specific install notes beyond the table in `ONBOARDING.retired.md` |
 | `workspace-setup.md` | Cloning the repos, environment variables, access requests |
 | `tooling-access.md` | How to get access to the issue tracker / wiki / knowledge store and wire the MCP connectors |
 | `intro-to-<domain>.md` | A primer on this project's domain for new joiners |

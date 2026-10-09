@@ -98,6 +98,34 @@ class TestCheck(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("· 1 to look at:", out)
 
+    def test_notices_alone_exit_0_and_problems_exit_1(self):
+        """The split: team-…, skill-clash:… and kit-copy:… are notices (exit 0); anything
+        else (missing, unknown, unexcluded, stale-kit, not-set-up) is a problem (exit 1)."""
+        for fid in ("team-agents-md", "team-copilot-instructions", "team-instructions:a.md",
+                    "skill-clash:.claude/skills/x", "kit-copy:downloads/kit"):
+            self.assertTrue(checks.is_notice(fid), fid)
+        for fid in (f"missing:{CORE}", f"unknown:{CORE}", f"unexcluded:{CORE}", "stale-kit",
+                    "not-set-up"):
+            self.assertFalse(checks.is_notice(fid), fid)
+        (self.root / "AGENTS.md").write_text("# Team\n")
+        newer = helpers.copy_kit(self.root / "downloads/ai-sdlc-kit")
+        (newer / "VERSION").write_text("9.9.9\n")
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("Check: nothing to fix; 2 notice(s) to read:", out)
+        self.assertIn("- [team-agents-md]", out)
+        self.assertIn("- [kit-copy:downloads/ai-sdlc-kit]", out)
+        (self.root / CORE).unlink()
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("Check: 3 to look at:", out)
+
+    def test_check_names_the_connectors_for_the_roles(self):
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("- Connectors for your roles: jira, confluence, jama (say 'connect jira')",
+                      out)
+
     def test_quiet_never_fails(self):
         with mock.patch.object(checks, "run", side_effect=RuntimeError("boom")):
             code, out = helpers.cli(self.root, self.kit, "check", "--quiet")

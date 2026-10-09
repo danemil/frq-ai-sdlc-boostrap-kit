@@ -10,6 +10,11 @@ Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fix
                        for "update the kit"; same version: update from it or delete it;
                        older: delete it)
     and the team-file warnings from conflicts.py that are not acknowledged.
+
+Notices and problems. A notice is for reading, nothing is broken: the team-… and
+skill-clash:… warnings, and kit-copy:… (a kit folder waiting for "update the kit", or
+one to delete). Everything else (missing, unknown, unexcluded, stale-kit, not-set-up)
+is a problem to fix. `check` exits 0 when it found notices only, 1 for any problem.
 """
 from __future__ import annotations
 
@@ -18,6 +23,12 @@ from pathlib import Path
 from . import conflicts, paths, place, reuse, state
 
 SCAN = (".github/instructions", ".github/skills", ".agents/skills", ".claude/skills")
+NOTICES = ("team-", "skill-clash:", "kit-copy:")
+
+
+def is_notice(fid: str) -> bool:
+    """A finding to read, not a problem to fix (see the module docstring)."""
+    return fid.startswith(NOTICES)
 
 
 def ai_sdlc_files(root) -> list[str]:
