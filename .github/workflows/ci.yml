@@ -240,7 +240,11 @@ jobs:
           printf '%s\n' "$out" | tee -a "$LOG"
           printf '%s\n' "$out" | python3 -c 'import json, sys; d = json.load(sys.stdin); assert [i["key"] for i in d["items"]] == ["ABC-1", "ABC-2"] and all(i["url"] for i in d["items"]), d'
 
-          out="$(python3 $K/setup.py disconnect jira)"
+          rc=0; out="$(python3 $K/setup.py disconnect jira)" || rc=$?   # without --yes: asks, deletes nothing
+          printf '%s\n' "$out" | tee -a "$LOG"
+          test "$rc" -eq 2 && test -e "$AI_SDLC_CONFIG_DIR/connectors/jira.json"
+          printf '%s\n' "$out" | grep -qF 'disconnect jira --yes'
+          out="$(python3 $K/setup.py disconnect jira --yes)"
           printf '%s\n' "$out" | tee -a "$LOG"
           printf '%s\n' "$out" | grep -qF 'Removed the saved Jira connection.'
           test ! -e "$AI_SDLC_CONFIG_DIR/connectors/jira.json"
@@ -272,7 +276,7 @@ jobs:
           test -z "$(git status --porcelain)"
 
       # remove keeps edited files, so the person first takes the kit's copy (`change`
-      # records it), then removes. Nothing is left over: both kit copies lived at the repo
+      # records it), then removes (first without --yes: it only asks). Nothing is left over: both kit copies lived at the repo
       # root and were moved away by setup and update (checked above).
       - name: Take the kit's copy, then remove; the repo is byte-identical to before
         run: |
@@ -282,7 +286,11 @@ jobs:
           mv .github/instructions/ai-sdlc-po.instructions.md.kit-new .github/instructions/ai-sdlc-po.instructions.md
           python3 .ai-sdlc/kit/setup.py change
           python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$AI_SDLC_CONFIG_DIR" > "$RUNNER_TEMP/config-before.json"
-          out="$(python3 .ai-sdlc/kit/setup.py remove)"
+          rc=0; out="$(python3 .ai-sdlc/kit/setup.py remove)" || rc=$?   # without --yes: asks, removes nothing
+          printf '%s\n' "$out"
+          test "$rc" -eq 2 && test -f .ai-sdlc/kit/setup.py
+          printf '%s\n' "$out" | grep -qF 'remove --yes'
+          out="$(python3 .ai-sdlc/kit/setup.py remove --yes)"
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -qF 'The repo is back to how it was before setup.'
           python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/after.json"

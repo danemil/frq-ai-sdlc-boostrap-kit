@@ -57,7 +57,11 @@ Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 
 ## Remove the kit
 
-Ask first: "This removes the kit and your settings from this repo. Files you edited, and your personal notes and skills, are kept. Continue?" On yes, run `python3 .ai-sdlc/kit/setup.py remove` and relay what it removed and kept.
+1. **See what it would do.** Run `python3 .ai-sdlc/kit/setup.py remove`, without `--yes`. It changes nothing: it says what it would remove and what it keeps (files they edited, their personal notes and skills, their connector logins).
+2. **Ask, then wait.** Tell them that in plain words and ask: "Shall I remove the kit from this repo?" Wait for their answer. The request "remove the kit" is not the yes.
+3. **Only after they say yes,** run `python3 .ai-sdlc/kit/setup.py remove --yes` and relay what it removed and kept. Their personal notes and skills stay hidden from git. If they say no, or you cannot ask them, do not run it: nothing has changed.
+
+Never run `remove --yes` on your own.
 
 ## Connect a tool
 
@@ -67,4 +71,4 @@ The person said "connect Jira" (or Confluence, Bitbucket, Jama, Jenkins). The co
 2. If it is not connected, or they want to change it, tell them to run this **themselves, in their own terminal** (a terminal window, not this chat): `python3 .ai-sdlc/kit/setup.py connect <name>`. It asks for the URL and their login, hides what they type for secrets, saves it only on this computer (in their home folder, outside every repo), and tests it once. Do not run it yourself: it refuses to ask for secrets through an assistant.
 3. If they paste a token or password into the chat, do not use or repeat it. Tell them to revoke it now and create a new one, then save it themselves with the command above.
 4. Only if they ask you to test the connection, run `python3 .ai-sdlc/kit/setup.py connect <name> --test`. It uses the saved login, asks nothing and makes one read-only call. Relay the answer in plain words; the `ai-sdlc-connectors` skill explains each error and its fix.
-5. To forget a saved login, ask first, then run `python3 .ai-sdlc/kit/setup.py disconnect <name>`.
+5. To forget a saved login, run `python3 .ai-sdlc/kit/setup.py disconnect <name>`, without `--yes`: it deletes nothing and says which login it would delete. Ask "Shall I delete your saved <tool> login?" and wait. Only after they say yes, run `python3 .ai-sdlc/kit/setup.py disconnect <name> --yes`. Never run `--yes` on your own.

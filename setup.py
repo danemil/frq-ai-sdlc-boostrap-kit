@@ -7,16 +7,16 @@
   python3 <newer kit>/setup.py update
   python3 .ai-sdlc/kit/setup.py check [--quiet]
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
-  python3 .ai-sdlc/kit/setup.py remove
+  python3 .ai-sdlc/kit/setup.py remove [--yes]           (--yes only after the person agreed)
   python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connect --suggested            (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connections
-  python3 .ai-sdlc/kit/setup.py disconnect <connector>
+  python3 .ai-sdlc/kit/setup.py disconnect <connector> [--yes]
 
 Run it from the repo root. Stdlib only; needs Python 3.9 or newer.
 
 Exit codes: 0 done · 1 check found something to look at · 2 refused, nothing was
-changed · 3 a connector is not connected · 4 stopped by an unexpected error (run
+changed (remove and disconnect without --yes: nothing done yet) · 3 a connector is not connected · 4 stopped by an unexpected error (run
 the same command again; AI_SDLC_DEBUG=1 prints the details).
 """
 import sys
@@ -67,7 +67,9 @@ def parser() -> argparse.ArgumentParser:
     k.add_argument("--quiet", action="store_true", help="one line, for the start of a session")
     a = sub.add_parser("ack", help="note that you have seen a warning")
     a.add_argument("ids", nargs="+", metavar="warning-id")
-    sub.add_parser("remove", help="take the kit out; the repo ends as it was")
+    r = sub.add_parser("remove", help="take the kit out; the repo ends as it was")
+    r.add_argument("--yes", action="store_true",
+                   help="really remove; without it, remove only says what it would do")
 
     n = sub.add_parser("connect", help="save your login for a connector; run it in your own "
                                        "terminal, it asks for secrets hidden")
@@ -80,6 +82,8 @@ def parser() -> argparse.ArgumentParser:
     sub.add_parser("connections", help="list connectors: URL, user, kind, last test (no secrets)")
     d = sub.add_parser("disconnect", help="delete a connector's saved login")
     d.add_argument("name", metavar="connector")
+    d.add_argument("--yes", action="store_true",
+                   help="really delete; without it, disconnect only says what it would do")
     return ap
 
 

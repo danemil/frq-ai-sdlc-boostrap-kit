@@ -300,14 +300,21 @@ def connections(connectors=None, skipped=()):
     return 0, [head] + (lines or ["- none available in this kit yet"])
 
 
-def disconnect(name, connectors=None):
-    """setup.py disconnect <name>: delete the saved file."""
+def disconnect(name, connectors=None, yes=False):
+    """setup.py disconnect <name> [--yes]: delete the saved file. Without yes, say what would
+    be deleted and ask; nothing changes."""
     connectors = registry.discover() if connectors is None else connectors
     title = connectors[name].title if name in connectors else name
     try:
-        removed = store.delete(name)
+        path = store.file_for(name)
     except ValueError:
         return 2, [f"There is no connector {name!r}."]
+    if not yes and path.exists():
+        return 2, [f"Nothing was deleted yet. disconnect deletes your saved {title} login on "
+                   f"this computer ({path}); every repo on this computer uses it.",
+                   f"Delete your saved {title} login? Only after a yes: "
+                   f"{SETUP} disconnect {name} --yes"]
+    removed = store.delete(name)
     lines = [f"Removed the saved {title} connection." if removed else
              f"There was no saved {title} connection."]
     keys = connectors[name].keys if name in connectors else []

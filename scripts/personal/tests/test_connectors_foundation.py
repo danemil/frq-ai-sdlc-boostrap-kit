@@ -490,13 +490,28 @@ class TestManage(Base):
 
     def test_disconnect_deletes_the_file(self):
         self.save_stub("https://x.example")
-        code, lines = manage.disconnect(NAME, self.connectors)
+        code, lines = manage.disconnect(NAME, self.connectors, yes=True)
         self.assertEqual((code, lines), (0, ["Removed the saved Stub connection."]))
         self.assertFalse(store.file_for(NAME).exists())
         os.environ["AI_SDLC_STUB_CONNECTOR_TOKEN"] = SECRET
-        _, lines = manage.disconnect(NAME, self.connectors)
+        _, lines = manage.disconnect(NAME, self.connectors, yes=True)
         self.assertIn("There was no saved Stub connection.", lines)
         self.assertIn("still apply", lines[1])
+
+    def test_disconnect_without_yes_asks_and_keeps_the_file(self):
+        path = self.save_stub("https://x.example")
+        code, lines = manage.disconnect(NAME, self.connectors)
+        text = "\n".join(lines)
+        self.assertEqual(code, 2, text)
+        self.assertTrue(path.is_file())
+        self.assertIn("Nothing was deleted yet.", text)
+        self.assertIn(str(path), text)
+        self.assertIn("Delete your saved Stub login?", text)
+        self.assertIn(f"python3 .ai-sdlc/kit/setup.py disconnect {NAME} --yes", text)
+
+    def test_disconnect_with_nothing_saved_needs_no_yes(self):
+        code, lines = manage.disconnect(NAME, self.connectors)
+        self.assertEqual((code, lines), (0, ["There was no saved Stub connection."]))
 
     def test_setup_py_has_the_three_commands(self):
         root = helpers.make_repo(self.base / "repo")
@@ -517,7 +532,7 @@ class TestRemoveKeepsCredentials(Base):
         kit = root / ".ai-sdlc/kit"
         helpers.cli(root, copy, "setup", "--protect-only")
         helpers.cli(root, kit, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
-        code, out = helpers.cli(root, kit, "remove")
+        code, out = helpers.cli(root, kit, "remove", "--yes")
         self.assertEqual(code, 0, out)
         self.assertTrue(path.is_file())
         self.assertEqual(json.loads(path.read_text())["values"]["token"], SECRET)
@@ -543,7 +558,7 @@ class TestRemoveKeepsCredentials(Base):
             kit = root / ".ai-sdlc/kit"
             helpers.cli(root, copy, "setup", "--protect-only")
             helpers.cli(root, kit, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
-            code, out = helpers.cli(root, kit, "remove")
+            code, out = helpers.cli(root, kit, "remove", "--yes")
             self.assertEqual(code, 0, out)
             self.assertEqual(snap(), before)
             self.assertNotIn(SECRET, out)

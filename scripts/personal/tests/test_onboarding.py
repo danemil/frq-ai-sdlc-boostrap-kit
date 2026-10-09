@@ -73,6 +73,15 @@ class TestOnboarding(unittest.TestCase):
         self.assertIn("Do not run it yourself", onboarding)
         self.assertIn("**Ask three questions,**", onboarding)
 
+    def test_remove_and_disconnect_get_yes_only_after_the_person_says_yes(self):
+        remove, connect = section("Remove the kit"), section("Connect a tool")
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py remove`, without `--yes`", remove)
+        self.assertIn("**Only after they say yes,** run `python3 .ai-sdlc/kit/setup.py remove --yes`",
+                      remove)
+        self.assertIn("Never run `remove --yes` on your own.", remove)
+        self.assertIn("Only after they say yes, run `python3 .ai-sdlc/kit/setup.py disconnect "
+                      "<name> --yes`", connect)
+
     def test_python_floor_matches_setup_py(self):
         self.assertIn("3.9 or newer", DOC)
         self.assertIn("sys.version_info < (3, 9)", (helpers.KIT / "setup.py").read_text())

@@ -89,7 +89,7 @@ class TestConnectorsEndToEnd(unittest.TestCase):
                 code, out, _ = self.run_kit("connectors.py", name, "whoami")
                 self.assertEqual(code, 0, out)
                 self.assertIn("user: ana", out)
-                code, out, _ = self.run_kit("setup.py", "disconnect", name)
+                code, out, _ = self.run_kit("setup.py", "disconnect", name, "--yes")
                 self.assertIn("Removed the saved", out)
                 self.assertFalse(saved.exists())
                 code, out, _ = self.run_kit("connectors.py", name, "whoami")
@@ -122,7 +122,7 @@ class TestConnectorsEndToEnd(unittest.TestCase):
         for argv in (["ai-sdlc-kit/setup.py", "setup", "--protect-only"],
                      [".ai-sdlc/kit/setup.py", "setup", "--name", "Ana", "--roles", "dev",
                       "--lang", "en"],
-                     [".ai-sdlc/kit/setup.py", "remove"]):
+                     [".ai-sdlc/kit/setup.py", "remove", "--yes"]):
             r = subprocess.run([sys.executable, *argv], cwd=root, env=self.env, text=True,
                                stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)

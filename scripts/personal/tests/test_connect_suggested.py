@@ -213,7 +213,7 @@ class TestSkipsAreRespected(Base):
 
     def test_remove_still_leaves_the_repo_as_it_was(self):
         self.suggested("s\n")
-        code, out = helpers.cli(self.root, self.kit, "remove")
+        code, out = helpers.cli(self.root, self.kit, "remove", "--yes")
         self.assertEqual(code, 0, out)
         self.assertFalse((self.root / paths.STATE_REL).exists())
 

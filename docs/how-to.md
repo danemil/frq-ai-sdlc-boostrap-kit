@@ -249,7 +249,8 @@ Use the URL you open in the browser, without a page path: `https://jira.example.
 ```bash
 python3 .ai-sdlc/kit/setup.py connect jira --test     # test the saved login; asks nothing
 python3 .ai-sdlc/kit/setup.py connections             # what is connected; never shows a secret
-python3 .ai-sdlc/kit/setup.py disconnect jira         # delete the saved login
+python3 .ai-sdlc/kit/setup.py disconnect jira         # what it would delete; deletes nothing
+python3 .ai-sdlc/kit/setup.py disconnect jira --yes   # delete the saved login
 ```
 
 ```text
@@ -262,11 +263,11 @@ Connectors (saved in /home/ana/.config/ai-sdlc/connectors):
 - jama: not connected (python3 .ai-sdlc/kit/setup.py connect jama)
 - jenkins: not connected (python3 .ai-sdlc/kit/setup.py connect jenkins)
 - jira: https://jira.example.com · Data Center · user ana · last test OK 2026-10-08T12:30:26Z · from file
-$ python3 .ai-sdlc/kit/setup.py disconnect jira
+$ python3 .ai-sdlc/kit/setup.py disconnect jira --yes
 Removed the saved Jira connection.
 ```
 
-Copilot can run `--test`, `connections` and `disconnect` for you: say *"test my Jira connection"*, *"what is connected?"* or *"disconnect Jira"*.
+Copilot can run `--test`, `connections` and `disconnect` for you: say *"test my Jira connection"*, *"what is connected?"* or *"disconnect Jira"*. For `disconnect`, Copilot asks you first and adds `--yes` only after you say yes.
 
 Your login is saved **on this computer only**, outside every repo: `~/.config/ai-sdlc/connectors/<name>.json` (folder readable only by you; file mode 600). All your repos share it, so you connect once per computer, not once per repo.
 
@@ -482,36 +483,44 @@ applyTo: '**'
 
 ## 8. Remove the kit from a repo
 
-**(a) Copilot:** say **"remove the kit"**. Copilot asks you to confirm first.
+**(a) Copilot:** say **"remove the kit"**. Copilot tells you what would be removed and kept, and asks you to confirm. It removes nothing until you say yes.
 
-**(b) Terminal:**
+**(b) Terminal:** two steps. Without `--yes`, `remove` changes nothing: it says what it would do and asks. With `--yes` it removes.
 
 ```bash
-python3 .ai-sdlc/kit/setup.py remove
+python3 .ai-sdlc/kit/setup.py remove           # what it would do; changes nothing
+python3 .ai-sdlc/kit/setup.py remove --yes     # remove it
 ```
 
 ```text
+$ python3 .ai-sdlc/kit/setup.py remove
+Nothing was removed yet. remove takes out 27 kit file(s) you never edited, the kit folder .ai-sdlc/kit and your settings.
+Kept, because you edited them: .github/instructions/ai-sdlc-qa.instructions.md
+Kept, your personal notes and skills: .github/instructions/ai-sdlc-personal.instructions.md, .agents/skills/ai-sdlc-personal-standup/SKILL.md
+Your connector logins stay.
+Remove the kit from this repo? Only after a yes: python3 .ai-sdlc/kit/setup.py remove --yes
+$ python3 .ai-sdlc/kit/setup.py remove --yes
 Removed the kit: 27 file(s), the kit folder and your settings.
 Kept, because you edited them (git now shows them; delete them if you don't need them): .github/instructions/ai-sdlc-qa.instructions.md
-Kept your personal notes and skills (git now shows them; delete them if you don't need them): .github/instructions/ai-sdlc-personal.instructions.md, .agents/skills/ai-sdlc-personal-standup/SKILL.md
+Kept your personal notes and skills, still hidden from git: .github/instructions/ai-sdlc-personal.instructions.md, .agents/skills/ai-sdlc-personal-standup/SKILL.md. If you set the kit up again it uses them; delete them if you don't need them.
 ```
 
 | Removed | Kept |
 |---|---|
 | every kit file you never edited | files you edited (listed) |
-| `.ai-sdlc/kit`, `USER.md`, `state.json` | your personal notes and personal skills (listed) |
-| the kit's block in `.git/info/exclude` | your connector logins in `~/.config/ai-sdlc/connectors/` |
+| `.ai-sdlc/kit`, `USER.md`, `state.json` | your personal notes and personal skills (listed), still hidden from git |
+| the kit's block in `.git/info/exclude` (a two-line entry stays while you keep personal notes or skills) | your connector logins in `~/.config/ai-sdlc/connectors/` |
 
-The kept files are no longer hidden, so `git status` shows them. Delete them, or move them somewhere safe, before you commit. With nothing kept, the repo is back to exactly how it was before setup: *"The repo is back to how it was before setup."*
+Edited kit files are no longer hidden, so `git status` shows them. Delete them, or move them somewhere safe, before you commit. Your personal notes and skills stay hidden by a two-line entry in `.git/info/exclude`; a later setup uses them again, and once you delete them, the next setup and remove take that entry away too. With nothing kept, the repo is back to exactly how it was before setup: *"The repo is back to how it was before setup."*
 
 **Connector logins are not removed.** They live in your home folder and are shared by all your repos. To delete them, run this **before** `remove`, while the kit is still there, for each connected tool:
 
 ```bash
-python3 .ai-sdlc/kit/setup.py connections        # which ones are saved
-python3 .ai-sdlc/kit/setup.py disconnect jira    # repeat per tool
+python3 .ai-sdlc/kit/setup.py connections             # which ones are saved
+python3 .ai-sdlc/kit/setup.py disconnect jira --yes   # repeat per tool
 ```
 
-Already removed the kit? Run `disconnect` from the kit in another repo or from your kit clone (`python3 ~/ai-sdlc-kit-source/setup.py disconnect jira`), or delete the file: `rm ~/.config/ai-sdlc/connectors/jira.json`. Revoke the token in the tool too if you no longer need it.
+Already removed the kit? Run `disconnect` from the kit in another repo or from your kit clone (`python3 ~/ai-sdlc-kit-source/setup.py disconnect jira --yes`), or delete the file: `rm ~/.config/ai-sdlc/connectors/jira.json`. Revoke the token in the tool too if you no longer need it.
 
 ---
 
@@ -527,7 +536,7 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `AI-SDLC stopped on an unexpected problem: …` (exit code 4) | Something the kit did not expect, such as a full disk or a file it could not read. | Run the command it names (for an update: `python3 .ai-sdlc/kit/setup.py update`). If it happens again, share the message and the output of `check` with the kit owner. |
 | `Copy the newer kit folder into the repo first` | The copy is outside the repo. | `rsync -a --exclude .git <kit>/ ./ai-sdlc-kit-new/`, then run `ai-sdlc-kit-new/setup.py update`. |
 | `python3: command not found`, or `AI-SDLC needs Python 3.9 or newer` | Python is missing or older than 3.9 (`python3 --version`). | Ask IT to install Python 3.9 or newer on the VM. Nothing was changed. |
-| `git status` shows kit files | (1) A kit copy you put in is waiting for `setup` or `update`. (2) After `remove`: your edited files and personal notes were kept. (3) `check` reports `unexcluded:`. (4) Someone ran `git add -f`. | (1) Finish the setup or update, or delete the copy. (2) Delete or move them. (3) `python3 .ai-sdlc/kit/setup.py change`. (4) `git restore --staged <file>`; never commit them. |
+| `git status` shows kit files | (1) A kit copy you put in is waiting for `setup` or `update`. (2) After `remove`: files you edited were kept. (3) `check` reports `unexcluded:`. (4) Someone ran `git add -f`. | (1) Finish the setup or update, or delete the copy. (2) Delete or move them. (3) `python3 .ai-sdlc/kit/setup.py change`. (4) `git restore --staged <file>`; never commit them. |
 | `The TLS certificate of <host> could not be verified` | Your company inspects TLS traffic with its own certificate authority. | Get the CA bundle (PEM) from IT, then run `connect <name>` again and give its path, or set `AI_SDLC_CA_BUNDLE`. See [Corporate network](#corporate-network-proxy-and-company-certificates). |
 | `The proxy … asks for credentials (407 Proxy Authentication Required)` | The proxy needs a login. | Ask IT how to set the proxy for command-line tools on the VM (often `HTTPS_PROXY=http://user:password@proxy:port`, or a proxy that does not need a login). |
 | `The proxy … refused the connection` / `could not be found`, or a `timeout` | Wrong proxy address, VPN off, or the tool's host must bypass the proxy. | Check `HTTPS_PROXY` and the VPN. For an internal host, add it to `NO_PROXY`. |

@@ -7,7 +7,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from . import checks, conflicts, exclude, packs, paths, place, state
+from . import checks, conflicts, exclude, packs, paths, place, reuse, state
 from .connectors import manage, registry
 
 
@@ -264,10 +264,37 @@ def cmd_update(args, cwd, kit):
     return 0, lines + _check_lines(root)[1]
 
 
+def _remove_plan(root, st) -> tuple[int, list[str]]:
+    """(files remove would delete, files it would keep because they were edited): a dry run."""
+    tracked = paths.tracked(root, set(st["files"]))
+    gone, kept = 0, []
+    for rel in sorted(st["files"]):
+        if rel in tracked:
+            continue
+        fs = reuse.file_state(root, st, rel)
+        if fs == reuse.CLEAN:
+            gone += 1
+        elif fs == reuse.MODIFIED:
+            kept.append(rel)
+    return gone, kept
+
+
 def cmd_remove(args, cwd, kit):
     root, is_git = paths.repo_root(cwd)
     st = _need_state(root)
     personal = [r for r in checks.ai_sdlc_files(root) if paths.is_personal(r)]
+    if not args.yes:                              # say what would happen; change nothing
+        gone, kept = _remove_plan(root, st)
+        lines = [f"Nothing was removed yet. remove takes out {gone} kit file(s) you never "
+                 f"edited, the kit folder {paths.KIT_REL} and your settings."]
+        if kept:
+            lines.append("Kept, because you edited them: " + ", ".join(kept))
+        if personal:
+            lines.append("Kept, your personal notes and skills: " + ", ".join(personal))
+        lines.append("Your connector logins stay.")
+        lines.append("Remove the kit from this repo? Only after a yes: "
+                     "python3 .ai-sdlc/kit/setup.py remove --yes")
+        return 2, lines
     report = place.apply(root, st, {})            # deletes unedited files, keeps edited ones
     kit_dir = root / paths.KIT_REL
     if place.is_kit(kit_dir):
@@ -276,15 +303,20 @@ def cmd_remove(args, cwd, kit):
     home = root / paths.HOME_REL
     if home.is_dir() and not any(home.iterdir()):
         home.rmdir()
-    if is_git:
+    if is_git and personal:
+        exclude.protect(root, exclude.PERSONAL_PATTERNS)   # keep only the person's own files hidden
+    elif is_git:
         exclude.unprotect(root)
     lines = [f"Removed the kit: {len(report['removed'])} file(s), the kit folder and your settings."]
     if report["kept"]:
         lines.append("Kept, because you edited them (git now shows them; delete them if you "
                      "don't need them): " + ", ".join(report["kept"]))
     if personal:
-        lines.append("Kept your personal notes and skills (git now shows them; delete them if "
-                     "you don't need them): " + ", ".join(personal))
+        lines.append(("Kept your personal notes and skills, still hidden from git: " if is_git
+                      else "Kept your personal notes and skills: ") + ", ".join(personal)
+                     + (". Delete them if you don't need them." if not is_git else
+                        ". If you set the kit up again it uses them; delete them if you don't "
+                        "need them."))
     if is_git and not report["kept"] and not personal:
         lines.append("The repo is back to how it was before setup.")
     return 0, lines
@@ -334,7 +366,7 @@ def cmd_connections(args, cwd, kit):
 
 
 def cmd_disconnect(args, cwd, kit):
-    return manage.disconnect(args.name)
+    return manage.disconnect(args.name, yes=args.yes)
 
 
 HANDLERS = {
