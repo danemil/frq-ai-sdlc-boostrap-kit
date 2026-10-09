@@ -1,6 +1,6 @@
 # Phase 0 — Shared Primitives: Design
 
-**Status:** approved · **Version:** 1.0 · **Author:** Georgian Dinca (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
+**Status:** approved · **Version:** 1.0 · **Author:** kit maintainers (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
 
 Design for Phase 0 of the [evolution roadmap](./2026-07-01-ai-sdlc-evolution-roadmap.md). Phase 0 lays down the three primitives the later phases import: the **`git-comfort`** axis, the **session lifecycle moments** (definition + machine-readable manifest), and the **commit-attribution convention**. All changes live under `template/` so every bootstrapped project inherits them.
 

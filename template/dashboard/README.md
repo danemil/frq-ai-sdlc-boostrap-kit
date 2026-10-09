@@ -40,7 +40,7 @@ Four views (sidebar menu, each with its own in-screen date filter) over a local 
   python3 dashboard/collect_commits.py --since main~50 # a recent range
   ```
 
-  It classifies each commit AI/mixed/human from **git-ai** line-level notes (`refs/notes/ai`) when present, else the `Co-Authored-By` trailer. See [`../docs/ai-context/attribution.md`](../docs/ai-context/attribution.md). (Optional: schedule it via cron.)
+  It classifies each commit from the `Co-Authored-By` trailer by default (AI-assisted vs human), or AI/mixed/human by line from git-ai notes (`refs/notes/ai`) when a repo has them — the kit installs nothing that writes them. See [`../docs/ai-context/attribution.md`](../docs/ai-context/attribution.md). (Optional: schedule it via cron.)
 
 ## Growing it
 

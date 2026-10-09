@@ -13,19 +13,18 @@ ai-trust: working
 
 To make AI usage measurable (pillar 7 — the dashboard and retro loop), every commit is classifiable as **human**, **AI**, or **mixed**. The dashboard's `commits` table and `collect_commits.py` implement this.
 
-## Primary signal — git-ai line-level notes
+## Line-level signal — notes at `refs/notes/ai`, when present
 
-**[git-ai](https://usegitai.com)** records exactly which lines an agent wrote, in git notes at **`refs/notes/ai`** (format `authorship/3.0.0`): an attestation block mapping files to `s_…` (AI session) / `h_…` (human) line ranges, a `---` divider, then JSON metadata (agent tool, model, author). It captures automatically via agent tool-call hooks and adds no git-hot-path overhead.
+When a commit carries a line-level authorship note in git notes at **`refs/notes/ai`** (format `authorship/3.0.0`): an attestation block mapping files to `s_…` (AI session) / `h_…` (human) line ranges, a `---` divider, then JSON metadata (agent tool, model, author), the collector uses it and marks the commit `source: git-ai` in the dashboard. The kit does not install anything that writes these notes; without them, every commit falls back to the trailer below.
 
-- Install (per developer endpoint, optional): `curl -sSL https://usegitai.com/install.sh | bash` then `git ai install-hooks`.
-- Sync notes with the team: `git fetch origin 'refs/notes/*:refs/notes/*'` (git-ai pushes/fetches them automatically once installed).
-- The collector reads these notes with plain `git notes --ref=ai show <sha>` — **the git-ai binary is not required on the machine running the dashboard.**
+- Sync notes with the team, where a repo has them: `git fetch origin 'refs/notes/*:refs/notes/*'`.
+- The collector reads these notes with plain `git notes --ref=ai show <sha>` — **no extra tool is required on the machine running the dashboard.**
 
 Per commit: **ai** (only AI lines), **human** (only human/untracked lines), **mixed** (both).
 
 ## Fallback — the `Co-Authored-By` trailer
 
-Commits without a git-ai note (existing history, or tools without git-ai) are classified from the commit trailer: an AI `Co-Authored-By:` (name/email matching `anthropic`/`claude`/`copilot`/`cursor`/`windsurf`/`bot`) → **ai-assisted**; otherwise **human**. This is coarser (commit-level, not line-level) and is marked `source: trailer` in the dashboard.
+Commits without such a note (the default, and all existing history) are classified from the commit trailer: an AI `Co-Authored-By:` (name/email matching `anthropic`/`claude`/`copilot`/`cursor`/`windsurf`/`bot`) → **ai-assisted**; otherwise **human**. This is coarser (commit-level, not line-level) and is marked `source: trailer` in the dashboard.
 
 ## Reading it
 

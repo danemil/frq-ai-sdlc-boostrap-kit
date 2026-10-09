@@ -7,9 +7,9 @@ Please **do not report security vulnerabilities through public GitHub issues.**
 Instead, report them privately using one of these channels:
 
 - **GitHub Security Advisories** — use the
-  ["Report a vulnerability"](https://github.com/georgiandinca/ai-sdlc-bootstrap-kit/security/advisories/new)
+  ["Report a vulnerability"](https://github.com/danemil/frq-ai-sdlc-boostrap-kit/security/advisories/new)
   button on the repository's Security tab (preferred).
-- **Email** — send details to **geo@magnify.ro**.
+- **Email** — send details to **dan.emil@gmail.com**.
 
 Please include:
 

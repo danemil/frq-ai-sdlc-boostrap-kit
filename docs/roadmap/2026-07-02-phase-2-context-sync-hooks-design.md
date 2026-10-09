@@ -1,6 +1,6 @@
 # Phase 2 — Conversational Context-Sync Hooks: Design
 
-**Status:** approved · **Version:** 1.0 · **Author:** Georgian Dinca (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
+**Status:** approved · **Version:** 1.0 · **Author:** kit maintainers (+ AI) · **Created:** 2026-07-02 · **Last reviewed:** 2026-07-02
 
 Design for Phase 2 of the [evolution roadmap](./2026-07-01-ai-sdlc-evolution-roadmap.md), built on Phases 0–1 (branch `feat/phase-2-context-sync-hooks` off `main` after both merged). Phase 2 adds the **runtime git automation** that consumes the primitives: git-comfort-aware auto-sync, the two `planned` moment handlers, intent-verbs for non-git seats, and safety nets — so a `hidden`-comfort operator (PO/PM) never touches git and never loses work.
 

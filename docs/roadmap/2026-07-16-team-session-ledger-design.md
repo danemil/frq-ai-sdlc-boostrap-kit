@@ -172,8 +172,8 @@ Stdlib `unittest`, same layout as `scripts/spend/tests/`:
 
 - **Export:** golden CSV from a seeded temp DB (sorting, quoting, header); regeneration
   idempotence (run twice → identical bytes); NULL-`user` rows claimed by exporter;
-  rows without `session_id` excluded; identity sanitizing (`Geo.Dinca+x@y.z` →
-  `geo.dinca-x`); empty DB → no file.
+  rows without `session_id` excluded; identity sanitizing (`Ana.Pop+x@y.z` →
+  `ana.pop-x`); empty DB → no file.
 - **Import:** merge two users' files; upsert idempotence; greater-total-wins vs
   smaller incoming; header mismatch raises; malformed row raises with file+line;
   stem-mismatch note; empty dir exits clean.
