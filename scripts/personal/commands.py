@@ -9,10 +9,7 @@ from pathlib import Path
 
 from . import checks, conflicts, exclude, packs, paths, place, reuse, state
 from .connectors import manage, registry
-
-
-class SetupError(Exception):
-    """A plain-language reason to stop. Raised before anything else is changed."""
+from .paths import SetupError  # noqa: F401  setup.py catches commands.SetupError
 
 
 # --- argument checks ---------------------------------------------------------
@@ -170,13 +167,14 @@ def _check_lines(root) -> tuple[int, list[str]]:
 
 
 def cmd_check(args, cwd, kit):
-    root, _ = paths.repo_root(cwd)
     if args.quiet:
         try:
+            root, _ = paths.repo_root(cwd)
             st, found = checks.run(root)
             return 0, [checks.quiet_line(root, st, found)]
         except Exception as exc:  # noqa: BLE001  the session-start check must never fail
             return 0, [f"AI-SDLC: the check could not run ({exc})."]
+    root, _ = paths.repo_root(cwd)
     return _check_lines(root)
 
 
@@ -324,7 +322,10 @@ def cmd_remove(args, cwd, kit):
 
 def _state_or_none(cwd):
     """(root, state) for the repo at cwd; state is None when it is not set up or unreadable."""
-    root, _ = paths.repo_root(cwd)
+    try:
+        root, _ = paths.repo_root(cwd)
+    except SetupError:            # connectors work in any folder, even one git refuses
+        return Path(cwd), None
     try:
         return root, state.load(root)
     except Exception:  # noqa: BLE001  connectors work in any folder, set up or not
