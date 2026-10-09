@@ -8,7 +8,7 @@ A **personal AI setup for everyone on a software team**: developers, QA, archite
 
 1. Copy this kit folder anywhere into your repo (a GitHub ZIP or a colleague's copy; any folder name).
 2. Open the repo in VS Code and start Copilot Chat in Agent mode, or run `copilot` in a terminal.
-3. Say **"do the onboarding"**. Copilot finds the kit's [`ONBOARDING.md`](./ONBOARDING.md) and follows it.
+3. Say **"do the onboarding"**. Copilot finds the kit's [`ONBOARDING.md`](./ONBOARDING.md), the one next to `setup.py`, and follows it. If it picks another file, say *"follow the ONBOARDING.md next to setup.py in <your kit folder>"*.
 4. Answer three questions: your name, your role(s), and your language (English, Romanian or German).
 
 Copilot tells you what it set up. `git status` shows nothing: every file the kit adds is hidden from git through `.git/info/exclude`, so it never reaches the shared history. Setup is once per repo.

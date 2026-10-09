@@ -11,7 +11,7 @@ ai-trust: working
 
 # Onboarding — first-run setup
 
-> **Retired team-mode onboarding.** If you were asked to "do the onboarding" for the AI-SDLC kit, stop here and follow the `ONBOARDING.md` at the kit's top folder instead.
+> **Retired team-mode onboarding.** If you were asked to "do the onboarding" for the AI-SDLC kit, stop here and follow the `ONBOARDING.md` next to `setup.py`, at the kit's top folder, instead. This file is the retired team-mode one (hence its name).
 
 This file is **only loaded when `USER.md` does not exist** at the repo root. It is the gatekeeper — every AI harness reads this before doing any real work. Once `USER.md` exists, skip this file entirely and read `USER.md` instead.
 

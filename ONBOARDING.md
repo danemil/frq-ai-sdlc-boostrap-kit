@@ -1,14 +1,18 @@
 # AI-SDLC kit: onboarding
 
-> **To Copilot.** The person said "do the onboarding", or "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>". Follow the matching section below. Run every command yourself, from the repo root; the person only answers questions. The one exception is `setup.py connect`, which asks for secrets: the person runs it in their own terminal. Speak plainly, without git or Python words unless they use them. Never edit a team file: `AGENTS.md`, `.github/copilot-instructions.md`, or anything not named `ai-sdlc-*`.
+> **To Copilot.** The person said "do the onboarding", or "change my preferences", "update the kit", "check the kit", "remove the kit" or "connect <a tool>". Follow the matching section below. Run every command yourself, from the repo root; the person only answers questions. The one exception is `setup.py connect`, which asks for secrets: the person runs it in their own terminal. Speak plainly, without git, Python or command-line words unless they use them first. Ask one question per message and wait for the answer. Never invent an answer or a default for the person, and never treat their request as a yes to a question you have not asked. Never edit a team file: `AGENTS.md`, `.github/copilot-instructions.md`, or anything not named `ai-sdlc-*`.
 
-Below, `KIT` is the folder this file is in. Before setup it is wherever the person copied it (for example `tools/ai-sdlc-kit`); after setup it is always `.ai-sdlc/kit`.
+Below, `KIT` is the folder this file is in. Before setup it is wherever the person copied it (for example `tools/ai-sdlc-kit`); after setup it is always `.ai-sdlc/kit`. Use this file, the `ONBOARDING.md` next to `setup.py`; ignore any other onboarding file in the kit.
 
 ## Do the onboarding
 
+0. **Already set up here?** If `.ai-sdlc/USER.md` exists, the kit is already set up in this repo and the person wants to do the onboarding again (for example with other roles). Do not say it is already done, and do not stop:
+   1. Run `python3 .ai-sdlc/kit/setup.py check`. If it has a `kit-copy:` item saying a newer kit is waiting, ask first: "A newer version of the kit is waiting in <folder>. Shall I update the kit first?" If yes, follow "Update the kit" below, then come back here. If no, go on.
+   2. Read `.ai-sdlc/USER.md` and say who it is set up for now (name, roles, language), and that you will ask the three questions again.
+   3. Skip steps 1 and 2 (no `--protect-only`): go straight to step 3, then run step 4 and the rest as written. Files for new roles are added and the ones no longer needed are removed.
 1. **Check Python.** Run `python3 --version`. It must say 3.9 or newer. If the command is missing or older, say: "Your computer needs Python 3.9 or newer before I can set this up. Please ask your IT support to install it." Then stop. Nothing has changed.
 2. **Protect the kit first.** Run `python3 KIT/setup.py setup --protect-only`. It moves the kit to `.ai-sdlc/kit` and hides it from git. From now on, run `python3 .ai-sdlc/kit/setup.py`.
-3. **Ask three questions,** one at a time:
+3. **Ask three questions,** one at a time: ask the first, wait for the answer, then ask the next. Never put two questions in one message. Do not offer defaults or suggested answers, and never fill an answer in yourself (not from `USER.md`, the git settings or an earlier setup): use only what the person says.
    1. "What is your name?"
    2. "What is your role here? You can pick more than one: Product Owner (`po`), Product Manager (`pm`), Scrum Master / Team Coach in SAFe (`sm`), Developer (`dev`), QA (`qa`), Architect (`architect`), Engineering Manager (`em`)."
    3. "Which language should I answer in: English (`en`), Romanian (`ro`) or German (`de`)?"
@@ -17,9 +21,9 @@ Below, `KIT` is the folder this file is in. Before setup it is wherever the pers
 4. **Set up.** Run `python3 .ai-sdlc/kit/setup.py setup --name "<name>" --roles <ids, comma-separated> --lang <code>`.
 5. **Relay the result** in plain words: who it is set up for, then each item under "Check", with its id in brackets.
 6. **Look for contradictions.** For each `team-…` or `skill-clash:…` warning, read the team file it names and the kit's `.github/instructions/ai-sdlc-*.instructions.md`. Tell the person only about real contradictions (one says do X, the other says don't), one sentence each, naming both files. The team's rule wins; say so.
-7. **Acknowledge.** For each warning the person has understood, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>`. It comes back only if that team file changes.
-8. **Close.** Say: "You're set up. Say 'change my preferences', 'update the kit' or 'remove the kit' at any time." Then name the tools the setup summary lists under "Connectors for your roles" (for example Jira and Confluence) and say: "I can read these for you once you connect them; say *connect Jira* (etc.) whenever you're ready." Do not ask for a URL, login or token now.
-9. **Offer to connect them now (optional).** This is an offer, not a fourth question. Only if step 8 named a tool that is not marked connected or skipped, ask once: "Would you like to connect them now? You type your login in your own terminal, not here, and you can skip any tool." If they say "not now" (or no), skip this step: say nothing more about connecting. If yes, tell them to open a terminal (a terminal window, not this chat) in this repo and run, **themselves**: `python3 .ai-sdlc/kit/setup.py connect --suggested`. It asks about each tool one at a time (`y` connects it, `s` skips it, `a` skips all the rest; Enter skips), then offers any other tool. Do not run it yourself: it asks for secrets. When they say it is done, run `python3 .ai-sdlc/kit/setup.py connections` and tell them which tools are connected. A skipped tool is not suggested again; they can still say *connect Jira* (etc.) at any time.
+7. **Mark them as seen, only if they agree.** If there were `team-…` or `skill-clash:…` warnings, ask: "Shall I mark these as seen? They come back only if that team file changes." Wait for the answer. Only after a yes, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>` for each one. If they say no, leave them: nothing breaks.
+8. **Close.** Say: "You're set up. Say 'change my preferences', 'update the kit' or 'remove the kit' at any time." Then name the tools the setup summary lists under "Connectors for your roles" (for example Jira and Confluence), exactly as listed, and say: "I can read these for you once you connect them; say *connect Jira* (etc.) whenever you're ready." Do not ask for a URL, login or token now.
+9. **Offer to connect them now (optional).** This is an offer, not a fourth question. Only if step 8 named a tool that is not marked connected or skipped, ask once: "Would you like to connect them now? You type your login in your own terminal, not here, and you can skip any tool." Wait for the answer. If they say "not now" (or no), skip this step: say nothing more about connecting. Only if they say yes, tell them to open a terminal (a terminal window, not this chat) in this repo and run, **themselves**: `python3 .ai-sdlc/kit/setup.py connect --suggested`. It asks about each tool one at a time (`y` connects it, `s` skips it, `a` skips all the rest; Enter skips), then offers any other tool. Do not run it yourself: it asks for secrets. When they say it is done, run `python3 .ai-sdlc/kit/setup.py connections` and tell them which tools are connected. A skipped tool is not suggested again; they can still say *connect Jira* (etc.) at any time.
 
 ## Change my preferences
 
@@ -37,15 +41,15 @@ Ask what they want to change, then run `python3 .ai-sdlc/kit/setup.py change` wi
 
 `<skill>` is the skill id without `ai-sdlc-`, for example `drawio` for `ai-sdlc-drawio`. A wrong name is refused and the available ones are listed.
 
-Relay the summary. If it says it kept their edit, explain that the kit's newer copy is next to their file as `<file>.kit-new`, for them to compare.
+Relay the summary as it is. If it says it kept their edit and the kit's newer copy is next to it as `<file>.kit-new`, explain that they can compare the two. If it says there is nothing to compare, there is no `.kit-new` file; do not mention one.
 
 ## Update the kit
 
 1. **Find the newer copy.** Run `python3 .ai-sdlc/kit/setup.py check`. A `kit-copy:<folder>` item names the kit folder the person copied into the repo. A newer copy says it is waiting; a copy with the same version number says to update from it if it was copied in for that. Either way, use it.
 2. **No copy yet?** If there is no `kit-copy:` item, the person has not copied a newer kit in. Do not fail. Tell them how, in plain words, then wait for them to say "update the kit" again:
-   - Get the newer kit: `git pull` in their clone of the kit, or download the ZIP again from the kit's GitHub page (**Code → Download ZIP**, or a release) and unzip it.
-   - Copy it into the repo under any folder name, without its `.git` folder, for example `rsync -a --exclude .git <kit folder>/ ./ai-sdlc-kit-new/`. If they tell you where the kit is, offer to run that copy for them.
-3. **Update.** Run `python3 <that folder>/setup.py update`. Relay the summary, including any kept edits: the kit's newer copy is next to their file as `<file>.kit-new`, for them to compare. If it says the copy is older, nothing changed; say so. If it says the copy is incomplete, nothing changed either: ask them to copy the whole kit folder in again (as in step 2), then update from that copy.
+   - Get the newer kit from **https://github.com/danemil/frq-ai-sdlc-boostrap-kit**: open **Releases**, take the newest one (marked **Latest**) as **Source code (zip)**, and unzip it. If they keep a clone of the kit, a `git pull` there does the same.
+   - Put it into this repo, in a new folder with any name. If they tell you where the unzipped kit is, offer to copy it in for them (leave out its `.git` folder, if it has one). Use plain words: no command names unless they ask how to do it themselves.
+3. **Update.** Run `python3 <that folder>/setup.py update`. Relay the summary as it is: the folder they copied in has been moved into the kit's place (the summary says so; it is not left behind), and for each kept edit, whether the kit's newer copy waits next to it as `<file>.kit-new` or there is nothing to compare. Mention a `.kit-new` file only if the summary names one. If it says the copy is older, nothing changed; say so. If it says the copy is incomplete, nothing changed either: ask them to copy the whole kit folder in again (as in step 2), then update from that copy.
 
 ## Check the kit
 
