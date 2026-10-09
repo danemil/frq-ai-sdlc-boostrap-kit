@@ -15,7 +15,9 @@ A placed file that is no longer wanted is deleted while unedited, and kept (and
 reported) once edited. A path git tracks is never written or deleted.
 
 A placed skill is its whole folder (SKILL.md plus references/, assets/, …), each
-file recorded in state.json like any other. Its SKILL.md's relative links that
+file recorded in state.json like any other. Text files are handled as str; a file
+that is not UTF-8 (a .pptx template, a .png logo) is carried as bytes and written
+byte for byte. Its SKILL.md's relative links that
 leave its folder are pointed at the same file inside .ai-sdlc/kit/
 (rewrite_links), so they still resolve after the move.
 """
@@ -97,12 +99,13 @@ def placed_skill(kit, skill, missing=None) -> tuple[str, str]:
     return f"{dest_dir}/SKILL.md", text
 
 
-def placed_skill_files(kit, skill, missing=None) -> dict[str, str]:
-    """{repo path: text} of a library skill's whole folder as setup places it.
+def placed_skill_files(kit, skill, missing=None) -> dict[str, str | bytes]:
+    """{repo path: text or bytes} of a library skill's whole folder as setup places it.
 
     SKILL.md goes through placed_skill; the skill's other files (references/,
-    assets/, LICENSE, …) are copied byte for byte, at the same relative path.
-    Dotfiles, caches and symlinks are skipped. Skill files must be UTF-8 text.
+    assets/, LICENSE, …) are copied byte for byte, at the same relative path:
+    UTF-8 files as str, any other file (a template, an image) as bytes.
+    Dotfiles, caches and symlinks are skipped.
     """
     src = Path(kit) / packs.SKILLS_REL / skill
     rel, text = placed_skill(kit, skill, missing)
@@ -113,16 +116,16 @@ def placed_skill_files(kit, skill, missing=None) -> dict[str, str]:
         if (p.is_symlink() or not p.is_file() or sub.as_posix() == "SKILL.md"
                 or any(part.startswith(".") or part == "__pycache__" for part in sub.parts)):
             continue
+        data = p.read_bytes()
         try:
-            files[f"{dest_dir}/{sub.as_posix()}"] = p.read_bytes().decode("utf-8")
+            files[f"{dest_dir}/{sub.as_posix()}"] = data.decode("utf-8")
         except UnicodeDecodeError:
-            raise ValueError(f"{skill}/{sub.as_posix()} is not UTF-8 text; "
-                             "a placed skill holds text files only") from None
+            files[f"{dest_dir}/{sub.as_posix()}"] = data       # binary: placed as is
     return files
 
 
-def wanted_files(kit, all_packs, choices) -> dict[str, str]:
-    """{repo path: text} of every file these choices call for."""
+def wanted_files(kit, all_packs, choices) -> dict[str, str | bytes]:
+    """{repo path: text, or bytes for a binary skill file} of every file these choices call for."""
     combined = packs.combine(all_packs, choices)
     values = packs.core_values(all_packs, choices, combined)
     files = dict(packs.instructions_file(all_packs[pid], values)
@@ -151,14 +154,14 @@ def prune_dirs(root, st) -> None:
             st["created_dirs"].remove(d)
 
 
-def apply(root, st, wanted: dict[str, str]) -> dict[str, list[str]]:
+def apply(root, st, wanted: dict[str, str | bytes]) -> dict[str, list[str]]:
     """Make the repo hold `wanted`; returns what was written, kept, skipped and removed."""
     root = Path(root)
     report = {"written": [], "kept": [], "skipped": [], "removed": []}
     tracked = paths.tracked(root, set(wanted) | set(st["files"]))
     keep = set(wanted)
     for rel, text in sorted(wanted.items()):
-        data = text.encode("utf-8")
+        data = text if isinstance(text, bytes) else text.encode("utf-8")
         if rel in tracked:
             report["skipped"].append(f"{rel} (the team's git tracks this path)")
             continue
