@@ -26,7 +26,7 @@ The kit is intentionally low-dependency: Python 3.12 (stdlib + `pyyaml`) and
 Node (only for regenerating the pitch deck).
 
 ```bash
-git clone https://github.com/georgiandinca/ai-sdlc-bootstrap-kit.git
+git clone https://github.com/danemil/frq-ai-sdlc-boostrap-kit.git
 cd ai-sdlc-bootstrap-kit
 python3 -m pip install "pyyaml>=6"
 ```
