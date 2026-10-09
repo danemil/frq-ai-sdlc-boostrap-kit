@@ -20,13 +20,15 @@ Upstream's folder holds only `SKILL.md`, so nothing was left out. Upstream has n
 
 ## Local modifications
 
-One new section in `SKILL.md`, "This kit's copy", placed before "The Iron Law". Nothing else in upstream's text is changed.
+One new section in `SKILL.md`, "This kit's copy", placed before "The Iron Law", and trigger phrases added to the description. Nothing else in upstream's text is changed.
 
 - **Git.** The AI never commits, pushes or merges on its own; it follows the person's git-comfort setting and asks before each commit.
 
 Upstream lines that name commits, pushes or PRs only as moments to verify are kept as they are (reviewed 2026-10-08): the description ("before committing or creating PRs"), the red flag "About to commit/push/PR without verification", and "Committing, PR creation, task completion".
 
-The frontmatter (`name`, `description`) is unchanged; setup prefixes the name to `ai-sdlc-verification-before-completion` when it places the skill.
+- **Description: trigger phrases added** (E2E run of 2026-10-09). Upstream's sentence is kept and followed by: Also when you are about to say "fixed", "done", "tests pass" or "ready to merge".
+
+The frontmatter `name` is unchanged; setup prefixes the name to `ai-sdlc-verification-before-completion` when it places the skill.
 
 ## Updating
 

@@ -20,9 +20,9 @@ Not bundled: nothing. Upstream's folder holds only `SKILL.md`. The skill bundles
 
 ## Local modifications
 
-Two edits to `SKILL.md`. The frontmatter (`name`, `description`) is unchanged; setup prefixes the name to `ai-sdlc-receiving-code-review` when it places the skill.
+Two edits to `SKILL.md` (the first has two rules). The frontmatter (`name`, `description`) is unchanged; setup prefixes the name to `ai-sdlc-receiving-code-review` when it places the skill.
 
-- **New section "This kit's copy"**, placed before "## The Response Pattern": the AI never commits, pushes or merges on its own; it follows the person's git-comfort setting and asks before each commit.
+- **New section "This kit's copy"**, placed before "## The Response Pattern": the AI never commits, pushes or merges on its own; it follows the person's git-comfort setting and asks before each commit; and **Show before you change** (E2E finding, 2026-10-09: a debugging session edited code without showing it): before editing any file, show the proposed diff and wait for a yes; if the AI cannot ask, it stops after proposing; it reports evidence (the test output), never just "Fixed".
 - **"GitHub Thread Replies" became "Replying to Review Comments".** Upstream told the AI to reply to inline review comments itself with a `gh api …/comments/{id}/replies` call. The kit's copy has the AI draft the reply; the person posts it, or the AI posts it only when asked, in the comment's own thread (GitHub or Bitbucket), not as a top-level pull request comment.
 
 The rest of upstream's text is unchanged ("push back" in the review sense is not a git operation).
