@@ -23,7 +23,7 @@ Not bundled: upstream `find-polluter.sh` (an npm-specific bisection script), `co
 
 ## Local modifications
 
-- **Git rule.** `SKILL.md`: a new section "This kit's copy", placed before "The Iron Law": never commit, push or merge on your own; follow the person's git-comfort setting and ask before each commit.
+- **Git rule.** `SKILL.md`: a new section "This kit's copy", placed before "The Iron Law": never commit, push or merge on your own; follow the person's git-comfort setting and ask before each commit. A second rule in that section: **Show before you change** (E2E finding, 2026-10-09: a debugging session edited code without showing it): before editing or creating any file (a new test file too, after a later E2E run created one unshown), show the proposed diff or content and wait for a yes; if the AI cannot ask, it stops after proposing; it reports evidence (the test output), never just "Fixed".
 - **Test-driven development reference.** `SKILL.md`, Phase 4 step 1: `superpowers:test-driven-development` becomes `ai-sdlc-test-driven-development` (the name setup places), with "(if you have it)", since a person may leave that skill out.
 - **Verification reference.** `SKILL.md`, Phase 4 step 3: `superpowers:verification-before-completion` becomes `ai-sdlc-verification-before-completion`, with "(if you have it)".
 - **No polluter script.** `root-cause-tracing.md`: the paragraph and code block that call `find-polluter.sh` are replaced by one sentence telling the reader to run the test files one at a time and stop at the first one after which the unwanted file or state appears.

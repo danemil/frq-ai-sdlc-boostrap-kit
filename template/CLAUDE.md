@@ -22,4 +22,4 @@ This rule exists so the two files can never drift: maintain `AGENTS.md`, and eve
 
 ---
 
-**Companion files:** [`AGENTS.md`](./AGENTS.md) (the brief), [`ONBOARDING.md`](./ONBOARDING.md) (first-run setup), [`WORKING-AGREEMENT.md`](./WORKING-AGREEMENT.md), [`README.md`](./README.md), [`FOLDER-INDEX.md`](./FOLDER-INDEX.md), [`INDEX.md`](./INDEX.md).
+**Companion files:** [`AGENTS.md`](./AGENTS.md) (the brief), [`ONBOARDING.retired.md`](./ONBOARDING.retired.md) (first-run setup), [`WORKING-AGREEMENT.md`](./WORKING-AGREEMENT.md), [`README.md`](./README.md), [`FOLDER-INDEX.md`](./FOLDER-INDEX.md), [`INDEX.md`](./INDEX.md).

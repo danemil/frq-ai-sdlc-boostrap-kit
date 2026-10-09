@@ -36,6 +36,16 @@ GIT = re.compile(r"(?i)\bcommit(?:s|ted|ting)?\b|\bmerg(?:e|es|ed|ing)\b|"
                  r"\bpush(?:es|ed|ing)?\b(?!\s+back)")        # "push back" is review talk
 GIT_RULE = ("- **Git:** never commit, push or merge on your own. Follow the person's "
             "git-comfort setting and ask before each commit.")
+SHOW_RULE = ("- **Show before you change:** before editing or creating any file (a new test file too), "
+             "show the proposed diff or content and wait "
+             "for a yes; if you can't ask, stop after proposing. Report evidence (the test output), "
+             "never just \"Fixed\".")
+SHOWS_FIRST = {"systematic-debugging", "test-driven-development", "receiving-code-review"}  # E2E 2026-10-09
+TRIGGERS = {   # E2E 2026-10-09: these never triggered on plain phrasings
+    "test-driven-development": ["write tests first", "test-first", "TDD", "red-green", "failing test",
+                                "tests for this function"],
+    "verification-before-completion": ['"fixed"', '"done"', '"tests pass"', '"ready to merge"'],
+}
 BRAINSTORMING_DESCRIPTION = (     # decision 2: upstream "You MUST use this before …", softened
     'description: "Use before any creative work - creating features, building components, '
     'adding functionality, or modifying behavior. Explores user intent, requirements and '
@@ -120,6 +130,23 @@ class Checks:
         self.assertIn(GIT_RULE, text)
         self.assertLess(text.index("## This kit's copy"), text.index(GIT_RULE))
 
+    def test_the_ai_shows_the_diff_before_it_edits(self):
+        text = self.text("SKILL.md")
+        if self.skill in SHOWS_FIRST:
+            kit = text.split("## This kit's copy", 1)[1].split("\n## ", 1)[0]
+            self.assertIn(SHOW_RULE, kit)
+            self.assertIn("Show before you change", self.text("PROVENANCE.md"))
+        else:
+            self.assertNotIn(SHOW_RULE, text)
+
+    def test_the_description_has_its_trigger_phrases_and_fits(self):
+        desc = re.search(r"(?m)^description: (.+)$", self.text("SKILL.md")).group(1)
+        self.assertLessEqual(len(desc), 1024)
+        for phrase in TRIGGERS.get(self.skill, []):
+            self.assertIn(phrase, desc)
+        if self.skill in TRIGGERS:
+            self.assertIn("trigger phrases added", self.text("PROVENANCE.md"))
+
     def test_every_git_mention_asks_first_or_was_reviewed(self):
         self.folder()
         unasked = [f"{name}:{n}" for name, text in shipped(self.skill)
@@ -139,6 +166,11 @@ class TestBrainstorming(Checks, unittest.TestCase):
         self.assertEqual(re.findall(r"(?<!ai-sdlc-)writing-plans", skill_md), [])
         self.assertNotIn("frontend-design", skill_md)
         self.assertNotIn("mcp-builder", skill_md)
+
+    def test_after_a_spec_the_next_step_offered_is_a_plan(self):
+        kit = self.text("SKILL.md").split("## This kit's copy", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("the next step you offer is always a plan with the `ai-sdlc-writing-plans` skill", kit)
+        self.assertIn("never offer to start implementing", kit)
 
     def test_the_description_is_softened_not_must(self):
         line = self.text("SKILL.md").splitlines()[2]

@@ -12,7 +12,8 @@
 
 The core is unchanged: harvest the conversation, check what already exists, verify every command and path, propose the exact text with a "deliberately NOT adding" list, and write only what is approved. Adapted from one assistant's configuration files to the kit's personal, git-hidden files:
 
-- **Description** names the kit's destinations (kit preferences, personal notes, personal skills) instead of memory, rules files and settings, and drops the slash-command trigger. The "what should be remembered from this chat?" style triggers stay, plus "what to save from this session".
+- **Description** names the kit's destinations (kit preferences, personal notes, personal skills) instead of memory, rules files and settings, and drops the slash-command trigger. The "what should be remembered from this chat?" style triggers stay, plus "what to save from this session" and "remember that", "from now on", "always do X" (E2E finding, 2026-10-09: a "remember that" request was written without being shown, and the file offered for a commit).
+- **Never committed.** The personal files are hidden from git on purpose: the skill never offers to commit or stage them.
 - **Team files are off limits.** A new paragraph: never propose editing `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/` files not named `ai-sdlc-*`, `.claude/` or `.vscode/`.
 - **Step 2 (check what exists)** reads `.ai-sdlc/USER.md`, the `ai-sdlc-*.instructions.md` files and the `ai-sdlc-*` skills, instead of the assistant's own config files.
 - **Step 3 (destinations)** has exactly three, all personal and hidden from git: kit preferences through `setup.py change` (never by editing `USER.md`); personal notes in `.github/instructions/ai-sdlc-personal.instructions.md` (with `applyTo: '**'`); personal skills in `.agents/skills/ai-sdlc-personal-<name>/`. Permissions, environment variables and editor settings are not saved. The kit's own `ai-sdlc-*` files are never written.

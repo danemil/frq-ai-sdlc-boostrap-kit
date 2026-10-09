@@ -175,6 +175,14 @@ jobs:
           # Core skills are placed as whole folders (references included).
           test -f .agents/skills/ai-sdlc-drawio/references/xml-reference.md
           test -f .agents/skills/ai-sdlc-likec4-dsl/references/cli.md
+          # Binary skill files (a template, images) are placed byte for byte, and the checker runs there.
+          B=.agents/skills/ai-sdlc-frq-brandbook
+          K=.ai-sdlc/kit/template/.claude/skills/frq-brandbook
+          test -n "$(ls "$B"/assets/templates/*.pptx)"
+          (cd "$K" && find assets -type f) | while read -r f; do cmp "$K/$f" "$B/$f" || exit 1; done
+          rc=0; python3 "$B/scripts/check_brand.py" --json \
+            "$GITHUB_WORKSPACE/scripts/personal/tests/fixtures/frq-brandbook/offbrand-test.pptx" > /dev/null || rc=$?
+          test "$rc" -eq 1                               # the off-brand deck fails the brand check
           test ! -e .agents/skills/ai-sdlc-brainstorming       # process skills are by role: PO and SM do not get them
           printf '%s\n' "$out" | grep -qF -- "- Connectors for your roles: jira, confluence, jama (say 'connect jira')"
           test ! -e "$AI_SDLC_CONFIG_DIR"                # setup writes no login anywhere
@@ -184,8 +192,10 @@ jobs:
           set -euo pipefail
           cd "$RUNNER_TEMP/team"
           python3 .ai-sdlc/kit/setup.py ack team-agents-md
-          out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
+          out="$(python3 .ai-sdlc/kit/setup.py check)"   # notices only (team files): exit 0
           printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF 'Check: nothing to fix;'
+          printf '%s\n' "$out" | grep -qF -- "- Connectors for your roles: jira, confluence, jama"
           if printf '%s\n' "$out" | grep -qF '[team-agents-md]'; then echo "ack ignored"; exit 1; fi
           printf '%s\n' "$out" | grep -qF '[skill-clash:.claude/skills/playbook-product]'
           python3 .ai-sdlc/kit/setup.py check --quiet | grep '^AI-SDLC '
@@ -194,7 +204,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/team"
-          out="$(python3 .ai-sdlc/kit/setup.py change --lang en)"
+          out="$(python3 .ai-sdlc/kit/setup.py change --lang en --verbose)"   # --verbose: every file
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -qF 'Wrote 2 file(s): .ai-sdlc/USER.md, .github/instructions/ai-sdlc-core.instructions.md'
           grep -q 'Always answer in English' .github/instructions/ai-sdlc-core.instructions.md
@@ -232,7 +242,11 @@ jobs:
           printf '%s\n' "$out" | tee -a "$LOG"
           printf '%s\n' "$out" | python3 -c 'import json, sys; d = json.load(sys.stdin); assert [i["key"] for i in d["items"]] == ["ABC-1", "ABC-2"] and all(i["url"] for i in d["items"]), d'
 
-          out="$(python3 $K/setup.py disconnect jira)"
+          rc=0; out="$(python3 $K/setup.py disconnect jira)" || rc=$?   # without --yes: asks, deletes nothing
+          printf '%s\n' "$out" | tee -a "$LOG"
+          test "$rc" -eq 2 && test -e "$AI_SDLC_CONFIG_DIR/connectors/jira.json"
+          printf '%s\n' "$out" | grep -qF 'disconnect jira --yes'
+          out="$(python3 $K/setup.py disconnect jira --yes)"
           printf '%s\n' "$out" | tee -a "$LOG"
           printf '%s\n' "$out" | grep -qF 'Removed the saved Jira connection.'
           test ! -e "$AI_SDLC_CONFIG_DIR/connectors/jira.json"
@@ -252,9 +266,12 @@ jobs:
           echo 9.9.9 > ai-sdlc-kit-new/VERSION
           printf '\nNewer kit line.\n' >> ai-sdlc-kit-new/roles/po/instructions.md
           printf '\nMy own note.\n' >> .github/instructions/ai-sdlc-po.instructions.md
-          out="$(python3 .ai-sdlc/kit/setup.py check || true)"   # exit 1: there are findings
+          out="$(python3 .ai-sdlc/kit/setup.py check)"   # a waiting kit copy is a notice: exit 0
           printf '%s\n' "$out" | grep -qF '[kit-copy:ai-sdlc-kit-new]'
-          python3 ai-sdlc-kit-new/setup.py update
+          out="$(python3 ai-sdlc-kit-new/setup.py update)"
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -qF -- '- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced '
+          printf '%s\n' "$out" | grep -qF "is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare."
           test "$(cat .ai-sdlc/kit/VERSION)" = 9.9.9 && test ! -e ai-sdlc-kit-new
           grep -q 'My own note' .github/instructions/ai-sdlc-po.instructions.md
           if grep -q 'Newer kit line' .github/instructions/ai-sdlc-po.instructions.md; then
@@ -264,7 +281,7 @@ jobs:
           test -z "$(git status --porcelain)"
 
       # remove keeps edited files, so the person first takes the kit's copy (`change`
-      # records it), then removes. Nothing is left over: both kit copies lived at the repo
+      # records it), then removes (first without --yes: it only asks). Nothing is left over: both kit copies lived at the repo
       # root and were moved away by setup and update (checked above).
       - name: Take the kit's copy, then remove; the repo is byte-identical to before
         run: |
@@ -274,7 +291,11 @@ jobs:
           mv .github/instructions/ai-sdlc-po.instructions.md.kit-new .github/instructions/ai-sdlc-po.instructions.md
           python3 .ai-sdlc/kit/setup.py change
           python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$AI_SDLC_CONFIG_DIR" > "$RUNNER_TEMP/config-before.json"
-          out="$(python3 .ai-sdlc/kit/setup.py remove)"
+          rc=0; out="$(python3 .ai-sdlc/kit/setup.py remove)" || rc=$?   # without --yes: asks, removes nothing
+          printf '%s\n' "$out"
+          test "$rc" -eq 2 && test -f .ai-sdlc/kit/setup.py
+          printf '%s\n' "$out" | grep -qF 'remove --yes'
+          out="$(python3 .ai-sdlc/kit/setup.py remove --yes)"
           printf '%s\n' "$out"
           printf '%s\n' "$out" | grep -qF 'The repo is back to how it was before setup.'
           python3 "$GITHUB_WORKSPACE/scripts/personal/tests/helpers.py" snapshot "$T" > "$RUNNER_TEMP/after.json"

@@ -31,6 +31,7 @@ Work with `.pdf` files by writing small Python snippets that use **pypdf**, run 
 - Only write the output file(s). Never modify an input PDF in place.
 - Finish with a short summary: path, page count, and what was done.
 - Encrypted PDF (`reader.is_encrypted`): ask the person for the password; never guess or try to break it.
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Every new PDF comes from an on-brand source file, unless the person asks for a plain file.
 
 ## 3. Extract text and tables
 

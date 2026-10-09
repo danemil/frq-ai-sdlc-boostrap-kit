@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """`remove`: the repo ends byte for byte as it was before the kit was copied in."""
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,13 @@ ARGS = ["setup", "--name", "Ana", "--roles", "po,sm,dev", "--lang", "ro"]
 TEAM = {"README.md": "team\n", "AGENTS.md": "# Team\n",
         ".github/instructions/team.instructions.md": "---\napplyTo: 'docs/**'\n---\nTeam.\n"}
 CORE = ".github/instructions/ai-sdlc-core.instructions.md"
+
+
+def write_personal(r):
+    (r / paths.PERSONAL_NOTES_REL).write_text("---\napplyTo: '**'\n---\nMine.\n")
+    skill = r / ".agents/skills/ai-sdlc-personal-release/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("mine\n")
 
 
 class TestRemove(unittest.TestCase):
@@ -33,7 +41,7 @@ class TestRemove(unittest.TestCase):
             self.assertEqual(helpers.cli(root, kit, "ack", "team-agents-md")[0], 0)
         if edit:
             edit(root)
-        code, out = helpers.cli(root, kit, "remove")
+        code, out = helpers.cli(root, kit, "remove", "--yes")
         self.assertEqual(code, 0, out)
         return before, helpers.snapshot(root), out
 
@@ -42,6 +50,16 @@ class TestRemove(unittest.TestCase):
         before, after, out = self.round_trip(root)
         self.assertEqual(after, before)
         self.assertIn("The repo is back to how it was before setup.", out)
+
+    def test_python_bytecode_left_in_a_kit_skill_is_removed_too(self):
+        """A skill script run with plain python3 leaves __pycache__ behind; remove still restores."""
+        def run_a_script(r):
+            cache = r / ".agents/skills/ai-sdlc-frq-brandbook/scripts/__pycache__"
+            cache.mkdir(parents=True, exist_ok=True)
+            (cache / "check_brand.cpython-39.pyc").write_bytes(b"\x00")
+        root = helpers.make_repo(self.base / "repo", TEAM)
+        before, after, _ = self.round_trip(root, edit=run_a_script)
+        self.assertEqual(after, before)
 
     def test_an_exclude_file_without_a_final_newline_is_restored(self):
         root = helpers.make_repo(self.base / "repo", TEAM)
@@ -87,26 +105,52 @@ class TestRemove(unittest.TestCase):
             self.assertTrue((root / ".agents/skills/ai-sdlc-notes" / rel).is_file(), rel)
         self.assertEqual(helpers.git(root, "status", "--porcelain").stdout, "")
         self.assertEqual(helpers.cli(root, kit, "ack", "team-agents-md")[0], 0)
-        code, out = helpers.cli(root, kit, "remove")
+        code, out = helpers.cli(root, kit, "remove", "--yes")
         self.assertEqual(code, 0, out)
         self.assertEqual(helpers.snapshot(root), before)
 
-    def test_personal_notes_and_skills_are_kept_and_listed(self):
-        def write_personal(r):
-            (r / paths.PERSONAL_NOTES_REL).write_text("---\napplyTo: '**'\n---\nMine.\n")
-            skill = r / ".agents/skills/ai-sdlc-personal-release/SKILL.md"
-            skill.parent.mkdir(parents=True)
-            skill.write_text("mine\n")
+    def test_personal_notes_and_skills_are_kept_listed_and_stay_hidden(self):
         root = helpers.make_repo(self.base / "repo", TEAM)
+        original_exclude = (root / ".git/info/exclude").read_bytes()
         _, after, out = self.round_trip(root, edit=write_personal)
-        self.assertIn("Kept your personal notes and skills (git now shows them; delete them if "
-                      f"you don't need them): {paths.PERSONAL_NOTES_REL}, "
+        self.assertIn("Kept your personal notes and skills, still hidden from git: "
+                      f"{paths.PERSONAL_NOTES_REL}, "
                       ".agents/skills/ai-sdlc-personal-release/SKILL.md", out)
         self.assertNotIn("The repo is back to how it was", out)
         self.assertEqual((root / paths.PERSONAL_NOTES_REL).read_text(), "---\napplyTo: '**'\n---\nMine.\n")
-        mine = {".agents/skills/ai-sdlc-personal-release/SKILL.md", paths.PERSONAL_NOTES_REL}
-        status = helpers.git(root, "status", "--porcelain", "-uall").stdout
-        self.assertEqual(sorted(line[3:] for line in status.splitlines()), sorted(mine))
+        # A small exclude entry keeps them out of git status, and nothing else stays hidden.
+        self.assertEqual(helpers.git(root, "status", "--porcelain", "-uall").stdout, "")
+        exclude_text = (root / ".git/info/exclude").read_text()
+        self.assertIn("/.github/instructions/ai-sdlc-personal.instructions.md", exclude_text)
+        self.assertNotIn("/.ai-sdlc/", exclude_text)
+        # Once they are gone, a later setup and remove give the exclude file back byte for byte.
+        (root / paths.PERSONAL_NOTES_REL).unlink()
+        shutil.rmtree(root / ".agents")
+        copy = helpers.copy_kit(root / "ai-sdlc-kit")
+        self.assertEqual(helpers.cli(root, copy, *ARGS)[0], 0)
+        code, out = helpers.cli(root, root / paths.KIT_REL, "remove", "--yes")
+        self.assertEqual(code, 0, out)
+        self.assertEqual((root / ".git/info/exclude").read_bytes(), original_exclude)
+        self.assertIn("The repo is back to how it was before setup.", out)
+
+    def test_remove_without_yes_says_what_it_would_do_and_changes_nothing(self):
+        root = helpers.make_repo(self.base / "repo", TEAM)
+        copy = helpers.copy_kit(root / "ai-sdlc-kit")
+        kit = root / paths.KIT_REL
+        self.assertEqual(helpers.cli(root, copy, *ARGS)[0], 0)
+        (root / CORE).write_text("mine\n")
+        write_personal(root)
+        before = helpers.snapshot(root)
+        code, out = helpers.cli(root, kit, "remove")
+        self.assertEqual(code, 2, out)
+        self.assertIn("Nothing was removed yet.", out)
+        self.assertIn("the kit folder .ai-sdlc/kit and your settings", out)
+        self.assertIn(f"Kept, because you edited them: {CORE}", out)
+        self.assertIn(paths.PERSONAL_NOTES_REL, out)
+        self.assertIn("Your connector logins stay.", out)
+        self.assertIn("Remove the kit from this repo?", out)
+        self.assertIn("python3 .ai-sdlc/kit/setup.py remove --yes", out)
+        self.assertEqual(helpers.snapshot(root), before)
 
     def test_remove_before_setup_is_a_plain_error(self):
         root = helpers.make_repo(self.base / "repo")

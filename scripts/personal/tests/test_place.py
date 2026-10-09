@@ -40,7 +40,8 @@ class TestPlace(unittest.TestCase):
     def test_wanted_files_follow_the_choices(self):
         wanted = self.wanted()
         self.assertEqual(sorted(r for r in wanted if not r.startswith(".agents/")), sorted([
-            ".ai-sdlc/USER.md", ".github/instructions/ai-sdlc-core.instructions.md",
+            ".ai-sdlc/USER.md", ".github/hooks/ai-sdlc-session.json",
+        ".github/instructions/ai-sdlc-core.instructions.md",
             ".github/instructions/ai-sdlc-dev.instructions.md", PO]))
         skills = {r.split("/")[2] for r in wanted if r.startswith(".agents/")}
         self.assertEqual(skills, {f"ai-sdlc-{s}" for s in (
@@ -175,10 +176,31 @@ class TestMultiFileSkill(unittest.TestCase):
         self.assertEqual(ref.read_text(), "my notes\n")
         self.assertFalse((self.root / NOTES_DIR / "assets").exists())
 
-    def test_a_binary_file_is_refused(self):
-        (self.kit / packs.SKILLS_REL / "notes/assets/logo.png").write_bytes(b"\x89PNG\r\n\xff")
-        with self.assertRaisesRegex(ValueError, "notes/assets/logo.png is not UTF-8 text"):
-            place.placed_skill_files(self.kit, "notes")
+    def test_a_binary_file_is_placed_byte_for_byte_and_removed(self):
+        logo = b"\x89PNG\r\n\x1a\n\xff\x00\xfe"           # not UTF-8
+        (self.kit / packs.SKILLS_REL / "notes/assets/logo.png").write_bytes(logo)
+        before = helpers.snapshot(self.root)
+        wanted = place.placed_skill_files(self.kit, "notes")
+        self.assertEqual(wanted[f"{NOTES_DIR}/assets/logo.png"], logo)    # bytes, not text
+        self.assertIsInstance(wanted[f"{NOTES_DIR}/references/a.md"], str)
+        place.apply(self.root, self.st, wanted)
+        self.assertEqual((self.root / NOTES_DIR / "assets/logo.png").read_bytes(), logo)
+        self.assertEqual(place.apply(self.root, self.st, wanted),
+                         {"written": [], "kept": [], "skipped": [], "removed": []})
+        report = place.apply(self.root, self.st, {})
+        self.assertIn(f"{NOTES_DIR}/assets/logo.png", report["removed"])
+        self.assertEqual(helpers.snapshot(self.root), before)
+
+    def test_an_edited_binary_file_is_kept_and_the_newer_copy_goes_next_to_it(self):
+        src = self.kit / packs.SKILLS_REL / "notes/assets/logo.png"
+        src.write_bytes(b"\xff\x01")
+        place.apply(self.root, self.st, place.placed_skill_files(self.kit, "notes"))
+        (self.root / NOTES_DIR / "assets/logo.png").write_bytes(b"\xff\x02")   # the person's edit
+        src.write_bytes(b"\xff\x03")                                          # a newer kit
+        report = place.apply(self.root, self.st, place.placed_skill_files(self.kit, "notes"))
+        self.assertEqual(report["kept"], [f"{NOTES_DIR}/assets/logo.png"])
+        self.assertEqual((self.root / NOTES_DIR / "assets/logo.png").read_bytes(), b"\xff\x02")
+        self.assertEqual((self.root / NOTES_DIR / "assets/logo.png.kit-new").read_bytes(), b"\xff\x03")
 
 
 SKILL_DIR ="template/.claude/skills/playbook-dev"     # where the skill lives in the kit

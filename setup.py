@@ -5,19 +5,20 @@
   python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,sm --lang de
   python3 .ai-sdlc/kit/setup.py change --lang en --add-skill skill-creator
   python3 <newer kit>/setup.py update
-  python3 .ai-sdlc/kit/setup.py check [--quiet]
+  python3 .ai-sdlc/kit/setup.py check [--quiet] [--hook]
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
-  python3 .ai-sdlc/kit/setup.py remove
+  python3 .ai-sdlc/kit/setup.py remove [--yes]          (--yes only after the person said yes)
   python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connect --suggested            (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connections
-  python3 .ai-sdlc/kit/setup.py disconnect <connector>
+  python3 .ai-sdlc/kit/setup.py disconnect <connector> [--yes]
 
 Run it from the repo root. Stdlib only; needs Python 3.9 or newer.
 
-Exit codes: 0 done · 1 check found something to look at · 2 refused, nothing was
-changed · 3 a connector is not connected · 4 stopped by an unexpected error (run
-the same command again; AI_SDLC_DEBUG=1 prints the details).
+Exit codes: 0 done (check: nothing found, or notices only) · 1 check found a problem
+to fix · 2 refused, nothing was changed (remove and disconnect without --yes: nothing
+done yet) · 3 a connector is not connected · 4 stopped by an unexpected error (run the
+same command again; AI_SDLC_DEBUG=1 prints the details).
 """
 import sys
 
@@ -52,6 +53,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--name")
     s.add_argument("--roles", help="comma-separated role ids, e.g. po,sm")
     s.add_argument("--lang", help="en, ro or de")
+    s.add_argument("--verbose", action="store_true", help="list every file written or removed")
 
     c = sub.add_parser("change", help="change your choices; only affected files change")
     c.add_argument("--name")
@@ -61,16 +63,25 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("--rituals", choices=[*packs.RITUALS, "default"])
     c.add_argument("--add-skill", action="append", default=[], metavar="SKILL")
     c.add_argument("--drop-skill", action="append", default=[], metavar="SKILL")
+    c.add_argument("--verbose", action="store_true", help="list every file written or removed")
 
-    sub.add_parser("update", help="run from a newer kit copy: refresh the kit and your files")
+    u = sub.add_parser("update", help="run from a newer kit copy: refresh the kit and your files")
+    u.add_argument("--verbose", action="store_true", help="list every file written or removed")
     k = sub.add_parser("check", help="files present and hidden, kit current, team overlaps")
     k.add_argument("--quiet", action="store_true", help="one line, for the start of a session")
+    k.add_argument("--hook", action="store_true",
+                   help="the session hook's JSON (additionalContext); implies --quiet, never fails")
     a = sub.add_parser("ack", help="note that you have seen a warning")
     a.add_argument("ids", nargs="+", metavar="warning-id")
-    sub.add_parser("remove", help="take the kit out; the repo ends as it was")
+    r = sub.add_parser("remove", help="take the kit out; the repo ends as it was")
+    r.add_argument("--yes", action="store_true",
+                   help="really remove; without it, remove only says what it would do")
 
     n = sub.add_parser("connect", help="save your login for a connector; run it in your own "
-                                       "terminal, it asks for secrets hidden")
+                                       "terminal, it asks for secrets hidden",
+                       epilog="For scripts and CI without a terminal: set every value as an "
+                              "AI_SDLC_<NAME>_<FIELD> environment variable (for example "
+                              "AI_SDLC_JIRA_URL and AI_SDLC_JIRA_TOKEN) and connect saves them.")
     n.add_argument("name", metavar="connector", nargs="?")
     n.add_argument("--test", action="store_true",
                    help="only check the saved login with one read-only call")
@@ -80,6 +91,8 @@ def parser() -> argparse.ArgumentParser:
     sub.add_parser("connections", help="list connectors: URL, user, kind, last test (no secrets)")
     d = sub.add_parser("disconnect", help="delete a connector's saved login")
     d.add_argument("name", metavar="connector")
+    d.add_argument("--yes", action="store_true",
+                   help="really delete; without it, disconnect only says what it would do")
     return ap
 
 

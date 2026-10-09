@@ -27,8 +27,9 @@ Start from [`assets/starter.html`](assets/starter.html); apply [`references/desi
 - One file, zero external assets: inline `<style>`, inline vanilla `<script>`, system fonts, no CDNs or libraries (no mermaid, no chart libs — diagrams are hand-placed inline SVG).
 - The exact ivory/slate/clay palette with its semantic mapping: olive = good/success, clay = accent/attention, rust = failure/deletion, oat = neutral. Never invent colors.
 - Serif headings (weight 500) / mono metadata / sans prose; white cards with 1.5px `--gray-300` borders; clay left-border callouts.
-- Header: mono uppercase eyebrow → serif h1 → gray sub-sentence → `.prompt-box` echoing the user's request.
+- Header: mono uppercase eyebrow → serif h1 → gray sub-sentence. No `.prompt-box` echoing the request on a team deliverable; add one only when the person asks for it.
 - Interaction preference order: native HTML (`<details>`, checkboxes, anchors) → CSS-only → small vanilla JS. Demos are deterministic (FNV-1a hash, never `Math.random()`).
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Its palette, fonts, logo and classification footer (`references/documents.md`, HTML) replace the ones above, unless the person asks for the plain style.
 - Voice: concrete counted titles ("Three ways to…"); oat-chip section numbers ("01"); every con paired with a mitigation or "choose otherwise when…"; recommendations name one winner in bold with a revisit condition.
 
 Done when the page renders correctly offline and every color on it carries its semantic meaning.

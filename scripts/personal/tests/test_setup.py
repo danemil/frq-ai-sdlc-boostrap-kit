@@ -52,6 +52,21 @@ class TestSetup(unittest.TestCase):
             self.assertTrue((self.root / rel).is_file(), rel)
         self.assertEqual(self.status(), "")
 
+    def test_the_summary_counts_files_by_folder_and_verbose_lists_them(self):
+        code, out = helpers.cli(self.root, self.copy, *ARGS)
+        self.assertEqual(code, 0, out)
+        st = json.loads((self.root / paths.STATE_REL).read_text())
+        skills = {rel.split("/")[2] for rel in st["files"] if rel.startswith(".agents/skills/")}
+        in_skills = sum(rel.startswith(".agents/skills/") for rel in st["files"])
+        self.assertIn(f"- Wrote {len(st['files'])} file(s): .agents/skills/ ({in_skills} in "
+                      f"{len(skills)} skills), .ai-sdlc/ (1), .github/hooks/ (1), "
+                  ".github/instructions/ (3)", out)
+        self.assertNotIn(".agents/skills/ai-sdlc-drawio/references/xml-reference.md", out)
+        (self.root / ".github/instructions/ai-sdlc-po.instructions.md").unlink()
+        code, out = helpers.cli(self.root, self.kit, *ARGS, "--verbose")
+        self.assertEqual(code, 0, out)
+        self.assertIn("- Wrote 1 file(s): .github/instructions/ai-sdlc-po.instructions.md\n", out)
+
     def test_state_records_the_choices_the_version_and_every_file(self):
         helpers.cli(self.root, self.copy, *ARGS)
         st = json.loads((self.root / paths.STATE_REL).read_text())

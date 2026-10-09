@@ -15,7 +15,9 @@ A placed file that is no longer wanted is deleted while unedited, and kept (and
 reported) once edited. A path git tracks is never written or deleted.
 
 A placed skill is its whole folder (SKILL.md plus references/, assets/, …), each
-file recorded in state.json like any other. Its SKILL.md's relative links that
+file recorded in state.json like any other. Text files are handled as str; a file
+that is not UTF-8 (a .pptx template, a .png logo) is carried as bytes and written
+byte for byte. Its SKILL.md's relative links that
 leave its folder are pointed at the same file inside .ai-sdlc/kit/
 (rewrite_links), so they still resolve after the move.
 """
@@ -97,12 +99,13 @@ def placed_skill(kit, skill, missing=None) -> tuple[str, str]:
     return f"{dest_dir}/SKILL.md", text
 
 
-def placed_skill_files(kit, skill, missing=None) -> dict[str, str]:
-    """{repo path: text} of a library skill's whole folder as setup places it.
+def placed_skill_files(kit, skill, missing=None) -> dict[str, str | bytes]:
+    """{repo path: text or bytes} of a library skill's whole folder as setup places it.
 
     SKILL.md goes through placed_skill; the skill's other files (references/,
-    assets/, LICENSE, …) are copied byte for byte, at the same relative path.
-    Dotfiles, caches and symlinks are skipped. Skill files must be UTF-8 text.
+    assets/, LICENSE, …) are copied byte for byte, at the same relative path:
+    UTF-8 files as str, any other file (a template, an image) as bytes.
+    Dotfiles, caches and symlinks are skipped.
     """
     src = Path(kit) / packs.SKILLS_REL / skill
     rel, text = placed_skill(kit, skill, missing)
@@ -113,24 +116,36 @@ def placed_skill_files(kit, skill, missing=None) -> dict[str, str]:
         if (p.is_symlink() or not p.is_file() or sub.as_posix() == "SKILL.md"
                 or any(part.startswith(".") or part == "__pycache__" for part in sub.parts)):
             continue
+        data = p.read_bytes()
         try:
-            files[f"{dest_dir}/{sub.as_posix()}"] = p.read_bytes().decode("utf-8")
+            files[f"{dest_dir}/{sub.as_posix()}"] = data.decode("utf-8")
         except UnicodeDecodeError:
-            raise ValueError(f"{skill}/{sub.as_posix()} is not UTF-8 text; "
-                             "a placed skill holds text files only") from None
+            files[f"{dest_dir}/{sub.as_posix()}"] = data       # binary: placed as is
     return files
 
 
-def wanted_files(kit, all_packs, choices) -> dict[str, str]:
-    """{repo path: text} of every file these choices call for."""
+def wanted_files(kit, all_packs, choices) -> dict[str, str | bytes]:
+    """{repo path: text, or bytes for a binary skill file} of every file these choices call for."""
     combined = packs.combine(all_packs, choices)
     values = packs.core_values(all_packs, choices, combined)
     files = dict(packs.instructions_file(all_packs[pid], values)
                  for pid in [packs.CORE, *choices["roles"]])
     for skill in combined["skills"]:
         files.update(placed_skill_files(kit, skill))
+    files[paths.SESSION_HOOK_REL] = session_hook()
     files[paths.USER_REL] = user_md(all_packs, choices, combined)
     return files
+
+
+HOOK_COMMAND = "python3 .ai-sdlc/kit/setup.py check --quiet --hook"
+
+
+def session_hook() -> str:
+    """The repo hook Copilot CLI runs once at session start (repo hooks load only in a
+    folder the person trusted); its output adds the session check to the conversation."""
+    entry = {"type": "command", "bash": HOOK_COMMAND, "powershell": HOOK_COMMAND,
+             "cwd": ".", "timeoutSec": 15}
+    return json.dumps({"version": 1, "hooks": {"sessionStart": [entry]}}, indent=2) + "\n"
 
 
 def _write(root, st, rel, data: bytes) -> None:
@@ -141,24 +156,38 @@ def _write(root, st, rel, data: bytes) -> None:
     reuse.record(st, rel, KIT_CLASS, data)
 
 
+def _drop_bytecode(folder: Path) -> None:
+    for p in folder.iterdir():
+        if p.is_file() and p.suffix == ".pyc":
+            p.unlink()
+        elif p.name == "__pycache__" and p.is_dir() and not p.is_symlink():
+            if all(q.is_file() and q.suffix == ".pyc" for q in p.iterdir()):
+                for q in p.iterdir():
+                    q.unlink()
+                p.rmdir()
+
+
 def prune_dirs(root, st) -> None:
-    """Remove folders setup created once they are empty again (deepest first)."""
+    """Remove folders setup created once they are empty again (deepest first). Python
+    bytecode a skill's script left there (__pycache__/, *.pyc) goes with them."""
     for d in sorted(st["created_dirs"], key=lambda p: p.count("/"), reverse=True):
         path = Path(root) / d
+        if path.is_dir():
+            _drop_bytecode(path)
         if path.is_dir() and not any(path.iterdir()):
             path.rmdir()
         if not path.exists():
             st["created_dirs"].remove(d)
 
 
-def apply(root, st, wanted: dict[str, str]) -> dict[str, list[str]]:
+def apply(root, st, wanted: dict[str, str | bytes]) -> dict[str, list[str]]:
     """Make the repo hold `wanted`; returns what was written, kept, skipped and removed."""
     root = Path(root)
     report = {"written": [], "kept": [], "skipped": [], "removed": []}
     tracked = paths.tracked(root, set(wanted) | set(st["files"]))
     keep = set(wanted)
     for rel, text in sorted(wanted.items()):
-        data = text.encode("utf-8")
+        data = text if isinstance(text, bytes) else text.encode("utf-8")
         if rel in tracked:
             report["skipped"].append(f"{rel} (the team's git tracks this path)")
             continue

@@ -17,7 +17,13 @@ CREATED, NEWLINE = " [created]", " [newline]"
 PATTERNS = (
     "/.ai-sdlc/",
     "/.github/instructions/ai-sdlc-*",
+    "/.github/hooks/ai-sdlc-*",
     "/.agents/skills/ai-sdlc-*/",
+)
+# After remove, only the person's own files stay hidden (they are kept, see paths.is_personal).
+PERSONAL_PATTERNS = (
+    "/" + paths.PERSONAL_NOTES_REL,
+    "/" + paths.PERSONAL_SKILLS_REL + "*/",
 )
 _BLOCK = re.compile(re.escape(BEGIN) + r"(?P<note>[^\n]*)\n.*?^" + re.escape(END) + r"\n?",
                     re.M | re.S)
@@ -60,13 +66,13 @@ def exclude_file(root) -> Path | None:
     return p if p.is_absolute() else Path(root) / p
 
 
-def protect(root) -> bool:
+def protect(root, patterns=PATTERNS) -> bool:
     """Add or refresh the block. False when `root` is not a git repo (nothing to hide from)."""
     path = exclude_file(root)
     if path is None:
         return False
     text = paths.read_text(path)
-    new = add(text)
+    new = add(text, patterns)
     if new != text:
         paths.write_atomic(path, new)
     return True

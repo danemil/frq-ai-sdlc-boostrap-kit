@@ -12,6 +12,7 @@ Generate draw.io diagrams as native `.drawio` files. Author each diagram either 
 - Write every diagram to `docs/diagrams/` in the person's repo (create the folder if needed), or wherever the person asks. Show the file name and content before you save it.
 - Everything stays local. This copy has **no browser URL mode and no upload**: never build an `app.diagrams.net` link, never send the diagram to a website. If the person asks for a link, explain that diagrams stay in the repo and offer the `.drawio` file instead.
 - The draw.io desktop CLI is **optional**. Without it, author as XML, keep the `.drawio` file, and tell the person that Mermaid conversion, auto-layout and PNG/SVG/PDF export need the draw.io desktop app.
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Use its diagram styles (`references/documents.md`: colours, Arial, no shadows), unless the person asks for a plain diagram.
 - The references in `references/` are bundled with this skill; read them from there. Do not fetch anything from the internet at runtime.
 
 ## Authoring: Mermaid or XML?

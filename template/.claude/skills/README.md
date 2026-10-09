@@ -29,6 +29,7 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 | **visual-explainers** | A self-contained HTML explainer for a concept, flow or tradeoff. |
 | **visual-issue** | An issue, ticket or PR description with a compiled Mermaid diagram, for GitHub, Bitbucket or Jira. |
 | **connectors** | Read-only facts from Jira, Confluence, Bitbucket Data Center, Jama and Jenkins through the kit's `connectors.py`, each with its link. The person connects in their own terminal (`setup.py connect <name>`); the AI never handles a secret. |
+| **frq-brandbook** | The company brand: palette, fonts, logo and writing rules on one screen; new on-brand decks from the bundled slim template; a stdlib-only brand check of `.pptx`/`.docx`/`.xlsx` files (FAIL/WARN/INFO, fixes only on approval). Client-owned brand assets, see its `PROVENANCE.md`. |
 | **deceneus** | What to remember from a chat: proposes preferences, notes or a skill, and writes only what is approved. MIT, see its `PROVENANCE.md`. |
 
 Personal setup gives the tooling skills above, except skill-creator, to every role (the `core` pack in `roles/core/role.json`); the process skills go by role.

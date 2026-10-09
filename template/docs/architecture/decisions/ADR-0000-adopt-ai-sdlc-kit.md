@@ -36,7 +36,7 @@ Adopt the **AI-SDLC Bootstrap Kit** and its seven-pillar framework ([`../../meth
 
 ## Consequences
 
-**Positive.** Every contributor and every AI tool shares one model; changes are attributable and reviewable; rules are testable; new joiners onboard via `ONBOARDING.md` in one pass.
+**Positive.** Every contributor and every AI tool shares one model; changes are attributable and reviewable; rules are testable; new joiners onboard via `ONBOARDING.retired.md` in one pass.
 
 **Costs / trade-offs.** Frontmatter and the session ritual add light ceremony; the knowledge layer needs curation; the rules must be maintained (and pruned per the anti-bloat clause, `WORKING-AGREEMENT.md` §8).
 

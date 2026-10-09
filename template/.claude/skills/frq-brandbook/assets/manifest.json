@@ -1,0 +1,237 @@
+{
+ "schema": "frq-brandbook-assets/1",
+ "generated": "2026-10-09",
+ "note": "Every bundled asset, its size and use. Brand materials owned by Frequentis AG; see ../PROVENANCE.md for what was left out and why.",
+ "total_bytes": 1891126,
+ "assets": [
+  {
+   "file": "assets/background/bg-gradient-frequentis.svg",
+   "type": "background",
+   "variant": "the one Frequentis gradient, #004182 -> #00AAE1, 315 deg",
+   "bytes": 457,
+   "dimensions": "viewBox 0 0 1920 1080",
+   "use": "Divider or agenda backgrounds, web hero; the only allowed gradient (PDF p.17).",
+   "source": "generated from the template's agenda layout gradient",
+   "sha256": "f0d4dcb7f10dd55e183e8ae8486698b7df1b87457b18dc1724d441f31c86a237"
+  },
+  {
+   "file": "assets/background/bg-sidebar-medium.jpg",
+   "type": "background",
+   "variant": "medium blue side bar (flat graphic)",
+   "bytes": 25141,
+   "dimensions": "1500x844",
+   "use": "Word/HTML covers; in decks use the 'Medium Side Bar' layouts.",
+   "source": "template layouts",
+   "sha256": "abed40f905fbf533e073316c46db28d56e9357253771d2c0898e09500f601c85"
+  },
+  {
+   "file": "assets/background/bg-sidebar-small.jpg",
+   "type": "background",
+   "variant": "small blue side bar (flat graphic)",
+   "bytes": 24559,
+   "dimensions": "1500x844",
+   "use": "Word/HTML covers; in decks use the 'Small Side Bar' layouts.",
+   "source": "template layouts",
+   "sha256": "ab8c5a1e1d9518f9044d027f534c7b1ff5699d1b71c04fcfea7120d29a6b6135"
+  },
+  {
+   "file": "assets/background/bg-sidebar-wide.jpg",
+   "type": "background",
+   "variant": "wide blue side bar (flat graphic)",
+   "bytes": 26643,
+   "dimensions": "1500x844",
+   "use": "Word/HTML covers; in decks use the 'Wide Side Bar' layout.",
+   "source": "template layouts",
+   "sha256": "bc18d503cd4d03246327565af6cdda071cb3e5c6044dbbe003dc462d877901b0"
+  },
+  {
+   "file": "assets/keyvisual/keyvisual-atm-aircraft.jpeg",
+   "type": "keyvisual",
+   "variant": "SBU Air Traffic Management (default BU)",
+   "bytes": 29296,
+   "dimensions": "860x860",
+   "use": "Title/cover key visual for ATM material (PDF p.9).",
+   "source": "template media (title and closing layouts)",
+   "sha256": "a6527bb90db985730785cfbe4bf6abafb8ab2a964fd27fa68f5c76f5f64920e5"
+  },
+  {
+   "file": "assets/keyvisual/keyvisual-corporate-globe-1080.jpeg",
+   "type": "keyvisual",
+   "variant": "corporate globe (downscaled 1920 -> 1080 px)",
+   "bytes": 155755,
+   "dimensions": "1080x1080",
+   "use": "Cover/title and closing image for corporate and cross-BU material (PDF p.9, p.28).",
+   "source": "template media (title and closing layouts)",
+   "sha256": "82b3776fa0d19c36879687098916f220192c9596720076a078cee7ad8bf4c896"
+  },
+  {
+   "file": "assets/keyvisual/keyvisual-defence-jets.jpeg",
+   "type": "keyvisual",
+   "variant": "SBU Defence",
+   "bytes": 27470,
+   "dimensions": "860x860",
+   "use": "Title/cover key visual for Defence material (PDF p.9).",
+   "source": "template media (title and closing layouts)",
+   "sha256": "f2066d808d447cbfadbb884f014a90db7a52162486d35d8a6dd1fa27a4329a42"
+  },
+  {
+   "file": "assets/keyvisual/keyvisual-maritime-vessel.jpeg",
+   "type": "keyvisual",
+   "variant": "SBU Maritime",
+   "bytes": 67128,
+   "dimensions": "860x860",
+   "use": "Title/cover key visual for Maritime material (PDF p.9).",
+   "source": "template media (title and closing layouts)",
+   "sha256": "d8091427e01943bdbc55e851bbaf9261f66da42f10a0f963abe7601caf2176b9"
+  },
+  {
+   "file": "assets/keyvisual/keyvisual-public-safety-police.jpeg",
+   "type": "keyvisual",
+   "variant": "SBU Public Safety",
+   "bytes": 78804,
+   "dimensions": "860x860",
+   "use": "Title/cover key visual for Public Safety material (PDF p.9).",
+   "source": "template media (title and closing layouts)",
+   "sha256": "4d8421c7618eabbf97ad21236ffe9436c85645317f9b616edc38f5526453539c"
+  },
+  {
+   "file": "assets/keyvisual/keyvisual-public-transport-train-860.jpeg",
+   "type": "keyvisual",
+   "variant": "SBU Public Transport (downscaled 1563 -> 860 px)",
+   "bytes": 88314,
+   "dimensions": "860x845",
+   "use": "Title/cover key visual for Public Transport material (PDF p.9).",
+   "source": "template media (title and closing layouts)",
+   "sha256": "2b1ebfbb4fe469f4ab256b2a1ecce6c409ee6d3de02aa21c9347e73622841661"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-tagline-black.png",
+   "type": "logo",
+   "variant": "tagline / black / png",
+   "bytes": 21139,
+   "dimensions": "1200x295",
+   "use": "Logo with tagline where blue or white is not legible (PDF p.5).",
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "82dac249176895bc4dc2e6cde74705f93cae299cda402af068fa8646037563b4"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-tagline-black.svg",
+   "type": "logo",
+   "variant": "tagline / black / svg",
+   "bytes": 18427,
+   "dimensions": "viewBox 0 0 10339200 2534206",
+   "use": "Logo with tagline where blue or white is not legible (PDF p.5).",
+   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
+   "sha256": "447b71d23d6643029eb010c02e0fcff052191fca1b7dd90cdcc7063fdc9594e5"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-tagline-blue.png",
+   "type": "logo",
+   "variant": "tagline / blue / png",
+   "bytes": 29073,
+   "dimensions": "1200x295",
+   "use": "Logo with tagline on white: title and closing pages, covers (PDF p.5). Tagline #666666.",
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "8a9872e49cb5737ecfd7447dbb47b5ec1f09a6c0fa7c24ff854ca9ec422de6e9"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-tagline-blue.svg",
+   "type": "logo",
+   "variant": "tagline / blue / svg",
+   "bytes": 18427,
+   "dimensions": "viewBox 0 0 10339200 2534206",
+   "use": "Logo with tagline on white: title and closing pages, covers (PDF p.5). Tagline #666666.",
+   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
+   "sha256": "3122431d9a55c3d11897c88c30d4104f4f657ca5f06a6213d03bcd151f1fb909"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-tagline-white.png",
+   "type": "logo",
+   "variant": "tagline / white / png",
+   "bytes": 23428,
+   "dimensions": "1200x295",
+   "use": "Logo with tagline on blue or the key visual (PDF p.5).",
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "6bc421af24cdbc755e287b4f48e3bbaf4afcf1539bad4a184d9e116e838e083e"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-tagline-white.svg",
+   "type": "logo",
+   "variant": "tagline / white / svg",
+   "bytes": 18427,
+   "dimensions": "viewBox 0 0 10339200 2534206",
+   "use": "Logo with tagline on blue or the key visual (PDF p.5).",
+   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
+   "sha256": "ad9f97d16f5a1f8e3f03e11900ea9a1f97762401441087ae05629a9bb035718f"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-wordmark-black.png",
+   "type": "logo",
+   "variant": "wordmark / black / png",
+   "bytes": 11420,
+   "dimensions": "1200x210",
+   "use": "Only where blue or white is not legible (PDF p.4).",
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "5a6634d5249085f1639ef5de19d6d2168b147547ed25db54daae224925b65b33"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-wordmark-black.svg",
+   "type": "logo",
+   "variant": "wordmark / black / svg",
+   "bytes": 11435,
+   "dimensions": "viewBox 0 0 1057447 184740",
+   "use": "Only where blue or white is not legible (PDF p.4).",
+   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
+   "sha256": "05e7fea916a86188931db9087c0275740dd34028422410276924949e7a084920"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-wordmark-blue.png",
+   "type": "logo",
+   "variant": "wordmark / blue / png",
+   "bytes": 15201,
+   "dimensions": "1200x210",
+   "use": "Preferred logo: on white backgrounds. Min height 5 mm; clear space = logo height (PDF p.4).",
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "675cb0e938d3385015733efe2eafa98adf87931acd47cef1544dad12cf6b7e9e"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-wordmark-blue.svg",
+   "type": "logo",
+   "variant": "wordmark / blue / svg",
+   "bytes": 11435,
+   "dimensions": "viewBox 0 0 1057447 184740",
+   "use": "Preferred logo: on white backgrounds. Min height 5 mm; clear space = logo height (PDF p.4).",
+   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
+   "sha256": "4400380b5da5f1c9863cd894c34e1a9f90abd79a8adcdd04419869f60a72b95b"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-wordmark-white.png",
+   "type": "logo",
+   "variant": "wordmark / white / png",
+   "bytes": 12840,
+   "dimensions": "1200x210",
+   "use": "On blue #004182 or calm dark photos (PDF p.4).",
+   "source": "rendered 1200 px wide from the SVG next to it with rsvg-convert (transparent, no metadata)",
+   "sha256": "5f38470629d71201bbf78bc6d8e5294851538dbae7d3f3513a55cff072a71f62"
+  },
+  {
+   "file": "assets/logo/logo-frequentis-wordmark-white.svg",
+   "type": "logo",
+   "variant": "wordmark / white / svg",
+   "bytes": 11435,
+   "dimensions": "viewBox 0 0 1057447 184740",
+   "use": "On blue #004182 or calm dark photos (PDF p.4).",
+   "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
+   "sha256": "c5c173a4517702388ddb8821abf2a00a054b08ec64ef7413ca78c40cb2d56bfa"
+  },
+  {
+   "file": "assets/templates/frq-template-slim-core.pptx",
+   "type": "template",
+   "variant": "pptx 16:9, 1 master, 25 layouts, 0 slides",
+   "bytes": 1164872,
+   "use": "Base for every new deck: Presentation(path), layouts by name (references/building-decks.md).",
+   "source": "official Frequentis PowerPoint template: sample slides, map and event layouts, personal and SharePoint metadata removed",
+   "sha256": "f200c58c33305c5efc16532fe08bdb8c747ac9a8a6c1757c7f30209f9c40e05c"
+  }
+ ]
+}

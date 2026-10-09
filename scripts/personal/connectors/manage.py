@@ -7,6 +7,7 @@ when stdin is not a terminal, unless every value is already in the environment.
 from __future__ import annotations
 
 import getpass
+import os
 import sys
 
 from . import http, registry, store
@@ -14,6 +15,17 @@ from . import http, registry, store
 SETUP = "python3 .ai-sdlc/kit/setup.py"
 KIND_LABEL = {"cloud": "Cloud", "dc": "Data Center"}
 MAX_TRIES = 3
+
+
+def _is_root() -> bool:
+    """Running as root (uid 0)? Its login file is shared by everyone who uses root."""
+    geteuid = getattr(os, "geteuid", None)
+    return bool(geteuid) and geteuid() == 0
+
+
+def _root_warning(path) -> str:
+    return (f"Warning: you are running as root. The login is saved in {path}, for everyone "
+            "who uses root on this computer. If you can, run connect as your own user instead.")
 
 
 class Refused(Exception):
@@ -122,16 +134,15 @@ def connect(name, *, test_only=False, connectors=None, isatty=None, ask=input,
     try:
         if not tty:
             missing = [f for f in connector.missing(env)]
-            if missing:
-                env_names = ", ".join(store.env_name(name, f.key) for f in missing)
+            if missing:   # no environment hint here: an assistant reads this message
                 return 2, [f"connect asks for secrets, so it runs only in your own terminal, "
                            f"never through an assistant. Open a terminal and run: "
-                           f"{SETUP} connect {name}",
-                           f"(For scripts: set every value in the environment first; "
-                           f"missing: {env_names}.)"]
+                           f"{SETUP} connect {name}"]
             values = {k: v for k, v in env.items()}
         else:
             current = {**((store.read_file(name) or {}).get("values") or {}), **env}
+            if _is_root():
+                say(_root_warning(store.file_for(name)))
             say(f"Connect {title}. Secrets are typed hidden and saved only on this "
                 f"computer, in {store.file_for(name)}.")
             values = _ask_all(connector, current, ask, ask_secret, say)
@@ -145,6 +156,8 @@ def connect(name, *, test_only=False, connectors=None, isatty=None, ask=input,
     kind = _kind_label(connector, values)
     lines = [f"Saved {title}{f' ({kind})' if kind else ''} at {values.get('url')} in {path}.",
              f"Test: {message}"]
+    if _is_root():
+        lines.insert(0, _root_warning(path))
     if not ok:
         lines.append(f"The settings are saved; fix the problem and run {SETUP} connect {name} "
                      f"again, or check with {SETUP} connect {name} --test")
@@ -189,7 +202,7 @@ def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=get
     result = {"connected": [], "skipped": []}
     tty = sys.stdin.isatty() if isatty is None else isatty
     if not tty:
-        return 0, ["connect --suggested asks questions (and secrets), so it runs only in your "
+        return 2, ["connect --suggested asks questions (and secrets), so it runs only in your "
                    "own terminal, never through an assistant. Nothing was connected or skipped. "
                    f"Open a terminal in this repo and run: {SETUP} connect --suggested"], result
 
@@ -300,14 +313,21 @@ def connections(connectors=None, skipped=()):
     return 0, [head] + (lines or ["- none available in this kit yet"])
 
 
-def disconnect(name, connectors=None):
-    """setup.py disconnect <name>: delete the saved file."""
+def disconnect(name, connectors=None, yes=False):
+    """setup.py disconnect <name> [--yes]: delete the saved file. Without yes, say what would
+    be deleted and ask; nothing changes."""
     connectors = registry.discover() if connectors is None else connectors
     title = connectors[name].title if name in connectors else name
     try:
-        removed = store.delete(name)
+        path = store.file_for(name)
     except ValueError:
         return 2, [f"There is no connector {name!r}."]
+    if not yes and path.exists():
+        return 2, [f"Nothing was deleted yet. disconnect deletes your saved {title} login on "
+                   f"this computer ({path}); every repo on this computer uses it.",
+                   f"Delete your saved {title} login? Only after a yes: "
+                   f"{SETUP} disconnect {name} --yes"]
+    removed = store.delete(name)
     lines = [f"Removed the saved {title} connection." if removed else
              f"There was no saved {title} connection."]
     keys = connectors[name].keys if name in connectors else []

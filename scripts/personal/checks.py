@@ -10,6 +10,11 @@ Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fix
                        for "update the kit"; same version: update from it or delete it;
                        older: delete it)
     and the team-file warnings from conflicts.py that are not acknowledged.
+
+Notices and problems. A notice is for reading, nothing is broken: the team-… and
+skill-clash:… warnings, and kit-copy:… (a kit folder waiting for "update the kit", or
+one to delete). Everything else (missing, unknown, unexcluded, stale-kit, not-set-up)
+is a problem to fix. `check` exits 0 when it found notices only, 1 for any problem.
 """
 from __future__ import annotations
 
@@ -17,17 +22,29 @@ from pathlib import Path
 
 from . import conflicts, paths, place, reuse, state
 
-SCAN = (".github/instructions", ".github/skills", ".agents/skills", ".claude/skills")
+SCAN = (".github/instructions", ".github/hooks", ".github/skills", ".agents/skills", ".claude/skills")
+NOTICES = ("team-", "skill-clash:", "kit-copy:")
+
+
+def is_notice(fid: str) -> bool:
+    """A finding to read, not a problem to fix (see the module docstring)."""
+    return fid.startswith(NOTICES)
+
+
+def is_bytecode(rel: str) -> bool:
+    """Python leaves __pycache__/ and *.pyc behind when a skill's script runs: not a kit file."""
+    return rel.endswith(".pyc") or "__pycache__" in rel.split("/")
 
 
 def ai_sdlc_files(root) -> list[str]:
-    """Every file named ai-sdlc* (or inside an ai-sdlc* folder) where Copilot looks."""
+    """Every file named ai-sdlc* (or inside an ai-sdlc* folder) where Copilot looks,
+    leaving out Python bytecode."""
     root = Path(root)
     out = []
     for d in SCAN:
         for p in sorted((root / d).glob("ai-sdlc*")) if (root / d).is_dir() else []:
             files = [p] if p.is_file() else sorted(q for q in p.rglob("*") if q.is_file())
-            out += [q.relative_to(root).as_posix() for q in files]
+            out += [r for r in (q.relative_to(root).as_posix() for q in files) if not is_bytecode(r)]
     return out
 
 
@@ -95,6 +112,15 @@ def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
         found.append(("stale-kit", f"The kit folder is {kv} but this setup is {st['kit_version']}. "
                                    'Say "update the kit".'))
     return st, found + conflicts.active(root, st)
+
+
+def hook_context(line: str, ok: bool) -> str:
+    """What the session hook adds to the conversation."""
+    text = ("AI-SDLC session check (run by the kit's session hook at the start of this session; "
+            f"no need to run it again): {line}")
+    if not ok:
+        text += " In your first reply, mention what it found, in the person's language."
+    return text
 
 
 def quiet_line(root, st, found) -> str:

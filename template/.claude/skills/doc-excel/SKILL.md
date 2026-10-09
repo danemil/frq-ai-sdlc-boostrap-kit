@@ -29,6 +29,7 @@ Work with `.xlsx` files by writing small Python snippets that use **openpyxl**, 
 - Never overwrite an existing file: ask, or write `<name>-v2.xlsx`. Check with `os.path.exists` before saving.
 - Only write the output file. Read inputs, never modify them in place.
 - Finish with a short summary: path, sheets, rows per sheet, formulas used, charts.
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Every new workbook uses its fonts, colours and classification (`references/documents.md`), unless the person asks for a plain file.
 
 ## 3. Create a workbook
 

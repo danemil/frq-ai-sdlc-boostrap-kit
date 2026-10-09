@@ -27,6 +27,7 @@ Work with `.pptx` files by writing small Python snippets that use **python-pptx*
 - Never overwrite an existing file: ask, or write `<name>-v2.pptx`. Check with `os.path.exists` before saving.
 - Only write the output file. Read inputs and templates, never modify them in place.
 - Finish with a short summary: path, one line per slide (number, title), and which slides have notes.
+- **Company brand by default:** load the `ai-sdlc-frq-brandbook` skill. If it is in your skill list, it is installed. Read its files by exact path (`.agents/skills/ai-sdlc-frq-brandbook/…`). Never decide by glob or search: the folder is hidden from git, so search tools skip it. Every new deck starts from its template, logo and colours (its Create steps: classification, outline, `scripts/new_deck.py`), unless the person asks for a plain file.
 
 ## 3. Plan, then create
 

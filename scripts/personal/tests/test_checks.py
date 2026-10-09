@@ -47,6 +47,17 @@ class TestCheck(unittest.TestCase):
             "unknown:.claude/skills/ai-sdlc-notes/SKILL.md",
             "unknown:.github/instructions/ai-sdlc-extra.instructions.md"])
 
+    def test_python_bytecode_in_a_kit_skill_is_not_unknown(self):
+        """Running a skill's script (the brand checker) can leave __pycache__/*.pyc behind."""
+        skill = self.root / ".agents/skills/ai-sdlc-frq-brandbook/scripts"
+        cache = skill / "__pycache__"
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / "check_brand.cpython-39.pyc").write_bytes(b"\x00")
+        (skill / "stray.pyc").write_bytes(b"\x00")
+        self.assertEqual(self.ids(), [])
+        code, out = helpers.cli(self.root, self.kit, "check", "--quiet")
+        self.assertEqual(code, 0, out)
+
     def test_personal_notes_and_skills_are_not_unknown_and_stay_hidden(self):
         (self.root / paths.PERSONAL_NOTES_REL).write_text("---\napplyTo: '**'\n---\nMine.\n")
         mine = self.root / ".agents/skills/ai-sdlc-personal-release/SKILL.md"
@@ -97,6 +108,34 @@ class TestCheck(unittest.TestCase):
         code, out = helpers.cli(self.root, self.kit, "check", "--quiet")
         self.assertEqual(code, 0)
         self.assertIn("· 1 to look at:", out)
+
+    def test_notices_alone_exit_0_and_problems_exit_1(self):
+        """The split: team-…, skill-clash:… and kit-copy:… are notices (exit 0); anything
+        else (missing, unknown, unexcluded, stale-kit, not-set-up) is a problem (exit 1)."""
+        for fid in ("team-agents-md", "team-copilot-instructions", "team-instructions:a.md",
+                    "skill-clash:.claude/skills/x", "kit-copy:downloads/kit"):
+            self.assertTrue(checks.is_notice(fid), fid)
+        for fid in (f"missing:{CORE}", f"unknown:{CORE}", f"unexcluded:{CORE}", "stale-kit",
+                    "not-set-up"):
+            self.assertFalse(checks.is_notice(fid), fid)
+        (self.root / "AGENTS.md").write_text("# Team\n")
+        newer = helpers.copy_kit(self.root / "downloads/ai-sdlc-kit")
+        (newer / "VERSION").write_text("9.9.9\n")
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("Check: nothing to fix; 2 notice(s) to read:", out)
+        self.assertIn("- [team-agents-md]", out)
+        self.assertIn("- [kit-copy:downloads/ai-sdlc-kit]", out)
+        (self.root / CORE).unlink()
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 1, out)
+        self.assertIn("Check: 3 to look at:", out)
+
+    def test_check_names_the_connectors_for_the_roles(self):
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("- Connectors for your roles: jira, confluence, jama (say 'connect jira')",
+                      out)
 
     def test_quiet_never_fails(self):
         with mock.patch.object(checks, "run", side_effect=RuntimeError("boom")):

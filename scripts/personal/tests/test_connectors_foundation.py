@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Connectors foundation: store, http client, registry, connect/connections/disconnect,
 and the connectors.py CLI, against tests/fakeserver.py (no network)."""
+import argparse
 import base64
 import contextlib
 import io
@@ -424,8 +425,28 @@ class TestManage(Base):
         code, lines, shown = self.connect("https://x.example", isatty=False)
         self.assertEqual(code, 2)
         self.assertIn("runs only in your own terminal", lines[0])
-        self.assertIn("AI_SDLC_STUB_CONNECTOR_URL", lines[1])
+        # no hint at environment variables an assistant could fill with a pasted secret
+        self.assertNotIn("AI_SDLC_", "\n".join(lines))
         self.assertFalse(store.file_for(NAME).exists())
+
+    def test_the_environment_hint_is_in_the_help(self):
+        sys.path.insert(0, str(helpers.KIT))
+        import setup  # the kit-root setup.py
+        action = next(a for a in setup.parser()._actions
+                      if isinstance(a, argparse._SubParsersAction))
+        self.assertIn("AI_SDLC_<NAME>_<FIELD>", action.choices["connect"].format_help())
+
+    def test_connect_as_root_warns_that_the_login_is_shared(self):
+        srv = self.server({"/api/me": ME})
+        with mock.patch.object(manage, "_is_root", return_value=True):
+            code, lines, shown = self.connect(srv.url, "")
+        self.assertEqual(code, 0, lines)
+        warning = [x for x in shown.splitlines() if x.startswith("Warning: you are running as root")]
+        self.assertTrue(warning, shown)
+        self.assertIn("everyone who uses root on this computer", warning[0])
+        with mock.patch.object(manage, "_is_root", return_value=False):
+            _, _, shown = self.connect(srv.url, "")
+        self.assertNotIn("running as root", shown)
 
     def test_connect_without_a_terminal_works_when_env_has_every_value(self):
         srv = self.server({"/api/me": ME})
@@ -490,13 +511,28 @@ class TestManage(Base):
 
     def test_disconnect_deletes_the_file(self):
         self.save_stub("https://x.example")
-        code, lines = manage.disconnect(NAME, self.connectors)
+        code, lines = manage.disconnect(NAME, self.connectors, yes=True)
         self.assertEqual((code, lines), (0, ["Removed the saved Stub connection."]))
         self.assertFalse(store.file_for(NAME).exists())
         os.environ["AI_SDLC_STUB_CONNECTOR_TOKEN"] = SECRET
-        _, lines = manage.disconnect(NAME, self.connectors)
+        _, lines = manage.disconnect(NAME, self.connectors, yes=True)
         self.assertIn("There was no saved Stub connection.", lines)
         self.assertIn("still apply", lines[1])
+
+    def test_disconnect_without_yes_asks_and_keeps_the_file(self):
+        path = self.save_stub("https://x.example")
+        code, lines = manage.disconnect(NAME, self.connectors)
+        text = "\n".join(lines)
+        self.assertEqual(code, 2, text)
+        self.assertTrue(path.is_file())
+        self.assertIn("Nothing was deleted yet.", text)
+        self.assertIn(str(path), text)
+        self.assertIn("Delete your saved Stub login?", text)
+        self.assertIn(f"python3 .ai-sdlc/kit/setup.py disconnect {NAME} --yes", text)
+
+    def test_disconnect_with_nothing_saved_needs_no_yes(self):
+        code, lines = manage.disconnect(NAME, self.connectors)
+        self.assertEqual((code, lines), (0, ["There was no saved Stub connection."]))
 
     def test_setup_py_has_the_three_commands(self):
         root = helpers.make_repo(self.base / "repo")
@@ -517,7 +553,7 @@ class TestRemoveKeepsCredentials(Base):
         kit = root / ".ai-sdlc/kit"
         helpers.cli(root, copy, "setup", "--protect-only")
         helpers.cli(root, kit, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
-        code, out = helpers.cli(root, kit, "remove")
+        code, out = helpers.cli(root, kit, "remove", "--yes")
         self.assertEqual(code, 0, out)
         self.assertTrue(path.is_file())
         self.assertEqual(json.loads(path.read_text())["values"]["token"], SECRET)
@@ -543,7 +579,7 @@ class TestRemoveKeepsCredentials(Base):
             kit = root / ".ai-sdlc/kit"
             helpers.cli(root, copy, "setup", "--protect-only")
             helpers.cli(root, kit, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
-            code, out = helpers.cli(root, kit, "remove")
+            code, out = helpers.cli(root, kit, "remove", "--yes")
             self.assertEqual(code, 0, out)
             self.assertEqual(snap(), before)
             self.assertNotIn(SECRET, out)

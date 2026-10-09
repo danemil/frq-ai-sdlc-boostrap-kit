@@ -1,0 +1,73 @@
+{
+  "schema": "frq-brand-tokens/1",
+  "about": "The one machine-readable source for the Frequentis palette, fonts and footer. scripts/check_brand.py and the references read it. Source: Frequentis Brand Guidelines Q4/2025 (p.N) and the official Frequentis PowerPoint template. A human checks changes against the guidelines PDF, which wins on any conflict.",
+  "colours": {
+    "primary": [
+      {"name": "Blue", "hex": "#004182", "rgb": [0, 65, 130], "cmyk": "100-60-0-6", "spot": "Pantone 286", "theme": "dk1", "use": "Lead colour, headlines, key shapes, side bars, logo", "text_on_white": "AAA", "source": "p.7"},
+      {"name": "Light blue", "hex": "#00AAE1", "rgb": [0, 170, 225], "cmyk": "65-5-0-0", "theme": "accent3", "use": "Secondary colour", "text_on_white": "fails (2.7:1), and white on it fails at any size: put #333333 text on it (4.7:1), or #004182 for large text (3.8:1) (WCAG, kit rule)", "source": "p.7"},
+      {"name": "Black", "hex": "#333333", "rgb": [51, 51, 51], "cmyk": "95% black", "theme": "lt2", "use": "Body text (instead of pure black), lines", "text_on_white": "AAA", "source": "p.7"},
+      {"name": "Cool grey", "hex": "#626469", "web_hex": "#666666", "rgb": [98, 100, 105], "cmyk": "70% black", "spot": "CG11", "theme": "dk2", "use": "Text, lines, tagline", "text_on_white": "AA", "source": "p.7 (conflict C1)"},
+      {"name": "Mid grey", "hex": "#9FA0A3", "web_hex": "#999999", "rgb": [159, 160, 163], "cmyk": "40% black", "spot": "CG7", "theme": "accent1", "use": "Text, lines, backgrounds (p.7); as text on white it fails contrast, so shapes and lines only (WCAG, kit rule)", "text_on_white": "fails", "source": "p.7 (conflict C1)"},
+      {"name": "Warm grey", "hex": "#C9C3BA", "rgb": [201, 195, 186], "cmyk": "21-19-24-0", "spot": "WG3", "theme": "accent2", "use": "Text, lines, backgrounds (p.7); as text on white it fails contrast, so shapes and backgrounds only (WCAG, kit rule)", "text_on_white": "fails", "source": "p.7"},
+      {"name": "White", "hex": "#FFFFFF", "rgb": [255, 255, 255], "theme": "lt1", "use": "Base colour: bright white, never cream or off-white", "source": "p.7"}
+    ],
+    "accent": [
+      {"name": "Green", "hex": "#73B432", "rgb": [115, 180, 50], "cmyk": "50-0-100-0", "theme": "accent5", "use": "Highlights, traffic light; sparingly; not as text on white (WCAG, kit rule)", "source": "p.7"},
+      {"name": "Orange", "hex": "#F0A51E", "rgb": [240, 165, 30], "cmyk": "0-30-100-0", "theme": "accent4", "use": "Highlights, traffic light; sparingly; not as text on white (WCAG, kit rule)", "source": "p.7"},
+      {"name": "Red", "hex": "#A52846", "rgb": [165, 40, 70], "cmyk": "20-90-50-0", "theme": "accent6", "use": "Highlights, traffic light; sparingly", "source": "p.7"}
+    ],
+    "legend_only": [
+      {"name": "ATM (default business unit)", "hex": "#2364A0", "rgb": [35, 100, 160], "source": "p.7"},
+      {"name": "Maritime", "hex": "#19555F", "rgb": [25, 85, 95], "source": "p.7"},
+      {"name": "Defence", "hex": "#641E6E", "rgb": [100, 30, 110], "source": "p.7"},
+      {"name": "Public Safety", "hex": "#D22832", "rgb": [210, 40, 50], "source": "p.7"},
+      {"name": "Public Transport", "hex": "#DC6423", "rgb": [220, 100, 35], "source": "p.7"},
+      {"name": "AirNav light yellow", "hex": "#FDD217", "rgb": [253, 210, 23], "source": "p.7"}
+    ],
+    "chart_series_order": ["#004182", "#00AAE1", "#626469", "#9FA0A3", "#C9C3BA"],
+    "gradient": {"from": "#004182", "to": "#00AAE1", "angle_deg": 315, "note": "The only gradient: blue to light blue, corner to corner (p.17). Never from grey or any other colour."}
+  },
+  "fonts": {
+    "office": {"family": "Arial", "fallbacks": ["Liberation Sans", "Helvetica", "sans-serif"], "rules": "Regular; bold very selectively; never italics", "source": "p.8"},
+    "web": {"family": "Roboto", "fallbacks": ["Arial", "sans-serif"], "source": "p.8"},
+    "print": {"family": "FF DIN", "weights": ["regular", "medium", "bold"], "note": "Commercial font: never bundle or substitute silently; leave print to a designer", "source": "p.8"},
+    "email_signature": {"family": "Tahoma or Arial", "source": "p.47"}
+  },
+  "sizes_pt": {
+    "pptx_title": 18,
+    "pptx_body_level1": 18,
+    "pptx_body_level2_3": 16,
+    "pptx_body_level4_5": 14,
+    "pptx_footer": 6,
+    "pptx_title_slide_and_divider": 44,
+    "letter_body": 10.5,
+    "letter_leading": 13,
+    "icon_descriptor": 6,
+    "source": "template slide master text styles; letter p.44; icons p.16"
+  },
+  "pptx": {
+    "slide_size_in": [10, 5.625],
+    "margin_in": 0.47,
+    "title_box_in": {"x": 0.47, "y": 0.30, "w": 9.06},
+    "body_box_in": {"y": 0.83, "h": 4.25},
+    "template": "assets/templates/frq-template-slim-core.pptx"
+  },
+  "classification": ["Frequentis Public", "Frequentis General", "Frequentis Confidential"],
+  "classification_placeholder": "Frequentis [classification to be set]",
+  "copyright": "© Frequentis AG {year}",
+  "footer_format": "Frequentis <class> | © Frequentis AG <year>",
+  "business_units": [
+    {"id": "ATM", "name": "Air Traffic Management", "key_visual": "assets/keyvisual/keyvisual-atm-aircraft.jpeg", "legend": "#2364A0", "default": true},
+    {"id": "DEF", "name": "Defence", "key_visual": "assets/keyvisual/keyvisual-defence-jets.jpeg", "legend": "#641E6E"},
+    {"id": "PS", "name": "Public Safety", "key_visual": "assets/keyvisual/keyvisual-public-safety-police.jpeg", "legend": "#D22832"},
+    {"id": "PT", "name": "Public Transport", "key_visual": "assets/keyvisual/keyvisual-public-transport-train-860.jpeg", "legend": "#DC6423"},
+    {"id": "MAR", "name": "Maritime", "key_visual": "assets/keyvisual/keyvisual-maritime-vessel.jpeg", "legend": "#19555F"},
+    {"id": "CORP", "name": "Corporate and cross-BU", "key_visual": "assets/keyvisual/keyvisual-corporate-globe-1080.jpeg"}
+  ],
+  "checker": {
+    "allowed_latin_typefaces": ["Arial", "+mn-lt", "+mj-lt"],
+    "us_spellings": {"center": "centre", "color": "colour", "colors": "colours", "organization": "organisation", "organizations": "organisations", "organize": "organise", "defense": "defence", "analyze": "analyse", "behavior": "behaviour", "favorite": "favourite", "honor": "honour", "labor": "labour", "catalog": "catalogue", "modeling": "modelling", "traveling": "travelling", "optimize": "optimise", "prioritize": "prioritise"},
+    "bold_share_warn": 0.5,
+    "max_bullets_warn": 8
+  }
+}

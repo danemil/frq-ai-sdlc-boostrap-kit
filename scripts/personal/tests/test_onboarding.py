@@ -65,6 +65,11 @@ class TestOnboarding(unittest.TestCase):
         for name in registry.names():
             self.assertIn(f"`{name}`", connect, name)
 
+    def test_a_pasted_token_is_never_quoted_back(self):
+        text = section("Connect a tool")
+        self.assertIn('never quote it: say "the token you pasted"', text)
+        self.assertIn("revoke it now", text)
+
     def test_the_onboarding_offers_connect_suggested_once_and_takes_not_now(self):
         onboarding = section("Do the onboarding")
         self.assertIn("`python3 .ai-sdlc/kit/setup.py connect --suggested`", onboarding)
@@ -72,6 +77,57 @@ class TestOnboarding(unittest.TestCase):
         self.assertIn('If they say "not now" (or no), skip this step', onboarding)
         self.assertIn("Do not run it yourself", onboarding)
         self.assertIn("**Ask three questions,**", onboarding)
+
+    def test_remove_and_disconnect_get_yes_only_after_the_person_says_yes(self):
+        remove, connect = section("Remove the kit"), section("Connect a tool")
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py remove`, without `--yes`", remove)
+        self.assertIn("**Only after they say yes,** run `python3 .ai-sdlc/kit/setup.py remove --yes`",
+                      remove)
+        self.assertIn("Never run `remove --yes` on your own.", remove)
+        self.assertIn("Only after they say yes, run `python3 .ai-sdlc/kit/setup.py disconnect "
+                      "<name> --yes`", connect)
+
+    def test_onboarding_again_in_a_set_up_repo_redoes_it(self):
+        onboarding = section("Do the onboarding")
+        step0 = onboarding.split("\n1. ", 1)[0]
+        self.assertIn("If `.ai-sdlc/USER.md` exists", step0)
+        self.assertIn("Do not say it is already done", step0)
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py check`", step0)
+        self.assertIn("`kit-copy:`", step0)
+        self.assertIn("Shall I update the kit first?", step0)
+        self.assertIn("say who it is set up for now", step0)
+        self.assertIn("Skip steps 1 and 2 (no `--protect-only`)", step0)
+
+    def test_the_three_questions_come_one_at_a_time_without_defaults(self):
+        onboarding = section("Do the onboarding")
+        self.assertIn("Never put two questions in one message.", onboarding)
+        self.assertIn("Do not offer defaults or suggested answers", onboarding)
+        self.assertIn("Never invent an answer or a default", DOC)
+
+    def test_warnings_are_marked_seen_only_after_a_yes(self):
+        onboarding = section("Do the onboarding")
+        self.assertIn('"Shall I mark these as seen?', onboarding)
+        self.assertIn("Only after a yes, run `python3 .ai-sdlc/kit/setup.py ack <warning-id>`",
+                      onboarding)
+
+    def test_connect_suggested_is_given_only_after_a_yes(self):
+        step9 = section("Do the onboarding").split("\n9. ", 1)[1]
+        self.assertLess(step9.index("Wait for the answer."), step9.index("connect --suggested"))
+        self.assertIn("Only if they say yes", step9)
+
+    def test_update_names_where_to_get_the_kit(self):
+        # The address itself names the client, so it stays in README.md (the client-name rule
+        # for Copilot guidance, test_roles); ONBOARDING sends Copilot there for it.
+        update = section("Update the kit")
+        self.assertIn('section "Get the latest version from GitHub"', update)
+        self.assertIn("**Releases**", update)
+        readme = (helpers.KIT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("### Get the latest version from GitHub", readme)
+        self.assertIn("https://github.com/danemil/frq-ai-sdlc-boostrap-kit", readme)
+        self.assertNotIn("rsync", DOC)
+
+    def test_this_file_says_it_is_the_one_next_to_setup_py(self):
+        self.assertIn("the `ONBOARDING.md` next to `setup.py`", DOC)
 
     def test_python_floor_matches_setup_py(self):
         self.assertIn("3.9 or newer", DOC)
@@ -81,10 +137,16 @@ class TestOnboarding(unittest.TestCase):
         core = (helpers.KIT / "roles/core/instructions.md").read_text()
         self.assertIn("`.ai-sdlc/kit/ONBOARDING.md`", core)
 
-    def test_the_retired_template_onboarding_points_to_the_kit_root(self):
-        text = (helpers.KIT / "template/ONBOARDING.md").read_text()
-        self.assertTrue("follow the `ONBOARDING.md` at the kit's top folder" in text,
-                        "template/ONBOARDING.md does not point to the kit-root ONBOARDING.md")
+    def test_the_retired_template_onboarding_is_named_so_and_points_to_the_kit_root(self):
+        # Only one file in the kit is named ONBOARDING.md, so a file search finds this one.
+        found = sorted(p.relative_to(helpers.KIT).as_posix()
+                       for p in helpers.KIT.rglob("ONBOARDING.md")
+                       if not {".git", ".claude"} & set(p.relative_to(helpers.KIT).parts))
+        self.assertEqual(found, ["ONBOARDING.md"])
+        for rel in ("template/ONBOARDING.retired.md", "template/docs/onboarding/README.md"):
+            text = (helpers.KIT / rel).read_text()
+            self.assertIn("follow the `ONBOARDING.md` next to `setup.py`, at the kit's top folder",
+                          text, rel)
 
 
 if __name__ == "__main__":

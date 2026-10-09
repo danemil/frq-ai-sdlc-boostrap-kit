@@ -61,7 +61,7 @@ Three labels, applied everywhere via folder location or metadata:
 ├── AGENTS.md            # canonical brief
 ├── CLAUDE.md            # pointer → AGENTS.md
 ├── README.md            # setup
-├── ONBOARDING.md        # first-run gatekeeper
+├── ONBOARDING.retired.md        # first-run gatekeeper
 ├── WORKING-AGREEMENT.md # this document
 ├── INDEX.md             # cross-artefact index
 ├── .claude/skills/      # invokable role playbooks + skill-creator

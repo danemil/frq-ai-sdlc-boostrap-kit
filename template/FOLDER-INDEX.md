@@ -7,7 +7,7 @@ A map of every directory in this workspace and what belongs there. When in doubt
 ├── AGENTS.md                       # canonical brief (read first)
 ├── CLAUDE.md                       # pointer → AGENTS.md
 ├── README.md                       # human setup
-├── ONBOARDING.md                   # first-run gatekeeper
+├── ONBOARDING.retired.md                   # first-run gatekeeper
 ├── WORKING-AGREEMENT.md            # cross-tool organisation, lifecycle, session ritual
 ├── INDEX.md                        # cross-artefact index (received docs, ADRs, decisions)
 ├── USER.md                         # per-user, git-ignored (created at onboarding)

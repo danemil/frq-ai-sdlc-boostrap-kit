@@ -97,7 +97,7 @@ Inline code in prose: mono ~0.92em, `--gray-150` bg, `padding: 1px 5px`, radius 
 1. Eyebrow: mono uppercase breadcrumb OR gray repo/meta line.
 2. Serif h1, concrete and declarative, often counted: "Three ways to implement…", "How authentication flows through…".
 3. One supporting sentence (gray-500, max-width ~640px) or a metadata row.
-4. If the page answers a request: a `.prompt-box` — gray-150 card, mono uppercase "PROMPT" label, the user's request paraphrased in their voice. This frames the artifact as a direct answer.
+4. Only when the person asks for it (never by default on a team deliverable): a `.prompt-box` — gray-150 card, mono uppercase "PROMPT" label, the request paraphrased in their voice.
 
 ## Theme
 
