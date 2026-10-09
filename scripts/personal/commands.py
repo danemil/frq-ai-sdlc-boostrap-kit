@@ -219,10 +219,14 @@ def cmd_setup(args, cwd, kit):
 
 
 def _check_lines(root) -> tuple[int, list[str]]:
+    """Exit 0 for nothing or notices only, 1 when there is a problem (checks.is_notice)."""
     st, found = checks.run(root)
     if not found:
         return 0, ["Check: all good."]
-    return 1, [f"Check: {len(found)} to look at:"] + [f"- [{fid}] {text}" for fid, text in found]
+    items = [f"- [{fid}] {text}" for fid, text in found]
+    if all(checks.is_notice(fid) for fid, _ in found):
+        return 0, [f"Check: nothing to fix; {len(found)} notice(s) to read:"] + items
+    return 1, [f"Check: {len(found)} to look at:"] + items
 
 
 def cmd_check(args, cwd, kit):
@@ -234,7 +238,16 @@ def cmd_check(args, cwd, kit):
         except Exception as exc:  # noqa: BLE001  the session-start check must never fail
             return 0, [f"AI-SDLC: the check could not run ({exc})."]
     root, _ = paths.repo_root(cwd)
-    return _check_lines(root)
+    code, lines = _check_lines(root)
+    st = state.load(root)
+    if st is not None:            # name the role connectors, so nobody has to guess them
+        try:
+            all_packs = packs.load(root / paths.KIT_REL)
+            roles = [r for r in st["choices"]["roles"] if r in all_packs]
+            lines += _connectors_line(all_packs, roles, st.get("skipped_connectors", []))
+        except Exception:  # noqa: BLE001  a broken kit folder is reported above; never fail here
+            pass
+    return code, lines
 
 
 def cmd_ack(args, cwd, kit):

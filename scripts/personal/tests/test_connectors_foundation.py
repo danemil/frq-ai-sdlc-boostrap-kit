@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Connectors foundation: store, http client, registry, connect/connections/disconnect,
 and the connectors.py CLI, against tests/fakeserver.py (no network)."""
+import argparse
 import base64
 import contextlib
 import io
@@ -424,8 +425,28 @@ class TestManage(Base):
         code, lines, shown = self.connect("https://x.example", isatty=False)
         self.assertEqual(code, 2)
         self.assertIn("runs only in your own terminal", lines[0])
-        self.assertIn("AI_SDLC_STUB_CONNECTOR_URL", lines[1])
+        # no hint at environment variables an assistant could fill with a pasted secret
+        self.assertNotIn("AI_SDLC_", "\n".join(lines))
         self.assertFalse(store.file_for(NAME).exists())
+
+    def test_the_environment_hint_is_in_the_help(self):
+        sys.path.insert(0, str(helpers.KIT))
+        import setup  # the kit-root setup.py
+        action = next(a for a in setup.parser()._actions
+                      if isinstance(a, argparse._SubParsersAction))
+        self.assertIn("AI_SDLC_<NAME>_<FIELD>", action.choices["connect"].format_help())
+
+    def test_connect_as_root_warns_that_the_login_is_shared(self):
+        srv = self.server({"/api/me": ME})
+        with mock.patch.object(manage, "_is_root", return_value=True):
+            code, lines, shown = self.connect(srv.url, "")
+        self.assertEqual(code, 0, lines)
+        warning = [x for x in shown.splitlines() if x.startswith("Warning: you are running as root")]
+        self.assertTrue(warning, shown)
+        self.assertIn("everyone who uses root on this computer", warning[0])
+        with mock.patch.object(manage, "_is_root", return_value=False):
+            _, _, shown = self.connect(srv.url, "")
+        self.assertNotIn("running as root", shown)
 
     def test_connect_without_a_terminal_works_when_env_has_every_value(self):
         srv = self.server({"/api/me": ME})

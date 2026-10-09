@@ -101,7 +101,7 @@ class TestConnectorsEndToEnd(unittest.TestCase):
         self.assertEqual(code, 2, out)
         self.assertIn("runs only in your own terminal", out)
         self.assertIn("python3 .ai-sdlc/kit/setup.py connect jira", out)
-        self.assertIn("AI_SDLC_JIRA_URL, AI_SDLC_JIRA_TOKEN", out)
+        self.assertNotIn("AI_SDLC_JIRA_TOKEN", out)
         self.assertFalse((self.config / "connectors" / "jira.json").exists())
 
     def test_a_wrong_token_is_a_plain_401_and_never_shown(self):

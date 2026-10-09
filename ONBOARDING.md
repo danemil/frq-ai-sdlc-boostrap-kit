@@ -56,6 +56,7 @@ Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 - `kit-copy:`: a newer copy means "update the kit". A same-version copy: ask whether they copied it in to update; if so, update from it, otherwise it can be deleted. An older one can be deleted, after asking.
 - `stale-kit`: run `python3 .ai-sdlc/kit/setup.py update`. If it says the kit folder is incomplete, ask the person to copy the whole kit folder in again (as in "Update the kit", step 2) and update from that copy.
 - `team-…` and `skill-clash:…`: as in steps 6 and 7 above.
+- The line "Connectors for your roles" names the tools their roles usually use, marking the ones connected or skipped. Relay it as it is; do not guess which tools are connected.
 
 ## Remove the kit
 

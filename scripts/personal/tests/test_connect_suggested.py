@@ -132,7 +132,7 @@ class TestWalk(Base):
     def test_no_terminal_asks_nothing_and_changes_nothing(self):
         before = (self.root / paths.STATE_REL).read_bytes()
         code, out = self.suggested("y\ny\n", False)
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 2, out)                 # refused, like connect <name> without one
         self.assertEqual(self.connected, [])
         self.assertIn("runs only in your own terminal", out)
         self.assertIn("python3 .ai-sdlc/kit/setup.py connect --suggested", out)
@@ -290,7 +290,7 @@ class TestSubprocess(Base):
         r = subprocess.run([sys.executable, str(self.kit / "setup.py"), "connect", "--suggested"],
                            cwd=self.root, stdin=subprocess.DEVNULL, capture_output=True,
                            text=True, timeout=60)
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, 2, r.stderr)
         self.assertIn("runs only in your own terminal", r.stdout)
         self.assertNotIn("Traceback", r.stdout + r.stderr)
 

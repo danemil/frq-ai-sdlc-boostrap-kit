@@ -272,6 +272,8 @@ Copilot can run `--test`, `connections` and `disconnect` for you: say *"test my 
 
 Your login is saved **on this computer only**, outside every repo: `~/.config/ai-sdlc/connectors/<name>.json` (folder readable only by you; file mode 600). All your repos share it, so you connect once per computer, not once per repo.
 
+> **Working as root?** Then "you" is the root account: the login goes to root's home folder, and everyone who uses root on this computer (for example, everyone who logs in to a shared VM as root) can use it. `connect` warns you when it runs as root. If you can, log in as your own user and connect there; otherwise use a token with read access only, and disconnect when you are done.
+
 ### Corporate network: proxy and company certificates
 
 - **Proxy.** If the VM reaches the internet or intranet through a proxy, set it in `~/.bashrc` (ask IT for the address):
@@ -431,13 +433,18 @@ python3 .ai-sdlc/kit/setup.py check --quiet   # one line, as at the start of a s
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py check --quiet
-AI-SDLC 0.4.0 · roles: PO, QA · en · ok
+AI-SDLC 0.8.0 · roles: PO, QA · en · ok
 $ python3 .ai-sdlc/kit/setup.py check
 Check: 3 to look at:
 - [missing:.github/instructions/ai-sdlc-qa.instructions.md] .github/instructions/ai-sdlc-qa.instructions.md is missing.
 - [unknown:.github/instructions/ai-sdlc-extra.instructions.md] .github/instructions/ai-sdlc-extra.instructions.md looks like a kit file, but the kit did not write it.
 - [team-agents-md] The team has its own AGENTS.md. Copilot reads it together with the kit's instructions.
+- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 ```
+
+`check` also names the tools your roles usually connect to, marking the ones connected or skipped.
+
+**Notices and problems.** `team-…`, `skill-clash:…` and `kit-copy:…` are *notices*: something to read, nothing is broken. With notices only, `check` says *"Check: nothing to fix; N notice(s) to read:"* and exits `0`. Every other finding is a *problem* to fix, and `check` exits `1`.
 
 | Finding id | What it means | What to do |
 |---|---|---|
@@ -547,7 +554,7 @@ Already removed the kit? Run `disconnect` from the kit in another repo or from y
 | `403 Forbidden from <host> for <path>` | You are signed in, but this account may not read it. | Ask for read access. After several failed logins, some servers want one sign-in in the browser first. |
 | `404 Not Found from <host> for <path>` | The id, key or path is wrong, or your account cannot see it. Or the URL in `connect` has an extra path. | Check the id (Confluence page id, Jama API id, `PRJ/repo`, Jenkins job path). Check the saved URL with `connections`. |
 | `<Tool> is not connected` (exit code 3) | No saved login for that tool. | `python3 .ai-sdlc/kit/setup.py connect <name>`, in your own terminal. |
-| `connect asks for secrets, so it runs only in your own terminal` | `connect` was run through Copilot or a script, without a terminal. | Open a terminal (**Terminal → New Terminal**) and run it there yourself. |
+| `connect asks for secrets, so it runs only in your own terminal` (exit code 2; the same for `connect --suggested`) | `connect` was run through Copilot or a script, without a terminal. | Open a terminal (**Terminal → New Terminal**) and run it there yourself. For scripts and CI, `python3 .ai-sdlc/kit/setup.py connect --help` names the environment variables to set instead. |
 | `Bitbucket Cloud is not supported yet` | The URL is `bitbucket.org`. | Only Bitbucket Data Center is supported. |
 | The document skills (Word, Excel, PowerPoint, PDF) cannot install their library: `ensurepip is not available`, or `python3 -m venv` fails | The `python3-venv` package is missing on the VM. | Ask IT to install `python3-venv`. The skills install into `~/.ai-sdlc/venv` only, and only with your consent. |
 | The document skills: `pip` cannot reach the package index | A company proxy or internal package mirror is needed. | Ask IT for the pip proxy or index settings (for example `HTTPS_PROXY`, or `pip config set global.index-url <mirror>`), then try again. |

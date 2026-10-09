@@ -7,7 +7,7 @@
   python3 <newer kit>/setup.py update
   python3 .ai-sdlc/kit/setup.py check [--quiet]
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
-  python3 .ai-sdlc/kit/setup.py remove [--yes]           (--yes only after the person agreed)
+  python3 .ai-sdlc/kit/setup.py remove [--yes]          (--yes only after the person said yes)
   python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connect --suggested            (in your own terminal)
   python3 .ai-sdlc/kit/setup.py connections
@@ -15,9 +15,10 @@
 
 Run it from the repo root. Stdlib only; needs Python 3.9 or newer.
 
-Exit codes: 0 done · 1 check found something to look at · 2 refused, nothing was
-changed (remove and disconnect without --yes: nothing done yet) · 3 a connector is not connected · 4 stopped by an unexpected error (run
-the same command again; AI_SDLC_DEBUG=1 prints the details).
+Exit codes: 0 done (check: nothing found, or notices only) · 1 check found a problem
+to fix · 2 refused, nothing was changed (remove and disconnect without --yes: nothing
+done yet) · 3 a connector is not connected · 4 stopped by an unexpected error (run the
+same command again; AI_SDLC_DEBUG=1 prints the details).
 """
 import sys
 
@@ -75,7 +76,10 @@ def parser() -> argparse.ArgumentParser:
                    help="really remove; without it, remove only says what it would do")
 
     n = sub.add_parser("connect", help="save your login for a connector; run it in your own "
-                                       "terminal, it asks for secrets hidden")
+                                       "terminal, it asks for secrets hidden",
+                       epilog="For scripts and CI without a terminal: set every value as an "
+                              "AI_SDLC_<NAME>_<FIELD> environment variable (for example "
+                              "AI_SDLC_JIRA_URL and AI_SDLC_JIRA_TOKEN) and connect saves them.")
     n.add_argument("name", metavar="connector", nargs="?")
     n.add_argument("--test", action="store_true",
                    help="only check the saved login with one read-only call")
