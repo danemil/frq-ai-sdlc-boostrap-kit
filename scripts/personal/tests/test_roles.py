@@ -36,18 +36,34 @@ CONNECTORS = {
     "em": ["jenkins", "bitbucket", "jira"],
 }
 CORE_SKILLS = ["connectors", "deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
-               "likec4-dsl", "visual-explainers", "visual-issue"]   # every person gets them
+               "frq-brandbook", "likec4-dsl", "visual-explainers",
+               "visual-issue"]   # every person gets them
 CLIENT_WORDS = re.compile(r"\b(frequentis|frq|mosaix)\b", re.I)
+# The one exception to the client-name rule (owner decision, 2026-10-09): the company brand
+# skill. Its own folder may name the client, and other guidance may name the skill itself
+# (`ai-sdlc-frq-brandbook`) to point at it. Nothing else may name the client.
+BRAND_SKILL = "frq-brandbook"
+BRAND_DIR = f".agents/skills/{packs.PREFIX}{BRAND_SKILL}/"
+BRAND_NAME = re.compile(rf"(?<![\w-])(?:{packs.PREFIX})?{BRAND_SKILL}(?![\w-])")
+
+
+def client_names(rel, text) -> list[str]:
+    """Client names in guidance file `rel`, after the brand-skill exception."""
+    if rel.startswith(BRAND_DIR):
+        return []
+    return [m.group(0) for m in CLIENT_WORDS.finditer(BRAND_NAME.sub("", text))]
 
 
 def guidance_texts():
     """(path, text) of everything Copilot reads as guidance: the client-name rule (owner
-    decision, 2026-10-08) keeps these generic; docs, tests and `source` paths may name the client."""
+    decision, 2026-10-08) keeps these generic; docs, tests and `source` paths may name the client.
+    Binary skill files (a template, an image) are not text guidance and are left out."""
     for p in sorted((KIT / packs.ROLES_REL).glob("*/instructions.md")):
         yield p.relative_to(KIT).as_posix(), p.read_text(encoding="utf-8")
     for skill in packs.available_skills(KIT):        # any of them can be placed, whole folder
         for rel, text in place.placed_skill_files(KIT, skill).items():
-            yield rel, text
+            if isinstance(text, str):
+                yield rel, text
     yield "packs.GIT_TEXT", "\n".join(packs.GIT_TEXT.values())         # rendered into core
     yield "packs.RITUAL_TEXT", "\n".join(packs.RITUAL_TEXT.values())
     yield "packs.HEADER", packs.HEADER
@@ -169,7 +185,44 @@ class TestRoles(unittest.TestCase):
     def test_no_client_names_in_copilot_guidance(self):
         for rel, text in guidance_texts():
             with self.subTest(path=rel):
-                self.assertIsNone(CLIENT_WORDS.search(text))
+                self.assertEqual(client_names(rel, text), [])
+
+    def test_the_brand_skill_is_the_only_exception_and_it_is_used(self):
+        texts = dict(guidance_texts())
+        brand = [rel for rel in texts if rel.startswith(BRAND_DIR)]
+        self.assertIn(BRAND_DIR + "SKILL.md", brand)
+        self.assertTrue(any(CLIENT_WORDS.search(texts[rel]) for rel in brand),
+                        "the brand skill no longer names the client: drop the exception")
+        # Core guidance names the skill, and only the skill.
+        core = texts["roles/core/instructions.md"]
+        self.assertIn(f"`{packs.PREFIX}{BRAND_SKILL}`", core)
+        self.assertEqual(client_names("roles/core/instructions.md", core), [])
+
+    def test_any_other_skill_that_names_the_client_still_fails(self):
+        for rel, text in (
+                (".agents/skills/ai-sdlc-drawio/SKILL.md", "Use the Frequentis colours."),
+                (".agents/skills/ai-sdlc-doc-word/SKILL.md", "Make FRQ reports."),
+                (".agents/skills/ai-sdlc-frq-brandbook-extra/SKILL.md", "Frequentis decks."),
+                (".agents/skills/ai-sdlc-notes/frq-brandbook/x.md", "Mosaix."),
+                ("roles/core/instructions.md",
+                 "Use `ai-sdlc-frq-brandbook` for FRQ decks."),     # the skill name is fine, FRQ is not
+                ("roles/dev/instructions.md", "the frq-brandbook-v2 skill")):
+            with self.subTest(path=rel):
+                self.assertNotEqual(client_names(rel, text), [])
+        self.assertEqual(client_names(".agents/skills/ai-sdlc-drawio/SKILL.md",
+                                      "For company branding, use `ai-sdlc-frq-brandbook`."), [])
+
+    def test_a_placed_skill_naming_the_client_fails_the_rule_in_a_kit_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            kit = helpers.copy_kit(Path(tmp) / "kit")
+            ref = kit / packs.SKILLS_REL / "drawio/references/brand.md"
+            ref.write_text("Diagrams in Frequentis blue.\n", encoding="utf-8")
+            hits = {rel: client_names(rel, text)
+                    for skill in ("drawio", BRAND_SKILL)
+                    for rel, text in place.placed_skill_files(kit, skill).items()
+                    if isinstance(text, str)}
+            self.assertEqual({rel for rel, h in hits.items() if h},
+                             {".agents/skills/ai-sdlc-drawio/references/brand.md"})
 
 
 if __name__ == "__main__":
