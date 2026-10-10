@@ -1,7 +1,8 @@
 """`check`: is the personal setup whole, hidden, current, and alone?
 
 Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fixes:
-    missing:<path>     a file the kit placed is gone
+    missing:<path>     a file the kit placed is gone, or (a path under .ai-sdlc/kit) a file
+                       a placed skill keeps in the kit copy only (.kit-only)
     unknown:<path>     an ai-sdlc* file the kit did not write (Copilot may have made it);
                        the person's own notes and personal skills (paths.is_personal) are not
     unexcluded:<path>  an ai-sdlc* file git does not hide
@@ -75,6 +76,16 @@ def kit_copies(root) -> list[str]:
     return found
 
 
+def kit_only_missing(root, st) -> list[tuple[str, str]]:
+    """Files a placed skill keeps only in the kit copy (.kit-only, recorded in state.json
+    when they were last placed) that are not in .ai-sdlc/kit."""
+    out = []
+    for rel in st.get("kit_only", []):
+        if not (Path(root) / rel).is_file():
+            out.append((f"missing:{rel}", f"{rel} is missing from the kit folder."))
+    return out
+
+
 def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
     root = Path(root)
     st = state.load(root)
@@ -84,6 +95,7 @@ def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
     for rel in sorted(st["files"]):
         if reuse.file_state(root, st, rel) == reuse.MISSING:
             found.append((f"missing:{rel}", f"{rel} is missing."))
+    found += kit_only_missing(root, st)
     present = ai_sdlc_files(root)
     for rel in present:
         if rel not in st["files"] and not rel.endswith(".tmp") and not paths.is_personal(rel):

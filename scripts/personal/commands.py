@@ -213,6 +213,7 @@ def cmd_setup(args, cwd, kit):
     st["choices"].update(choices)
     report = place.apply(root, st, place.wanted_files(kit, all_packs, st["choices"]))
     st["kit_version"] = paths.kit_version(kit)
+    st["kit_only"] = place.kit_only_wanted(kit, all_packs, st["choices"])
     state.save(root, st)                            # last
     lines = _summary("Set up", root, is_git, kit, all_packs, st, report, args.verbose)
     lines.append('Say "change my preferences", "update the kit" or "remove the kit" at any time.')
@@ -297,6 +298,7 @@ def cmd_change(args, cwd, kit):
     if is_git:
         exclude.protect(root)
     report = place.apply(root, st, place.wanted_files(kit, all_packs, c))
+    st["kit_only"] = place.kit_only_wanted(kit, all_packs, c)
     state.save(root, st)
     return 0, (_summary("Updated", root, is_git, kit, all_packs, st, report, args.verbose)
                + repaired
@@ -339,6 +341,7 @@ def cmd_update(args, cwd, kit):
     known = set(registry.names())                 # a skip for a connector the kit lost goes
     st["skipped_connectors"] = [n for n in st["skipped_connectors"] if n in known]
     st["kit_version"] = paths.kit_version(dest)
+    st["kit_only"] = place.kit_only_wanted(dest, all_packs, c)
     state.save(root, st)
     lines = _summary("Updated to", root, is_git, dest, all_packs, st, report, args.verbose)
     if moved:

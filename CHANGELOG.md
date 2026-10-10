@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Changed
+- **Kit-copy-only skill assets.** A skill folder may hold a `.kit-only` file (one glob per line, `#` comments): setup never places a matching file, and a Markdown link to one points into `.ai-sdlc/kit/`. `check` reports such a file missing from the kit folder (`missing:.ai-sdlc/kit/…`). The brand skill keeps every binary file (both templates, layout previews, examples, key visuals, background JPEGs, logo PNGs) in the kit copy only; an update removes the ones 0.8.0 placed, and keeps an edited one.
 
 ## [0.8.0] — 2026-10-09
 ### Added

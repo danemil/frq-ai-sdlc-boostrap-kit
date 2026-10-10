@@ -39,6 +39,16 @@ class TestState(unittest.TestCase):
                                     "choices": {"name": "Ana", "roles": ["po"]}}))
         self.assertEqual(state.load(self.root)["choices"]["add_skills"], [])
 
+    def test_older_state_has_no_kit_only_list(self):
+        path = self.root / paths.STATE_REL
+        path.parent.mkdir()
+        path.write_text(json.dumps({"schema": 1, "kit_version": "0.8.0", "choices": {"name": "Ana"}}))
+        self.assertEqual(state.load(self.root)["kit_only"], [])
+        path.write_text(json.dumps({"schema": 1, "kit_version": "0.9.0", "kit_only": ["b", 3, "a", "a"]}))
+        self.assertEqual(state.load(self.root)["kit_only"], ["a", "b"])
+        path.write_text(json.dumps({"schema": 1, "kit_version": "0.9.0", "kit_only": "x"}))
+        self.assertEqual(state.load(self.root)["kit_only"], [])
+
     def test_missing_corrupt_or_foreign_schema_is_not_set_up(self):
         self.assertIsNone(state.load(self.root))
         path = self.root / paths.STATE_REL

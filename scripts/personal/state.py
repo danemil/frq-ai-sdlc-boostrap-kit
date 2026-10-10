@@ -27,6 +27,7 @@ def new(kit_version: str) -> dict:
         "created_dirs": [],   # folders setup made, removed again when empty
         "acks": {},           # {warning id: fingerprint of the team file when acknowledged}
         "skipped_connectors": [],  # role connectors the person skipped in connect --suggested
+        "kit_only": [],       # kit-copy paths of the placed skills' .kit-only files (check)
     }
 
 
@@ -48,7 +49,13 @@ def load(root) -> dict | None:
     skipped = st.get("skipped_connectors")       # older state files have no such field
     st["skipped_connectors"] = sorted({n for n in skipped if isinstance(n, str)}) \
         if isinstance(skipped, list) else []
+    st["kit_only"] = _strings(st.get("kit_only"))
     return st
+
+
+def _strings(value) -> list:
+    """A sorted list of unique strings; anything else (an older or edited file) gives []."""
+    return sorted({v for v in value if isinstance(v, str)}) if isinstance(value, list) else []
 
 
 def save(root, st: dict) -> Path:

@@ -9,11 +9,11 @@ decks are built here with zipfile from the template the skill ships, so no pytho
 is needed (the CI has none); the new_deck.py test runs only where python-pptx is installed.
 """
 import ast
-import fnmatch
 import hashlib
 import importlib.util
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -498,14 +498,9 @@ def kit_only_patterns():
             if line.strip() and not line.lstrip().startswith("#")]
 
 
-def matches(rel, pattern):
-    """A .kit-only glob: one pattern segment per path segment, so `*` never crosses a `/`."""
-    a, b = rel.split("/"), pattern.split("/")
-    return len(a) == len(b) and all(fnmatch.fnmatchcase(x, y) for x, y in zip(a, b))
-
-
 def is_kit_only(rel):
-    return any(matches(rel, p) for p in kit_only_patterns())
+    """Matched by .kit-only, as setup reads it (place.kit_only)."""
+    return rel in set(place.kit_only(KIT, "frq-brandbook"))
 
 
 def skill_files():
@@ -609,8 +604,8 @@ class TestMergedAssets(unittest.TestCase):
         for rel in files:
             if not is_text(rel):
                 self.assertTrue(is_kit_only(rel), rel)
-        for pattern in kit_only_patterns():
-            self.assertTrue([rel for rel in files if matches(rel, pattern)], f"matches nothing: {pattern}")
+        self.assertTrue(kit_only_patterns())
+        self.assertEqual([e for e in place.validate_kit(KIT) if ".kit-only" in e], [], "every pattern matches")
         self.assertIn("design 2026-10-09 §8.7", KIT_ONLY.read_text(encoding="utf-8"))
 
     def test_the_manifest_says_where_each_asset_lives(self):
@@ -1660,15 +1655,18 @@ class TestSkillText(unittest.TestCase):
 
     def test_kit_only_files_are_named_by_exact_kit_path(self):
         """Copilot's search skips .ai-sdlc/: every kit-only file is named by its full kit path.
-        Link targets are left to placement, which rewrites them into .ai-sdlc/kit (Task K1); they
-        must point at a real file so the rewrite has something to point to."""
+        Placement rewrites each link to a kit-only file into .ai-sdlc/kit (Task K1); the link
+        must land on a real kit-only file there."""
         for rel, text in placed_text().items():
             targets = re.findall(r"\]\(([^)\s]+)\)", text)
             for target in targets:
                 if KIT_ONLY_MENTION.search(target):
-                    resolved = (SKILL / Path(rel).parent / target).resolve()
-                    self.assertTrue(resolved.is_file(), (rel, target))
-                    self.assertTrue(is_kit_only(resolved.relative_to(SKILL.resolve()).as_posix()), (rel, target))
+                    landed = posixpath.normpath(posixpath.join(PLACED, posixpath.dirname(rel),
+                                                               target.split("#")[0]))
+                    self.assertTrue(landed.startswith(KIT_PREFIX), (rel, target))
+                    inside = landed[len(KIT_PREFIX):]
+                    self.assertTrue((SKILL / inside).is_file(), (rel, target))
+                    self.assertTrue(is_kit_only(inside), (rel, target))
             bare = re.sub(r"\]\([^)\s]+\)", "]()", text)
             for m in KIT_ONLY_MENTION.finditer(bare):
                 with self.subTest(file=rel, mention=m.group(0)):
@@ -1729,7 +1727,9 @@ class TestSkillText(unittest.TestCase):
 
 
 class TestPlacement(unittest.TestCase):
-    def test_setup_places_the_binary_assets_byte_identical_and_remove_takes_them_back(self):
+    def test_setup_places_no_binary_brand_asset_and_the_skill_still_works(self):
+        """The brand skill's binaries stay in .ai-sdlc/kit (design §8.7); the placed scripts
+        find them there, and remove takes everything back."""
         with tempfile.TemporaryDirectory() as tmp:
             root = helpers.make_repo(Path(tmp).resolve() / "repo", {"README.md": "team\n"})
             before = helpers.snapshot(root)
@@ -1738,19 +1738,42 @@ class TestPlacement(unittest.TestCase):
             helpers.cli(root, copy, "setup", "--protect-only")
             code, out = helpers.cli(root, kit, "setup", "--name", "Ana", "--roles", "po", "--lang", "en")
             self.assertEqual(code, 0, out)
-            for rel in ("assets/templates/frq-template-slim-core.pptx",
-                        "assets/logo/logo-frequentis-wordmark-blue.png",
-                        "assets/logo/logo-frequentis-wordmark-blue.svg",
-                        "assets/keyvisual/keyvisual-atm-aircraft.jpeg", "scripts/check_brand.py"):
+            placed = [p for p in (root / PLACED).rglob("*") if p.is_file()]
+            for p in placed:
+                try:
+                    p.read_bytes().decode("utf-8")
+                except UnicodeDecodeError:
+                    self.fail(f"binary file placed: {p.relative_to(root)}")
+            self.assertLessEqual(sum(p.stat().st_size for p in placed), BUDGET_PLACED)
+            for rel in ("assets/templates/frq-template-slim-core.pptx", "assets/templates/frq-master.pptx",
+                        "assets/keyvisual/keyvisual-atm-aircraft.jpeg"):
+                self.assertFalse((root / PLACED / rel).exists(), rel)
+                self.assertEqual((kit / packs.SKILLS_REL / "frq-brandbook" / rel).read_bytes(),
+                                 (SKILL / rel).read_bytes(), rel)
+            for rel in ("assets/logo/logo-frequentis-wordmark-blue.svg", "scripts/check_brand.py",
+                        "brand-tokens.json"):
                 self.assertEqual((root / PLACED / rel).read_bytes(), (SKILL / rel).read_bytes(), rel)
             self.assertIn("name: ai-sdlc-frq-brandbook",
                           (root / PLACED / "SKILL.md").read_text(encoding="utf-8"))
             code, out = helpers.cli(root, kit, "check")
             self.assertNotIn(PLACED, out)
-            # the placed checker finds its tokens next to it and runs from the placed folder
+            self.assertNotIn("missing:", out)
+            # the placed checker finds its tokens and assets and runs from the placed folder
             r = subprocess.run([sys.executable, "-I", str(root / PLACED / "scripts/check_brand.py"),
-                                str(GOLDEN), "--json"], capture_output=True, text=True, check=False)
+                                str(GOLDEN), "--json"], capture_output=True, text=True, check=False,
+                               cwd=root)
             self.assertEqual(r.returncode, 1, r.stderr)
+            if importlib.util.find_spec("pptx"):        # the placed builder finds the slim template
+                outline = root / "outline.md"
+                outline.write_text("# Towers\n\n## Controllers see more\n- One position\n", encoding="utf-8")
+                deck = root / "deck.pptx"
+                r = subprocess.run([sys.executable, str(root / PLACED / "scripts/new_deck.py"), str(outline),
+                                    str(deck), "--classification", "Frequentis General"],
+                                   capture_output=True, text=True, check=False, cwd=root)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(count_layouts(deck), 25)
+                outline.unlink()
+                deck.unlink()
             code, out = helpers.cli(root, kit, "remove", "--yes")
             self.assertEqual(code, 0, out)
             self.assertFalse((root / PLACED).exists())

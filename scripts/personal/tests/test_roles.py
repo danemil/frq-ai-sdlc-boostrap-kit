@@ -121,9 +121,13 @@ class TestRoles(unittest.TestCase):
             wanted = place.wanted_files(kit, all_packs, c)
             for skill in CORE_SKILLS:
                 src = kit / packs.SKILLS_REL / skill
+                held = set(place.kit_only(kit, skill))     # kept in the kit copy (design §8.7)
                 files = sorted(p.relative_to(src).as_posix() for p in src.rglob("*") if p.is_file()
                                and not any(part.startswith(".") for part in p.relative_to(src).parts))
                 for rel in files:                  # dotfiles (a skill's .kit-only) are never placed
+                    if rel in held:
+                        self.assertNotIn(f".agents/skills/{packs.PREFIX}{skill}/{rel}", wanted)
+                        continue
                     self.assertIn(f".agents/skills/{packs.PREFIX}{skill}/{rel}", wanted)
 
     def test_several_roles_get_the_union_once(self):
