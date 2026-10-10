@@ -29,6 +29,13 @@ class TestRelease(unittest.TestCase):
                      "44 layouts", ".kit-only"):
             self.assertIn(text, entry)
 
+    def test_changelog_0_9_0_has_the_copilot_retest_fixes(self):
+        entry = read("CHANGELOG.md").split("## [0.9.0]", 1)[1].split("\n## [", 1)[0]
+        self.assertIn("### Fixed", entry)
+        for text in ("detect_stack.py", "kept-edit:", "--decline javafx", "ATM key visual", "map pins",
+                     "Python", "TestFX", "`docs/decks/`", "never `cat`"):
+            self.assertIn(text, entry)
+
     def test_changelog_0_8_0_has_the_brand_skill_and_binary_placement(self):
         entry = read("CHANGELOG.md").split("## [0.8.0]", 1)[1].split("\n## [", 1)[0]
         for text in ("`frq-brandbook` skill in the core pack", "`ai-sdlc-frq-brandbook`",
