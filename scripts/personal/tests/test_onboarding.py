@@ -161,6 +161,12 @@ class TestOnboarding(unittest.TestCase):
         self.assertIn("even when there was no contradiction", step7)
         self.assertIn('"Shall I mark these as seen?', step7)
 
+    def test_one_question_even_when_no_answer_can_come(self):
+        """Re-test round 2: in a one-shot run Copilot listed every later question in one message."""
+        head = DOC.split("## Do the onboarding", 1)[0]
+        self.assertIn("Also when nobody can answer in this session, ask only the next question and stop", head)
+        self.assertIn("never list the later questions or offers", head)
+
     def test_check_explains_a_kept_edit(self):
         self.assertIn("`kept-edit:`", section("Check the kit"))
 
