@@ -298,7 +298,8 @@ def is_kit(path) -> bool:
 
 
 REQUIRED = ("setup.py", "VERSION", "ONBOARDING.md", "connectors.py",
-            f"{packs.ROLES_REL}/{packs.CORE}/role.json")
+            f"{packs.ROLES_REL}/{packs.CORE}/role.json", f"{packs.ROLES_REL}/recommend.json",
+            f"{packs.SKILLS_REL}/maven-via-artifactory/scripts/detect_stack.py")
 
 
 def _link_problems(kit, skill) -> list[str]:

@@ -28,6 +28,7 @@ def new(kit_version: str) -> dict:
         "acks": {},           # {warning id: fingerprint of the team file when acknowledged}
         "skipped_connectors": [],  # role connectors the person skipped in connect --suggested
         "kit_only": [],       # kit-copy paths of the placed skills' .kit-only files (check)
+        "declined_recommendations": [],  # skill suggestions the person said no to (recommend)
     }
 
 
@@ -50,6 +51,7 @@ def load(root) -> dict | None:
     st["skipped_connectors"] = sorted({n for n in skipped if isinstance(n, str)}) \
         if isinstance(skipped, list) else []
     st["kit_only"] = _strings(st.get("kit_only"))
+    st["declined_recommendations"] = _strings(st.get("declined_recommendations"))
     return st
 
 

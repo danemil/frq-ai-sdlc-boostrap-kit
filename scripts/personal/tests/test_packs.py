@@ -201,6 +201,10 @@ class TestRealKit(unittest.TestCase):
             self.assertIn(packs.RITUAL_TEXT[rituals], text, rituals)
             self.assertNotIn("check --quiet", packs.RITUAL_TEXT[rituals], rituals)
 
+    def test_the_recommend_file_validates(self):
+        from personal import recommend
+        self.assertEqual(recommend.validate(helpers.KIT), [])
+
     @unittest.skipUnless(subprocess.run([sys.executable, "-c", "import yaml"]).returncode == 0,
                          "needs PyYAML")
     def test_validator_cli_passes(self):
