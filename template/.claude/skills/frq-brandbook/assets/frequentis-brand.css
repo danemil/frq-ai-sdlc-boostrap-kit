@@ -1,0 +1,26 @@
+/* Frequentis brand tokens for HTML mockups, reports and diagrams.
+   Source: Frequentis Brand Guidelines Q4/2025 + the PowerPoint master theme. */
+:root {
+  --frq-white: #FFFFFF;
+  --frq-blue: #004182;        /* lead colour */
+  --frq-light-blue: #00AAE1;  /* secondary */
+  --frq-black: #333333;       /* text, never pure black */
+  --frq-dark-grey: #626469;
+  --frq-grey: #9FA0A3;
+  --frq-warm-grey: #C9C3BA;
+  --frq-green: #73B432;       /* accents: sparingly, status only */
+  --frq-orange: #F0A51E;
+  --frq-red: #A52846;
+  --frq-gradient: linear-gradient(135deg, #004182 0%, #00AAE1 100%); /* the only gradient */
+  --frq-font: Arial, Helvetica, sans-serif;
+}
+
+body { font-family: var(--frq-font); color: var(--frq-black); background: var(--frq-white); font-style: normal; }
+h1, h2, h3 { color: var(--frq-blue); font-weight: normal; text-align: left; }
+h2 + .sub, .subheadline { color: var(--frq-dark-grey); }
+.frq-divider { background: var(--frq-gradient); color: var(--frq-white); }
+.frq-box { background: var(--frq-blue); color: var(--frq-white); border: 0; border-radius: 0; box-shadow: none; }
+.frq-box--muted { background: var(--frq-warm-grey); color: var(--frq-black); }
+table.frq { border-collapse: collapse; }
+table.frq th { background: var(--frq-blue); color: var(--frq-white); text-align: left; font-weight: normal; }
+table.frq td { border-bottom: 1px solid var(--frq-grey); }

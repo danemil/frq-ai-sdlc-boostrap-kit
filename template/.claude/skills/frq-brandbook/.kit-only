@@ -1,0 +1,8 @@
+# Kept only in the kit copy (.ai-sdlc/kit), never placed in a repo (design 2026-10-09 §8.7).
+# Every binary file of this skill. Text files (SKILL.md, references, scripts, tokens, CSS, SVG) are placed.
+assets/templates/*
+assets/layouts/*
+assets/examples/*
+assets/keyvisual/*
+assets/background/*.jpg
+assets/logo/*.png

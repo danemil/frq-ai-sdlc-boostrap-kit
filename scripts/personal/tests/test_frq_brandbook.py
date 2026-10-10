@@ -9,6 +9,7 @@ decks are built here with zipfile from the template the skill ships, so no pytho
 is needed (the CI has none); the new_deck.py test runs only where python-pptx is installed.
 """
 import ast
+import fnmatch
 import hashlib
 import importlib.util
 import json
@@ -37,7 +38,12 @@ GOLDEN = Path(__file__).resolve().parent / "fixtures/frq-brandbook/offbrand-test
 # master's parts and the headings of its text (plan 2026-10-09, Task B1 step 1).
 INVENTORY = Path(__file__).resolve().parent / "fixtures/frq-brandbook/source-inventory.json"
 PLACED = ".agents/skills/ai-sdlc-frq-brandbook"
-BUDGET_ALL = 14_000_000                # bytes for the whole skill folder (design §8.7)
+# Size budgets (design §8.7). The whole folder (it lives once per repo, in .ai-sdlc/kit): 14 MiB.
+# The design's "about 13 MB" left out that 0.8.0 already had 2 MB; the merged folder measured
+# 14.3 MB (2026-10-10). The placed files (everything .kit-only does not keep back): 0.6 MB.
+BUDGET_ALL = 14 * 1024 * 1024
+BUDGET_PLACED = 600_000
+KIT_ONLY = SKILL / ".kit-only"
 
 NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -466,11 +472,139 @@ class TestSkillFiles(unittest.TestCase):
             self.assertEqual("#%02X%02X%02X" % tuple(c["rgb"]), c["hex"], c["name"])
         self.assertEqual(tokens["fonts"]["office"]["family"], "Arial")
         for bu in tokens["business_units"]:
-            self.assertTrue((SKILL / bu["key_visual"]).is_file(), bu["id"])
+            for key in ("key_visual", "key_visual_full", "key_visual_wide"):
+                if key in bu:
+                    self.assertTrue((SKILL / bu[key]).is_file(), (bu["id"], key))
 
 
 def inventory():
     return json.loads(INVENTORY.read_text(encoding="utf-8"))
+
+
+def kit_only_patterns():
+    return [line.strip() for line in KIT_ONLY.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
+
+
+def matches(rel, pattern):
+    """A .kit-only glob: one pattern segment per path segment, so `*` never crosses a `/`."""
+    a, b = rel.split("/"), pattern.split("/")
+    return len(a) == len(b) and all(fnmatch.fnmatchcase(x, y) for x, y in zip(a, b))
+
+
+def is_kit_only(rel):
+    return any(matches(rel, p) for p in kit_only_patterns())
+
+
+def skill_files():
+    return sorted(p.relative_to(SKILL).as_posix() for p in SKILL.rglob("*")
+                  if p.is_file() and "__pycache__" not in p.parts)
+
+
+def is_text(rel):
+    try:
+        (SKILL / rel).read_bytes().decode("utf-8")
+        return True
+    except UnicodeDecodeError:
+        return False
+
+
+# Text files of the owner skill and where their content lives now (design §8.2). The master is
+# here too: it is a binary, but cleaned (B1), so it is mapped rather than byte-identical.
+MAPPED_TEXT = {"SKILL.md": "SKILL.md", "references/brand-rules.md": "references/brand-rules.md",
+               "references/layouts.md": "references/layouts.md",
+               "references/build-spec.md": "references/build-spec.md",
+               "scripts/frq_pptx.py": "scripts/frq_pptx.py", "assets/brand-tokens.json": "brand-tokens.json",
+               "assets/frequentis-brand.css": "assets/frequentis-brand.css",
+               "assets/frq-master.pptx": "assets/templates/frq-master.pptx"}
+DUPLICATES = {"assets/key-visuals/atm-aircraft.jpg": "assets/keyvisual/keyvisual-atm-aircraft.jpeg",
+              "assets/key-visuals/defence.jpg": "assets/keyvisual/keyvisual-defence-jets.jpeg",
+              "assets/key-visuals/maritime.jpg": "assets/keyvisual/keyvisual-maritime-vessel.jpeg",
+              "assets/key-visuals/public-safety.jpg": "assets/keyvisual/keyvisual-public-safety-police.jpeg"}
+
+
+class TestMergedAssets(unittest.TestCase):
+    """The owner skill's previews, examples, key visuals, logos, CSS and tokens: nothing lost
+    (design §8.2), and every binary kept only in the kit copy (design §8.7)."""
+
+    def setUp(self):
+        self.manifest = {a["file"]: a for a in
+                         json.loads((SKILL / "assets/manifest.json").read_text(encoding="utf-8"))["assets"]}
+
+    def test_every_source_binary_is_in_the_skill_byte_for_byte(self):
+        here = {hashlib.sha256((SKILL / rel).read_bytes()).hexdigest() for rel in skill_files()}
+        for f in inventory()["files"]:
+            if f["path"] in MAPPED_TEXT:
+                continue
+            with self.subTest(path=f["path"]):
+                self.assertIn(f["sha256"], here)
+
+    def test_every_layout_preview_and_example_is_present_and_listed(self):
+        for folder, count in (("assets/layouts", 44), ("assets/examples", 22)):
+            files = sorted(p.relative_to(SKILL).as_posix() for p in (SKILL / folder).glob("*.jpg"))
+            self.assertEqual(len(files), count, folder)
+            for rel in files:
+                a = self.manifest[rel]
+                self.assertEqual(a["bytes"], (SKILL / rel).stat().st_size, rel)
+                self.assertEqual(a["source"], "owner skill v1.0", rel)
+                self.assertEqual(a["from"], rel, "names unchanged")
+
+    def test_duplicates_are_kept_once_with_an_alias(self):
+        inv = {f["path"]: f["sha256"] for f in inventory()["files"]}
+        for owner, ours in DUPLICATES.items():
+            self.assertEqual(hashlib.sha256((SKILL / ours).read_bytes()).hexdigest(), inv[owner], owner)
+            self.assertEqual(self.manifest[ours]["aliases"], [owner])
+            self.assertEqual(self.manifest[ours]["source"], "0.8.0")
+            self.assertFalse((SKILL / "assets/keyvisual" / Path(owner).name).exists(), "kept once")
+        for owner, ours in (("assets/key-visuals/corporate-globe.jpg", "keyvisual-corporate-globe.jpg"),
+                            ("assets/key-visuals/public-transport.jpg", "keyvisual-public-transport.jpg"),
+                            ("assets/key-visuals/atm-aircraft-clouds-wide.jpg",
+                             "keyvisual-atm-aircraft-clouds-wide.jpg")):
+            self.assertEqual(self.manifest["assets/keyvisual/" + ours]["from"], owner)
+
+    def test_both_logo_sets_and_the_converted_ones_are_preferred(self):
+        for colour in ("blue", "white", "black"):
+            self.assertIs(self.manifest[f"assets/logo/frequentis-logo-{colour}.svg"]["preferred"], False)
+            self.assertIs(self.manifest[f"assets/logo/logo-frequentis-wordmark-{colour}.svg"]["preferred"], True)
+
+    def test_tokens_and_css_agree(self):
+        tokens = json.loads(TOKENS.read_text(encoding="utf-8"))
+        col = tokens["colours"]
+        hexes = {c[k].upper() for g in ("primary", "accent", "legend_only", "chart_only") for c in col[g]
+                 for k in ("hex", "web_hex") if k in c}
+        css = (SKILL / "assets/frequentis-brand.css").read_text(encoding="utf-8")
+        found = {h.upper() for h in re.findall(r"#[0-9A-Fa-f]{6}\b", css)}
+        self.assertTrue(found)
+        self.assertLessEqual(found, hexes)
+        self.assertIn(col["gradient"]["from"], css)
+        self.assertIn(col["gradient"]["to"], css)
+        self.assertEqual(tokens["charts"]["series"], col["chart_series_order"], "one series order (C17)")
+        self.assertEqual(tokens["charts"]["series"][:2], ["#004182", "#00AAE1"])
+        self.assertEqual(tokens["charts"]["kpi_track"], "#EDF1F2")
+        self.assertEqual([c["hex"] for c in col["chart_only"]], ["#EDF1F2"])
+        self.assertEqual(tokens["pptx"]["template_full"], "assets/templates/frq-master.pptx")
+        self.assertEqual(tokens["pptx"]["content_area_in"]["bottom"], 5.07)
+        self.assertIn("<Presenter>", tokens["footer_format_full"])
+        self.assertEqual(tokens["default_business_unit"], "atm")
+
+    def test_size_budget_placed(self):
+        placed = sum((SKILL / rel).stat().st_size for rel in skill_files()
+                     if not is_kit_only(rel) and not rel.startswith("."))
+        self.assertLessEqual(placed, BUDGET_PLACED, f"{placed} bytes placed")
+
+    def test_every_binary_file_is_kit_only(self):
+        files = skill_files()
+        for rel in files:
+            if not is_text(rel):
+                self.assertTrue(is_kit_only(rel), rel)
+        for pattern in kit_only_patterns():
+            self.assertTrue([rel for rel in files if matches(rel, pattern)], f"matches nothing: {pattern}")
+        self.assertIn("design 2026-10-09 §8.7", KIT_ONLY.read_text(encoding="utf-8"))
+
+    def test_the_manifest_says_where_each_asset_lives(self):
+        for rel, a in self.manifest.items():
+            self.assertEqual(a["placement"], "kit-only" if is_kit_only(rel) else "placed", rel)
+            self.assertIn(a["source"], ("0.8.0", "owner skill v1.0"), rel)
 
 
 class TestFullMaster(unittest.TestCase):
