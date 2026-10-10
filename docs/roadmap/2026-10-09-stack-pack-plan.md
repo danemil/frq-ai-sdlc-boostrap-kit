@@ -1,14 +1,14 @@
 # Stack Pack Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task by task. Tasks 2–14 are independent (one skill folder each), and Tasks B1–B4 (the brand merge) run in their own worktree next to them: superpowers:dispatching-parallel-agents may run them at the same time, each in its own worktree. Everything else is sequential. Steps use checkbox (`- [ ]`) syntax.
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task by task. Tasks 2–14 are independent (one skill folder each), and Tasks B1–B4 (the brand merge) run in their own worktree next to them: superpowers:dispatching-parallel-agents may run them at the same time, each in its own worktree. Task K1 (kit-copy-only assets) and everything after the merge are sequential. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Ship 9 vendored and 4 kit-written stack skills (Java/JavaFX/Maven, Go, React/Jest, accessibility, the company mirror, SonarQube and Black Duck findings), a deterministic **detect + recommend** step, the owner's PowerPoint skill merged into `frq-brandbook`, and release kit 0.9.0.
+**Goal:** Ship 9 vendored and 4 kit-written stack skills (Java/JavaFX/Maven, Go, React/Jest, accessibility, the company mirror, SonarQube and Black Duck findings), all as **library skills** that arrive through a deterministic **detect + recommend** step or the person's own pick from the **other skills** list; merge the owner's PowerPoint skill into `frq-brandbook` with its big assets kept **only in the kit copy**; release kit 0.9.0.
 
-**Architecture:** Skills are folders in `template/.claude/skills/<name>/`, placed as `.agents/skills/ai-sdlc-<name>/` (unchanged mechanics). Role packs (`roles/<id>/role.json`) list the baseline. A new module `scripts/personal/recommend.py` reads the repo through `maven-via-artifactory/scripts/detect_stack.py` (one detector, also used by Copilot), applies data rules from `roles/recommend.json`, and prints suggestions; accepted ones go through the existing `change --add-skill/--drop-skill`, declined ones are stored in `state.json`. Nothing is placed without a role or the person's choice.
+**Architecture:** Skills are folders in `template/.claude/skills/<name>/`, placed as `.agents/skills/ai-sdlc-<name>/` (unchanged mechanics). Role packs (`roles/<id>/role.json`) stay as they are; none of the 13 new skills is in a pack. A new module `scripts/personal/recommend.py` reads the repo through `maven-via-artifactory/scripts/detect_stack.py` (one detector, also used by Copilot), applies data rules from `roles/recommend.json`, and prints suggestions (and, with `--all`, every other skill, grouped by a catalogue in the same file); accepted and picked ones go through the existing `change --add-skill`, declined suggestions are stored in `state.json`. Nothing is placed without a role or the person's choice. A per-skill `.kit-only` file keeps big binary assets out of the placed folder; the placed skill points at them in `.ai-sdlc/kit` by exact path.
 
 **Tech Stack:** Markdown skills; Python 3.9+ stdlib (`unittest`, `zipfile`, `xml.etree`, `json`, `importlib`) for kit code and tests; python-pptx only inside the brand skill's builder, with consent; `gh` CLI to fetch upstream.
 
-**Spec:** [`2026-10-09-stack-pack-design.md`](./2026-10-09-stack-pack-design.md) (draft; owner decisions in its §2, §3, §4.1, §8.1; proposals in §4.2, §5, §6, §8.2–8.7; open questions at the end of this plan).
+**Spec:** [`2026-10-09-stack-pack-design.md`](./2026-10-09-stack-pack-design.md) (approved 2026-10-10; the owner's decisions are in its §10 and at the end of this plan).
 
 ## Global Constraints
 
@@ -58,16 +58,17 @@
 
 ## Review Focus
 
-1. **A new, empty repo** must not lose every stack skill: no drop suggestions without a `code` signal (Task 16, `test_an_empty_repo_gets_no_suggestions`).
-2. **The person's explicit choice wins** over every suggestion, and "not now" never comes back as a nag (Tasks 16–17).
+1. **Nothing new is placed by role or by the repo alone.** The 13 stack skills are in no role pack; they arrive only through an accepted suggestion, a pick from the other-skills list, or `--add-skill` (Tasks 15–19).
+2. **The person's explicit choice wins** over every suggestion, and "not now" never comes back as a nag; the other-skills list is shown only when asked (Tasks 16–17).
 3. **Same repo, same roles → same list**, independent of the person's home folder (Task 16, `test_the_same_repo_gives_the_same_list`).
 4. **No secret ever printed**: `settings.xml` passwords, `.npmrc` tokens, credentials inside URLs (Task 12, `test_secrets_are_never_printed`).
-5. **A dotfile in a skill is not placed** (`golang-lint/assets/.golangci.yml`): renamed, link updated (Task 7).
+5. **A dotfile in a skill is not placed** (`golang-lint/assets/.golangci.yml`): renamed, link updated (Task 7). The same rule keeps `.kit-only` itself out of repos (Task K1).
 6. **Apache-2.0 §4** for plinth: a change notice in every changed file (Task 4).
 7. **Brand merge loses nothing and leaks nothing**: the source inventory (every file present or mapped) and the metadata-free master (Tasks B1, B2).
 8. **One check path**: the owner's `audit` rules live in the stdlib `check_brand.py`; `frq_pptx.py audit` only delegates (Task B3).
+9. **Kit-copy-only assets** really stay out of the placed folder, are always found by exact path and by the scripts, and an update from 0.8.0 removes the binaries 0.8.0 placed (Tasks B3, K1).
 
-Note: as in 0.7.0, the content tests are **policy guards** on shipped text. Behaviour is checked by `detect_stack`/`recommend`/builder tests and by the Copilot re-test (Task 21).
+Note: as in 0.7.0, the content tests are **policy guards** on shipped text. Behaviour is checked by `detect_stack`/`recommend`/builder/placement tests and by the Copilot re-test (Task 21).
 
 ## Files
 
@@ -77,16 +78,17 @@ Note: as in 0.7.0, the content tests are **policy guards** on shipped text. Beha
 | `template/.claude/skills/<9 vendored>/` | 2–10 | new folders |
 | `template/.claude/skills/{javafx,maven-via-artifactory,sonarqube-findings,blackduck-findings}/` | 11–14 | new folders |
 | `scripts/personal/tests/test_detect_stack.py` | 12 | new: behaviour of `detect_stack.py` |
-| `template/.claude/skills/frq-brandbook/**`, `scripts/maintainer/strip_pptx_metadata.py`, `scripts/personal/tests/test_frq_brandbook.py`, `scripts/personal/tests/test_strip_pptx_metadata.py`, `scripts/personal/tests/fixtures/frq-brandbook/source-inventory.json` | B1–B4 | brand merge |
-| `roles/{dev,qa,architect}/role.json`, `roles/{dev,qa,architect}/instructions.md`, `roles/core/instructions.md` | 15 | role skills; one mirror sentence for everyone |
-| `scripts/personal/tests/test_roles.py`, `test_change.py`, `test_place.py`, `test_skill_guidance.py` | 15 | expected skills, mirror sentence |
-| `roles/recommend.json`, `scripts/personal/recommend.py`, `scripts/personal/state.py`, `scripts/personal/packs.py`, `scripts/personal/place.py` | 16 | rules, engine, state field, validation, required file |
+| `template/.claude/skills/frq-brandbook/**` (with `.kit-only`), `scripts/maintainer/strip_pptx_metadata.py`, `scripts/personal/tests/test_frq_brandbook.py`, `scripts/personal/tests/test_strip_pptx_metadata.py`, `scripts/personal/tests/fixtures/frq-brandbook/source-inventory.json` | B1–B4 | brand merge |
+| `scripts/personal/place.py`, `scripts/personal/checks.py`, `scripts/personal/tests/test_kit_only.py`, `test_place.py`, `test_update.py`, `test_frq_brandbook.py` | K1 | kit-copy-only assets |
+| `roles/{dev,qa,architect}/instructions.md`, `roles/core/instructions.md` | 15 | one "if you have them" line; one mirror sentence for everyone (no `role.json` change) |
+| `scripts/personal/tests/test_roles.py`, `test_change.py`, `test_skill_guidance.py` | 15 | library status, mirror sentence |
+| `roles/recommend.json`, `scripts/personal/recommend.py`, `scripts/personal/state.py`, `scripts/personal/packs.py`, `scripts/personal/place.py` | 16 | rules, catalogue, engine, state field, validation, required file |
 | `scripts/personal/tests/test_recommend.py`, `test_state.py`, `test_packs.py` | 16, 17 | new and adjusted tests |
-| `setup.py`, `scripts/personal/commands.py` | 17 | `recommend` command, summary line, change/update |
+| `setup.py`, `scripts/personal/commands.py` | 17 | `recommend` command (`--all`, `--decline`, `--json`), summary line, change/update |
 | `scripts/personal/tests/test_cli.py`, `test_update.py`, `test_setup.py` | 17 | command list, update line, setup line |
-| `ONBOARDING.md`, `scripts/personal/tests/test_onboarding.py` | 18 | new step and section |
+| `ONBOARDING.md`, `scripts/personal/tests/test_onboarding.py` | 18 | two new steps and a section |
 | `README.md`, `template/.claude/skills/README.md`, `docs/how-to.md`, `.github/workflows/ci.yml` | 19, 20 | docs; CI lines |
-| `CHANGELOG.md`, `VERSION`, `scripts/personal/tests/test_release.py` | 15–20 | Unreleased lines, then `[0.9.0]` |
+| `CHANGELOG.md`, `VERSION`, `scripts/personal/tests/test_release.py` | K1, 15–20 | Unreleased lines, then `[0.9.0]` |
 
 ## Branches and order
 
@@ -107,7 +109,7 @@ main @dad9c40 (v0.8.0)
      ├─ feat/sp-sonarqube          Task 13  │
      ├─ feat/sp-blackduck          Task 14  ┘
      └─ feat/brand-merge           Tasks B1 → B2 → B3 → B4 (sequential inside, parallel to the above)
- └─ feat/stack-pack            merge 2–14 and B1–B4, then Tasks 15 → 16 → 17 → 18 → 19 (sequential)
+ └─ feat/stack-pack            merge 2–14 and B1–B4, then Tasks K1 → 15 → 16 → 17 → 18 → 19 (sequential)
      └─ release/0.9.0          Task 20, one PR to main; Task 21 (owner, Copilot CLI) before merge
 ```
 
@@ -121,7 +123,7 @@ One pull request `release/0.9.0` → `main`, as for 0.7.0 and 0.8.0. It stays op
 
 - [x] **Step 1:** `git fetch -q && git worktree add .claude/worktrees/stack-pack -b feat/stack-pack origin/main` (dad9c40).
 - [x] **Step 2:** write the design and this plan.
-- [ ] **Step 3:** the owner reads both and answers the open questions (end of this plan). Apply the answers to both docs before Task 1 (design: a "Decisions (owner, <date>)" section, as in the superpowers design §6).
+- [x] **Step 3:** the owner answered the open questions (2026-10-10); both docs updated (design §10, "Decisions" at the end of this plan).
 - [x] **Step 4: Commit** the two docs only: `docs(roadmap): stack pack 0.9.0 design and plan`.
 
 ### Task 1: Content guards for the 13 skills (sequential, test first)
@@ -248,7 +250,7 @@ TRIGGERS = {
   - `TestSonarqubeFindings.test_report_based_and_read_only`: contains `"paste"`, `"export"`, `"Community"`, `"false positive"`, `"java:S2095"`; none of `"api/issues/do_transition"`, `"api/issues/set_severity"`, `"api/hotspots/change_status"`; every line with `"token"` also contains `"never"` (any case).
   - `TestBlackduckFindings.test_report_based_upgrade_paths_and_licences_to_the_person`: contains `"BDSA"`, `"CVE"`, `"policy"`, `"licence"`, `"<dependencyManagement>"`, `"overrides"`; every line with `"npm audit fix"` contains `"never"`.
 
-  `TestPack` (green once Tasks 2–14 are merged; Task 15 adds two more tests):
+  `TestPack` (green once Tasks 2–14 are merged; Task 15 adds one more test):
   - `test_react_best_practices_is_not_shipped`: no `react-best-practices` folder; no `PROVENANCE.md` in the library names `vercel-labs`.
   - `test_kit_written_skills_say_so_and_vendored_ones_name_their_upstream`: `{p.parent.name for p in LIB.glob("*/PROVENANCE.md") if p.parent.name in STACK and "Written for this kit" in p.read_text()} == KIT_WRITTEN`.
 
@@ -538,17 +540,31 @@ Body: (1) what to ask for: rows or a CSV/JSON export from the project version's 
 
 #### Task B2: Assets, tokens and the manifest (test first)
 
-**Files:** `template/.claude/skills/frq-brandbook/assets/{layouts,examples,keyvisual,logo}/…`, `assets/frequentis-brand.css`, `brand-tokens.json`, `assets/manifest.json`, `scripts/personal/tests/test_frq_brandbook.py`.
+**Files:** `template/.claude/skills/frq-brandbook/assets/{layouts,examples,keyvisual,logo}/…`, `assets/frequentis-brand.css`, `brand-tokens.json`, `assets/manifest.json`, `template/.claude/skills/frq-brandbook/.kit-only`, `scripts/personal/tests/test_frq_brandbook.py`.
 
 - [ ] **Step 1: Failing tests:**
   - `test_every_source_file_is_in_the_skill_or_mapped`: for every inventory entry, either a file in the skill has the same SHA-256 (binary: layouts, examples, key visuals, logos, master parts), or the path is a key of `MAPPED_TEXT` = `{"SKILL.md": "SKILL.md", "references/brand-rules.md": "references/brand-rules.md", "references/layouts.md": "references/layouts.md", "references/build-spec.md": "references/build-spec.md", "scripts/frq_pptx.py": "scripts/frq_pptx.py", "assets/brand-tokens.json": "brand-tokens.json", "assets/frequentis-brand.css": "assets/frequentis-brand.css", "assets/frq-master.pptx": "assets/templates/frq-master.pptx"}` and that target exists.
   - `test_every_layout_preview_and_example_is_present_and_listed`: 44 files in `assets/layouts/`, 22 in `assets/examples/`, each in `manifest.json` with its size and `"source": "owner skill v1.0"` and its original path.
   - `test_duplicates_are_kept_once_with_an_alias`: the four byte-identical key visuals exist once (0.8.0 names) and the manifest entry lists the owner's path under `aliases`.
   - `test_tokens_and_css_agree`: every `#RRGGBB` in `frequentis-brand.css` is a token hex (or `track`); the `series` and `track` tokens exist; existing `test_tokens_are_consistent` still passes.
-  - Update `BUDGET` to `14_000_000` (design §8.7) and `test_manifest_lists_every_asset_with_its_size` keeps working for the new files.
-- [ ] **Step 2: Copy** previews to `assets/layouts/`, examples to `assets/examples/`, the three non-duplicate key visuals to `assets/keyvisual/` as `keyvisual-corporate-globe.jpg`, `keyvisual-public-transport.jpg`, `keyvisual-atm-aircraft-clouds-wide.jpg`, the three logo SVGs to `assets/logo/` (names unchanged), the CSS to `assets/`. Keep `assets/templates/frq-template-slim-core.pptx` (no deletion without the owner's yes; open question 8).
-- [ ] **Step 3: Merge the tokens** into `brand-tokens.json` (0.8.0 format): add `charts.series` (owner order), `colours.chart_only` with `track #EDF1F2` ("template KPI charts only; not in the PDF palette", C12), `pptx.content_area_in` (owner values; check they equal the 0.8.0 `body_box_in`, else a conflict row), `footer_format_full` (C11), `pptx.template_full: "assets/templates/frq-master.pptx"`, `business_units[].key_visual_full` for the two full-size images.
-- [ ] **Step 4: The manifest:** every asset with `size`, `source` (`"0.8.0"` or `"owner skill v1.0"`), `from` (owner path) and `aliases`; preferred logos marked `"preferred": true` (C15).
+  - `test_size_budget` splits (design §8.7): `BUDGET_ALL = 14_000_000` for the whole folder; `BUDGET_PLACED = 600_000` for the files that are not matched by `.kit-only`. `test_manifest_lists_every_asset_with_its_size` keeps working for the new files.
+  - `test_every_binary_file_is_kit_only`: every file of the skill that is not UTF-8 matches a pattern in `.kit-only`; every pattern matches at least one file.
+  - `test_the_manifest_says_where_each_asset_lives`: each manifest entry has `"placement"`, `"kit-only"` exactly for the files `.kit-only` matches.
+- [ ] **Step 2: Copy** previews to `assets/layouts/`, examples to `assets/examples/`, the three non-duplicate key visuals to `assets/keyvisual/` as `keyvisual-corporate-globe.jpg`, `keyvisual-public-transport.jpg`, `keyvisual-atm-aircraft-clouds-wide.jpg`, the three logo SVGs to `assets/logo/` (names unchanged), the CSS to `assets/`. Keep `assets/templates/frq-template-slim-core.pptx` (owner decision: both templates stay).
+- [ ] **Step 2b: `.kit-only`**, exactly:
+
+  ```text
+  # Kept only in the kit copy (.ai-sdlc/kit), never placed in a repo (design 2026-10-09 §8.7).
+  # Every binary file of this skill. Text files (SKILL.md, references, scripts, tokens, CSS, SVG) are placed.
+  assets/templates/*
+  assets/layouts/*
+  assets/examples/*
+  assets/keyvisual/*
+  assets/background/*.jpg
+  assets/logo/*.png
+  ```
+- [ ] **Step 3: Merge the tokens** into `brand-tokens.json` (0.8.0 format): add `charts.series` (owner order), `colours.chart_only` with `track #EDF1F2` ("template KPI charts only; not in the PDF palette", C12), `pptx.content_area_in` (owner values; check they equal the 0.8.0 `body_box_in`, else a conflict row), `footer_format_full` (C11), `pptx.template_full: "assets/templates/frq-master.pptx"`, `business_units[].key_visual_full` for the two full-size images, `default_business_unit: "atm"` (owner decision, C14).
+- [ ] **Step 4: The manifest:** every asset with `size`, `source` (`"0.8.0"` or `"owner skill v1.0"`), `from` (owner path), `aliases` and `placement` (`"kit-only"` or `"placed"`); the 0.8.0 logos marked `"preferred": true` (C15).
 - [ ] **Step 5:** green; **Commit** (ask first): `feat(brand): owner skill's previews, examples, key visuals, logos, CSS and tokens merged; nothing lost`.
 
 #### Task B3: One builder, one check (test first)
@@ -566,10 +582,13 @@ Body: (1) what to ask for: rows or a CSV/JSON export from the project version's 
     - `test_it_never_overwrites_its_input_or_an_existing_file`: `footer IN IN` and `build SPEC OUT` with an existing `OUT` exit 2, files unchanged.
     - `test_render_writes_only_under_ai_sdlc_tmp`: with fake `soffice`/`pdftoppm` on `PATH` (as the 0.8.0 fake tools), `render DECK` writes under `.ai-sdlc/tmp/<stem>/` and the LibreOffice profile under `.ai-sdlc/tmp/`; an outdir outside `.ai-sdlc/tmp/` is refused.
     - `test_without_python_pptx_it_says_how_to_get_it`: run with an empty `PYTHONPATH` and `-I` where python-pptx is absent: exit 2, the message names `~/.ai-sdlc/venv` and `ai-sdlc-doc-powerpoint`, no traceback.
-  - `new_deck.py`: every 0.8.0 test stays green; new `test_new_deck_uses_the_full_master_through_frq_pptx` (AST: calls `frq_pptx.build`; the output has the full master's 44 layouts).
+  - `new_deck.py`: every 0.8.0 test stays green; new `test_new_deck_builds_through_frq_pptx_on_the_slim_template` (AST: calls `frq_pptx.build`; the output has the slim template's 25 layouts).
+  - `test_the_slim_template_is_the_default_and_the_full_master_only_when_needed` (python-pptx): a spec with only slim layouts builds on the slim template (25 layouts in the output); a spec with *World Map | EMEA* builds on the full master and the output names the layout that needed it; `--template slim` with a full-only layout exits 2 with a plain message; `--template full` always uses the full master.
+  - `test_assets_are_found_in_the_placed_folder_then_the_kit_copy` (stdlib, no python-pptx: test the resolver function by loading `frq_pptx.py`'s `asset_path` from a copy with the python-pptx imports stubbed, or keep the resolver in a tiny stdlib module `scripts/brand_assets.py` that both scripts import — preferred): in a temp repo with the skill placed without `assets/templates/` and a kit copy under `.ai-sdlc/kit/…` that has it, `asset_path("templates/frq-master.pptx")` returns the kit-copy path; with the file in the placed folder, that path wins; with neither, `AssetMissing` whose message names `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/templates/frq-master.pptx` and "check the kit".
+  - `check_brand.py` reads tokens and any asset it needs through the same resolver (it stays stdlib).
   - `test_no_bare_pip_install_in_the_skill`: no shipped file of `frq-brandbook` has `pip install` outside a line naming `~/.ai-sdlc/venv`.
-- [ ] **Step 3: Implement.** Copy `frq_pptx.py`; read the palette from `brand-tokens.json` (no second palette); `build(spec, out, *, classification, year=None, template=None)` and `set_footer(prs, *, classification, year, title=None, presenter=None)` check the class (the three classes or the placeholder); refuse existing outputs; `render` into `.ai-sdlc/tmp/` only; `sys.dont_write_bytecode = True`; a plain ImportError message. `cmd_audit` runs `check_brand.py` (loaded by path) and prints its table. Port the rules into `check_brand.py` (stdlib). `new_deck.py` keeps its CLI and turns the outline into a spec for `frq_pptx.build()`.
-- [ ] **Step 4:** green on both Pythons (the builder tests skip where python-pptx is missing; run them once in a venv with python-pptx and paste the result into the PR); **Commit** (ask first): `feat(brand): one builder (frq_pptx.py) and one check (check_brand.py); new_deck.py on the full master`.
+- [ ] **Step 3: Implement.** Copy `frq_pptx.py`; read the palette from `brand-tokens.json` (no second palette); `build(spec, out, *, classification, year=None, template=None)` and `set_footer(prs, *, classification, year, title=None, presenter=None)` check the class (the three classes or the placeholder); refuse existing outputs; choose the template (slim by default, full only for a full-only layout, `--template slim|full` to force; the slim layout list read from the slim template itself, not hard-coded); every asset through `scripts/brand_assets.py` (`asset_path(rel)`: placed folder, then `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/` found by walking up to the repo root, then the script's own folder; else `AssetMissing`); `render` into `.ai-sdlc/tmp/` only; `sys.dont_write_bytecode = True`; a plain ImportError message. `cmd_audit` runs `check_brand.py` (loaded by path) and prints its table. Port the rules into `check_brand.py` (stdlib). `new_deck.py` keeps its CLI and turns the outline into a spec for `frq_pptx.build()` (slim template, as in 0.8.0).
+- [ ] **Step 4:** green on both Pythons (the builder tests skip where python-pptx is missing; run them once in a venv with python-pptx and paste the result into the PR); **Commit** (ask first): `feat(brand): one builder (frq_pptx.py) and one check (check_brand.py); slim template by default, full master when a layout needs it; assets found in the kit copy`.
 
 #### Task B4: The skill text, references and PROVENANCE (test first)
 
@@ -578,13 +597,15 @@ Body: (1) what to ask for: rows or a CSV/JSON export from the project version's 
 - [ ] **Step 1: Failing tests:**
   - `test_frontmatter_and_triggers` (existing) plus the words `"44"`, `"spec"`, `"existing deck"`; still ≤ 1024 characters and `SKILL.md` < 220 lines.
   - `test_the_create_and_apply_workflows`: `SKILL.md` has "message pyramid", "Executive", "Self-explanatory", "Apply", "Must", "Should", "into a new file", "one question at a time" and the outline hard stop of 0.8.0.
-  - `test_layouts_reference_names_all_44_and_links_each_preview`: 44 `## <n>. <name>` headings; each links an existing `assets/layouts/*.jpg`.
+  - `test_layouts_reference_names_all_44_and_links_each_preview`: 44 `## <n>. <name>` headings; each links an existing `assets/layouts/*.jpg` and says "slim and full" or "full only", matching the two templates' layout names.
+  - `test_kit_only_files_are_named_by_exact_kit_path`: in the placed text of `SKILL.md` and every reference (`place.placed_skill_files`), every mention of a `.kit-only` file is a link rewritten into `.ai-sdlc/kit/` or the literal `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/…`; no bare `assets/templates/…`, `assets/layouts/…`, `assets/examples/…`, `assets/keyvisual/…` remains.
+  - `test_atm_is_the_default_business_unit`: `SKILL.md` and `references/brand-rules.md` say ATM is the default unless the person names another unit; tokens `default_business_unit == "atm"`.
   - `test_build_spec_reference_paths_exist`: every `assets/…`, `scripts/…` path in `references/build-spec.md` exists.
   - `test_the_owner_skill_headings_are_all_mapped`: every heading of the owner's `brand-rules.md` and `SKILL.md` (listed in the inventory fixture as `headings`) appears in `PROVENANCE.md`'s mapping table.
   - `test_provenance_records_the_merge`: contains `"frq-4-pptx-agent v1.0, 2026-10-09"`, `"kit owner"`, `"C11"`–`"C16"`, `"commentAuthors"`, `"MSIP"`, and the GCM items (layout photos with unclear rights, the wide ATM aircraft photo).
   - `test_no_new_frq_skill_name`: `packs.available_skills(KIT)` has exactly one name starting `frq-`; no shipped file outside `frq-brandbook/` mentions `frq-4-pptx`.
   - The 0.8.0 tests on brand-by-default, the classification and the render command stay green.
-- [ ] **Step 2: Write.** `SKILL.md`: keep the 0.8.0 structure; add the Create steps (classification first, deck style, footer details, message pyramid, outline as a hard stop, spec, build, custom visuals from `assets/examples/`, check, look, report) and the Apply steps (check, one table *Slide, Issue, Rule, Proposed fix*, "all, Must only, or by slide number", fix into `<name>-frq.pptx`, footer, check again); the German-deck rule; non-negotiables merged with the 0.8.0 rules (the stricter wins). Rewrite the description to ≤ 1024. `references/brand-rules.md`: merge the owner's sections, new facts tagged "(owner skill v1.0)", conflicts C11–C16 in §10. `references/layouts.md` and `references/build-spec.md`: paths to the merged tree, `frq_pptx.py` invoked as `python3 .agents/skills/ai-sdlc-frq-brandbook/scripts/frq_pptx.py …` with the venv Python, render into `.ai-sdlc/tmp/`. `references/building-decks.md`: when to use `new_deck.py` (outline) or `frq_pptx.py build` (spec), and the Check-rules table. `references/assets.md`: the new folders. `PROVENANCE.md`: a new section "Merged from the kit owner's own skill frq-4-pptx-agent v1.0, 2026-10-09" with the file mapping, the heading mapping, the cleaning, C11–C16, and the new GCM open items.
+- [ ] **Step 2: Write.** `SKILL.md`: keep the 0.8.0 structure; add the Create steps (classification first, deck style, footer details, message pyramid, outline as a hard stop, spec, build, custom visuals from `assets/examples/`, check, look, report) and the Apply steps (check, one table *Slide, Issue, Rule, Proposed fix*, "all, Must only, or by slide number", fix into `<name>-frq.pptx`, footer, check again); the German-deck rule; non-negotiables merged with the 0.8.0 rules (the stricter wins). Rewrite the description to ≤ 1024. `references/brand-rules.md`: merge the owner's sections, new facts tagged "(owner skill v1.0)", conflicts C11–C16 in §10 with the accepted resolutions (C14: ATM by default; C11–C13 marked "to confirm with GCM"). `references/layouts.md` (each layout marked "slim and full" or "full only"; previews by exact kit path) and `references/build-spec.md`: paths to the merged tree, kit-only assets by exact path `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/…` (Copilot cannot find them by search), `frq_pptx.py` invoked as `python3 .agents/skills/ai-sdlc-frq-brandbook/scripts/frq_pptx.py …` with the venv Python, render into `.ai-sdlc/tmp/`. `references/building-decks.md`: when to use `new_deck.py` (outline) or `frq_pptx.py build` (spec), which template (slim by default; full for maps and the other full-only layouts; a full-master deck is about 9 MB), and the Check-rules table. `references/assets.md`: the new folders. `PROVENANCE.md`: a new section "Merged from the kit owner's own skill frq-4-pptx-agent v1.0, 2026-10-09" with the file mapping, the heading mapping, the cleaning, C11–C16, and the new GCM open items.
 - [ ] **Step 3:** green on both Pythons; `validate-skills.py` on the folder; `test_roles.py` (client-name rule). **Commit** (ask first): `feat(brand): one brand skill — the owner's deck workflows, layouts and build spec merged into frq-brandbook`.
 
 ---
@@ -592,78 +613,125 @@ Body: (1) what to ask for: rows or a CSV/JSON export from the project version's 
 ### Merge Tasks 2–14 and B1–B4 (sequential, coordinator)
 
 - [ ] On `feat/stack-pack`: `git cherry-pick` the commits of Tasks 2–14 (disjoint folders) and merge `feat/brand-merge`.
-- [ ] `python3 scripts/personal/tests/test_stack_skills.py`, `test_frq_brandbook.py`, `test_detect_stack.py` → OK; then the full run.
+- [ ] `python3 scripts/personal/tests/test_stack_skills.py`, `test_frq_brandbook.py`, `test_detect_stack.py` → OK; then the full run. (Until Task K1, setup still places the brand binaries; `test_frq_brandbook.py`'s placement test is changed in K1.)
 
-### Task 15: Wire the skills into the roles (sequential, test first)
+### Task K1: Kit-copy-only assets (sequential, test first; design §8.7)
 
-**Files:** `roles/{dev,qa,architect}/role.json`, `roles/{dev,qa,architect}/instructions.md`, `roles/core/instructions.md`; tests `test_stack_skills.py`, `test_roles.py`, `test_change.py`, `test_place.py`, `test_skill_guidance.py`; `CHANGELOG.md`.
+**Files:** `scripts/personal/place.py`, `scripts/personal/checks.py`; tests: create `scripts/personal/tests/test_kit_only.py`; modify `test_place.py`, `test_update.py`, `test_frq_brandbook.py` (`test_setup_places_the_binary_assets_byte_identical_and_remove_takes_them_back`); `CHANGELOG.md`.
 
-**Interfaces — Consumes:** `STACK`, `KIT_WRITTEN`, `FILES` from `test_stack_skills.py`.
+**Interfaces — Produces:** `place.KIT_ONLY_FILE = ".kit-only"`; `place.kit_only(kit, skill) -> list[str]` (skill-relative paths matched by the skill's `.kit-only`, sorted; `[]` when there is none); `place.kit_asset_rel(skill, rel) -> str` (`f".ai-sdlc/kit/{packs.SKILLS_REL}/{skill}/{rel}"`).
+
+- [ ] **Step 1: Failing tests** (`test_kit_only.py`; each uses a temp kit copy with a small fixture skill `kitonly-demo`: `SKILL.md` linking `[big](assets/big.bin)` and `[small](assets/small.svg)`, `assets/big.bin` (binary), `assets/small.svg`, `.kit-only` with `assets/*.bin`; a `role.json` change adds it to `dev`):
+  - `test_a_kit_only_file_is_not_placed`: `place.placed_skill_files(kit, "kitonly-demo")` has `SKILL.md` and `assets/small.svg`, not `assets/big.bin`, not `.kit-only`.
+  - `test_a_link_to_a_kit_only_file_points_into_the_kit_copy`: the placed `SKILL.md` has `](../../../.ai-sdlc/kit/template/.claude/skills/kitonly-demo/assets/big.bin)` (the relative path from `.agents/skills/ai-sdlc-kitonly-demo/`); the link to `small.svg` is unchanged.
+  - `test_patterns_are_globs_with_comments`: `#` lines and blank lines ignored; `*` does not cross `/`; a pattern that matches nothing is reported by `place.validate_kit` (`".kit-only pattern matches nothing: …"`).
+  - `test_check_reports_a_missing_kit_only_file`: after setup, delete `.ai-sdlc/kit/template/.claude/skills/kitonly-demo/assets/big.bin` → `check` exits 1 with `missing:.ai-sdlc/kit/template/.claude/skills/kitonly-demo/assets/big.bin`; with the skill dropped, no such finding.
+  - `test_drop_and_remove`: `change --drop-skill kitonly-demo` removes the placed files and leaves the kit copy's `big.bin`; `remove --yes` ends byte-identical to before setup (`helpers.snapshot`).
+  - `test_binary_placement_still_works_without_kit_only`: the same skill without `.kit-only` places `big.bin` byte for byte (keeps the 0.8.0 mechanism covered now that the brand skill no longer uses it).
+- [ ] `test_frq_brandbook.py`:
+  - replace `test_setup_places_the_binary_assets_byte_identical_and_remove_takes_them_back` with `test_setup_places_no_binary_brand_asset_and_the_skill_still_works`: setup as `po` in a temp repo; no non-UTF-8 file under `.agents/skills/ai-sdlc-frq-brandbook/`; the placed folder is at most `BUDGET_PLACED`; running the **placed** `check_brand.py` on the golden off-brand deck gives its usual findings (the tokens and assets are found); with python-pptx, the **placed** `new_deck.py` builds a deck (the slim template is found in `.ai-sdlc/kit`); `remove --yes` ends byte-identical.
+- [ ] `test_update.py::test_an_update_from_0_8_0_removes_the_placed_brand_binaries`: an old kit copy (current kit with `frq-brandbook/.kit-only` deleted, so it places binaries like 0.8.0) → setup; update from a current copy (9.9.9) → the binaries under `.agents/skills/ai-sdlc-frq-brandbook/assets/` are gone, the text files stay; a binary the person edited is kept and reported ("Kept your edit …").
+- [ ] **Step 2: Run, expect FAIL.**
+- [ ] **Step 3: Implement.**
+  - `place.kit_only()`: read `<kit>/<SKILLS_REL>/<skill>/.kit-only` if present; patterns matched with `fnmatch.fnmatchcase` per path segment (so `*` stays in one folder).
+  - `place.placed_skill_files()`: skip files in `kit_only(kit, skill)` (dotfiles are already skipped, so `.kit-only` never goes).
+  - `place.placed_skill()` / `rewrite_links()`: a link whose target is inside the skill folder but kit-only is rewritten like a link that leaves the folder (to the same file in `.ai-sdlc/kit/`). Keep `rewrite_links` pure: pass a `kit_only` set.
+  - `place.validate_kit()`: patterns that match nothing are a problem.
+  - `checks.run()`: for every placed skill (from `state["choices"]` via `packs.combine`), every `kit_only` file must exist under `.ai-sdlc/kit/…`; else `missing:<that path>`. `ONBOARDING.md` "Check the kit" already maps `missing:` to `change`; add: "if the path is under `.ai-sdlc/kit`, the kit folder is incomplete: follow 'Update the kit' with a whole copy".
+  - `CHANGELOG.md` `### Changed`: one line (text in Task 20).
+- [ ] **Step 4: Green** (the full run). `python3 scripts/personal/validate_packs.py` ok.
+- [ ] **Step 5: Name screen, Commit** (ask first): `feat(place): kit-copy-only skill assets (.kit-only); the brand skill's binaries stay in .ai-sdlc/kit`.
+
+### Task 15: Library skills, the mirror rule, role hints (sequential, test first)
+
+**Files:** `roles/{dev,qa,architect}/instructions.md`, `roles/core/instructions.md`; tests `test_stack_skills.py`, `test_roles.py`, `test_change.py`, `test_skill_guidance.py`; `CHANGELOG.md`. **No `role.json` changes** (owner decision 2).
+
+**Interfaces — Consumes:** `STACK`, `FILES` from `test_stack_skills.py`.
 
 - [ ] **Step 1: Failing tests.**
-  - `test_stack_skills.py` `TestPack.test_library_skills_are_in_no_role`: `{"javafx", "sonarqube-findings", "blackduck-findings"}` ∩ (union of all packs' skills) == ∅; `test_they_are_not_core`: `STACK ∩ core skills == ∅`.
-  - `test_roles.py` `EXPECTED` (playbook first, then process skills as today, then stack skills alphabetical; `role.json` uses this order):
-    - `dev`: today's seven + `["110-java-maven-best-practices", "accessibility", "golang-code-style", "golang-lint", "golang-testing", "java-code-review", "java-junit", "javascript-typescript-jest", "maven-via-artifactory", "react-testing-library"]`
-    - `qa`: today's four + `["accessibility", "golang-testing", "java-junit", "javascript-typescript-jest", "maven-via-artifactory", "react-testing-library"]`
-    - `architect`: today's four + `["110-java-maven-best-practices", "java-code-review", "maven-via-artifactory"]`
-    - em, po, pm, sm unchanged. (`test_instructions_name_their_skills` then needs each new skill named in the role's `instructions.md`.)
-  - `test_change.py::test_a_library_stack_skill_can_be_added_and_dropped`: `change --add-skill javafx` → `.agents/skills/ai-sdlc-javafx/` holds exactly `FILES["javafx"]`; `USER.md` `- **Extra skills:** javafx`; `change --drop-skill javafx` → gone.
-  - `test_change.py::test_adding_a_role_adds_its_files_and_dropping_removes_them`: the removed count becomes `2 + sum(len(FILES_SP[s]) for s in dev process skills) + sum(len(FILES[s]) for s in dev-only stack skills)` (rename the imported superpowers `FILES` to `FILES_SP`; compute the dev-only set from the packs, not by hand).
-  - `test_skill_guidance.py::TestCoreInstructions.test_packages_only_through_the_mirror`: `roles/core/instructions.md` contains `"Packages come only through the company mirror"`, `"never \`@latest\`"`, `"\`npx\`"`.
-- [ ] **Step 2: Run, expect FAIL** (roles, change, guidance).
+  - `test_stack_skills.py` `TestPack.test_stack_skills_are_library_skills`: `STACK ∩ (union of the skills of every pack, core included) == ∅`.
+  - `test_roles.py`: `EXPECTED` unchanged (guards that the packs did not grow). New `test_role_hints_name_stack_skills_only_if_you_have_them`: every `ai-sdlc-<stack skill>` mention in a role's `instructions.md` is on a line that contains "if you have" (any case).
+  - `test_change.py::test_a_library_stack_skill_can_be_added_and_dropped`: `change --add-skill javafx` → `.agents/skills/ai-sdlc-javafx/` holds exactly `FILES["javafx"]`; `USER.md` `- **Extra skills:** javafx`; `change --drop-skill javafx` → gone, and `USER.md` no longer lists it as extra.
+  - `test_skill_guidance.py::TestCoreInstructions.test_packages_only_through_the_mirror`: `roles/core/instructions.md` contains `"Packages come only through the company mirror"`, `` "never `@latest`" ``, `` "`npx`" ``.
+- [ ] **Step 2: Run, expect FAIL** (hints, change, guidance; `TestPack` already passes as a guard).
 - [ ] **Step 3: Implement.**
-  - The three `role.json` `skills` lists, exactly as `EXPECTED`.
-  - `roles/dev/instructions.md`, after the "Process skills" paragraph, one paragraph: `**Stack skills.** Unless they left one out: \`ai-sdlc-java-code-review\`, \`ai-sdlc-java-junit\`, \`ai-sdlc-110-java-maven-best-practices\`, \`ai-sdlc-golang-testing\`, \`ai-sdlc-golang-code-style\`, \`ai-sdlc-golang-lint\`, \`ai-sdlc-javascript-typescript-jest\`, \`ai-sdlc-react-testing-library\`, \`ai-sdlc-accessibility\`, \`ai-sdlc-maven-via-artifactory\`. With a process skill, also load the one for the language: Java tests \`ai-sdlc-java-junit\`, Go \`ai-sdlc-golang-testing\`, Jest and React \`ai-sdlc-javascript-typescript-jest\` and \`ai-sdlc-react-testing-library\`. Before a build that downloads, \`ai-sdlc-maven-via-artifactory\`. "recommend skills" shows what fits this repo.` Same pattern for `qa` (six) and `architect` (three). Files stay under 60 lines.
+  - `roles/dev/instructions.md`, after the "Process skills" paragraph: `**Stack skills, if you have them.** With a process skill, also load the one for the language if you have it: Java tests \`ai-sdlc-java-junit\`, Go tests \`ai-sdlc-golang-testing\`, Jest and React \`ai-sdlc-javascript-typescript-jest\` and \`ai-sdlc-react-testing-library\`. Before a build that downloads, \`ai-sdlc-maven-via-artifactory\` if you have it. "recommend skills" shows what fits this repo; "show me the other skills" lists the rest.` Same pattern for `qa` (java-junit, golang-testing, jest, RTL, accessibility, mirror) and `architect` (java-code-review, 110-java-maven-best-practices, mirror). Each on lines with "if you have". Files stay under 60 lines.
   - `roles/core/instructions.md`, in the "ask before anything that downloads" bullet, add: ` Packages come only through the company mirror (Maven \`settings.xml\`, \`.npmrc\`, \`GOPROXY\`): never \`@latest\` or \`npx\` from the public internet.`
-  - `CHANGELOG.md` under `## [Unreleased]` → `### Added`: one line for the stack skills by role (text in Task 20).
+  - `CHANGELOG.md` under `## [Unreleased]` → `### Added`: one line for the 13 library skills (text in Task 20).
 - [ ] **Step 4: Green** (the full run).
-- [ ] **Step 5: Name screen, Commit** (ask first): `feat(roles): stack skills for dev, qa and architect; one mirror rule for everyone`.
+- [ ] **Step 5: Name screen, Commit** (ask first): `feat(roles): stack skills stay library skills; role hints; one mirror rule for everyone`.
 
-### Task 16: Detect and recommend: rules, engine, state (sequential, test first)
+### Task 16: Detect and recommend: rules, catalogue, engine, state (sequential, test first)
 
 **Files:** Create `roles/recommend.json`, `scripts/personal/recommend.py`, `scripts/personal/tests/test_recommend.py`. Modify `scripts/personal/state.py`, `scripts/personal/packs.py` (validate calls `recommend.validate`), `scripts/personal/place.py` (`REQUIRED` adds `roles/recommend.json` and `template/.claude/skills/maven-via-artifactory/scripts/detect_stack.py`), `scripts/personal/tests/test_state.py`, `test_packs.py`.
 
-**Interfaces — Produces:** `recommend.load_rules(kit) -> list[dict]`, `recommend.validate(kit) -> list[str]`, `recommend.signals(root, kit) -> dict[str, list[str]]` (signal → evidence), `recommend.compute(kit, root, st, all_packs) -> list[dict]` (each `{"id", "action", "skill", "reason", "evidence", "declined"}`), `recommend.open_items(items) -> list[dict]`; `state` field `declined_recommendations`.
+**Interfaces — Produces:** `recommend.load(kit) -> dict` (`rules`, `catalogue`), `recommend.validate(kit) -> list[str]`, `recommend.signals(root, kit) -> dict[str, list[str]]` (signal → evidence), `recommend.compute(kit, root, st, all_packs) -> list[dict]` (each `{"id", "action", "skill", "reason", "evidence", "declined"}`), `recommend.open_items(items) -> list[dict]`, `recommend.others(kit, st, all_packs, items) -> list[dict]` (each `{"skill", "group", "summary"}`, grouped in `GROUPS` order, then by skill); `state` field `declined_recommendations`.
 
 - [ ] **Step 1: The rules file** `roles/recommend.json`, exactly:
 
 ```json
 {
-  "about": "Skill suggestions from the repo's files (design 2026-10-09 §5). add: when a signal is found and the person has one of the roles. drop: when none of the signals is found and the repo has code.",
+  "about": "Skill suggestions from the repo's files and the list of other skills (design 2026-10-09 §5). add: when a signal is found and the person has one of the roles. drop: when none of the signals is found and the repo has code (none in 0.9.0).",
   "rules": [
+    {"skill": "java-code-review", "action": "add", "when": ["java"], "roles": ["dev", "architect"], "reason": "this repo has Java code"},
+    {"skill": "java-junit", "action": "add", "when": ["java"], "roles": ["dev", "qa"], "reason": "this repo has Java code"},
+    {"skill": "110-java-maven-best-practices", "action": "add", "when": ["maven"], "roles": ["dev", "architect"], "reason": "this repo builds with Maven"},
     {"skill": "javafx", "action": "add", "when": ["javafx"], "roles": ["dev", "qa", "architect"], "reason": "this repo uses JavaFX"},
+    {"skill": "maven-via-artifactory", "action": "add", "when": ["code"], "roles": ["dev", "qa", "architect"], "reason": "this repo downloads packages; they come only through the company mirror"},
+    {"skill": "golang-testing", "action": "add", "when": ["go"], "roles": ["dev", "qa"], "reason": "this repo has Go code"},
+    {"skill": "golang-code-style", "action": "add", "when": ["go"], "roles": ["dev"], "reason": "this repo has Go code"},
+    {"skill": "golang-lint", "action": "add", "when": ["go"], "roles": ["dev"], "reason": "this repo has Go code"},
+    {"skill": "javascript-typescript-jest", "action": "add", "when": ["jest"], "roles": ["dev", "qa"], "reason": "this repo tests with Jest"},
+    {"skill": "react-testing-library", "action": "add", "when": ["react"], "roles": ["dev", "qa"], "reason": "this repo uses React"},
+    {"skill": "accessibility", "action": "add", "when": ["web"], "roles": ["dev", "qa"], "reason": "this repo has a web UI"},
     {"skill": "sonarqube-findings", "action": "add", "when": ["sonar"], "roles": ["dev", "qa", "architect"], "reason": "this repo is analysed by SonarQube"},
-    {"skill": "blackduck-findings", "action": "add", "when": ["blackduck"], "roles": ["dev", "qa", "architect"], "reason": "this repo is scanned by Black Duck"},
-    {"skill": "java-code-review", "action": "drop", "unless": ["java"], "reason": "this repo has no Java code"},
-    {"skill": "java-junit", "action": "drop", "unless": ["java"], "reason": "this repo has no Java code"},
-    {"skill": "110-java-maven-best-practices", "action": "drop", "unless": ["maven"], "reason": "this repo has no pom.xml"},
-    {"skill": "golang-testing", "action": "drop", "unless": ["go"], "reason": "this repo has no Go code"},
-    {"skill": "golang-code-style", "action": "drop", "unless": ["go"], "reason": "this repo has no Go code"},
-    {"skill": "golang-lint", "action": "drop", "unless": ["go"], "reason": "this repo has no Go code"},
-    {"skill": "javascript-typescript-jest", "action": "drop", "unless": ["jest"], "reason": "this repo does not use Jest"},
-    {"skill": "react-testing-library", "action": "drop", "unless": ["react"], "reason": "this repo does not use React"},
-    {"skill": "accessibility", "action": "drop", "unless": ["web"], "reason": "this repo has no web UI"},
-    {"skill": "maven-via-artifactory", "action": "drop", "unless": ["code"], "reason": "this repo has no build files"}
-  ]
+    {"skill": "blackduck-findings", "action": "add", "when": ["blackduck"], "roles": ["dev", "qa", "architect"], "reason": "this repo is scanned by Black Duck"}
+  ],
+  "groups": ["Java", "Go", "React and web", "Quality and security", "Ways of working", "Role playbooks", "Documents and diagrams", "Other"],
+  "catalogue": {
+    "java-code-review": {"group": "Java", "summary": "Review Java code: null safety, exceptions, concurrency, performance."},
+    "java-junit": {"group": "Java", "summary": "JUnit tests, including parameterized tests."},
+    "110-java-maven-best-practices": {"group": "Java", "summary": "Improve a Maven pom.xml; repositories only through the mirror."},
+    "javafx": {"group": "Java", "summary": "JavaFX desktop UI: FX thread, FXML, bindings, TestFX, packaging."},
+    "maven-via-artifactory": {"group": "Java", "summary": "Packages only through the company mirror; the versions this repo uses."},
+    "golang-testing": {"group": "Go", "summary": "Go tests: table-driven, fuzzing, coverage, for the repo's Go version."},
+    "golang-code-style": {"group": "Go", "summary": "Go code style and clarity."},
+    "golang-lint": {"group": "Go", "summary": "golangci-lint: run, configure, read and fix findings."},
+    "javascript-typescript-jest": {"group": "React and web", "summary": "Jest tests for JavaScript and TypeScript."},
+    "react-testing-library": {"group": "React and web", "summary": "React component tests with Testing Library and Jest."},
+    "accessibility": {"group": "React and web", "summary": "Web accessibility (WCAG 2.2) checks and fixes."},
+    "sonarqube-findings": {"group": "Quality and security", "summary": "Understand and fix SonarQube findings from a report you paste."},
+    "blackduck-findings": {"group": "Quality and security", "summary": "Understand and fix Black Duck findings from a report you paste."},
+    "brainstorming": {"group": "Ways of working", "summary": "Shape an idea into an approved design."},
+    "writing-plans": {"group": "Ways of working", "summary": "A step-by-step plan, task by task."},
+    "test-driven-development": {"group": "Ways of working", "summary": "Test first, red then green."},
+    "systematic-debugging": {"group": "Ways of working", "summary": "Find the root cause before fixing."},
+    "verification-before-completion": {"group": "Ways of working", "summary": "Evidence before saying done."},
+    "receiving-code-review": {"group": "Ways of working", "summary": "Check review comments before acting."},
+    "skill-creator": {"group": "Other", "summary": "Create or improve a skill."}
+  }
 }
 ```
+  Skills without a catalogue entry: `playbook-*` → *Role playbooks*; the rest → *Other*, summary = the first sentence of the description, cut to 100 characters (ends with "…" when cut).
 
 - [ ] **Step 2: Failing tests.**
   - `test_state.py::test_older_state_has_no_declined_recommendations`: a state file without the field loads with `[]`; a non-list or non-strings are cleaned (as `skipped_connectors`).
-  - `test_packs.py::TestRealKit::test_the_recommend_rules_validate` (`recommend.validate(KIT) == []`) and `TestValidate::test_bad_recommend_rules` (temp kit copy, one rule at a time): unknown skill, unknown signal, unknown role, `add` without `roles`, `drop` with `when`, empty reason, a reason over 120 characters, two rules for one id, an `add` rule for a skill that some role pack already lists (an add rule must name a library-only skill) — each gives one readable error.
+  - `test_packs.py::TestRealKit::test_the_recommend_file_validates` (`recommend.validate(KIT) == []`) and `TestValidate::test_bad_recommend_entries` (temp kit copy, one change at a time): unknown skill, unknown signal, unknown role, `add` without `roles`, `drop` with `when`, empty reason, a reason over 120 characters, two rules for one id, an `add` rule for a skill a role pack lists, a catalogue entry for an unknown skill, an unknown group, a summary over 100 characters — each gives one readable error.
   - `test_recommend.py` (each test builds a repo with `helpers.make_repo` and sets up with `helpers.cli`):
     - `test_each_signal` (one small repo per signal; `signals()` keys and evidence paths).
-    - `test_a_javafx_maven_repo_for_a_developer`: `pom.xml` with `org.openjfx:javafx-controls` and `sonar-maven-plugin`; roles `dev` → ids in order `["add:javafx", "add:sonarqube-findings", "drop:accessibility", "drop:golang-code-style", "drop:golang-lint", "drop:golang-testing", "drop:javascript-typescript-jest", "drop:react-testing-library"]`; `java-*`, `110-…` and `maven-via-artifactory` not dropped.
+    - `test_a_javafx_maven_repo_for_a_developer`: `pom.xml` with `org.openjfx:javafx-controls` and `sonar-maven-plugin`; roles `dev` → ids in order `["add:110-java-maven-best-practices", "add:java-code-review", "add:java-junit", "add:javafx", "add:maven-via-artifactory", "add:sonarqube-findings"]`; each with its evidence path.
     - `test_an_empty_repo_gets_no_suggestions` (only `README.md`).
-    - `test_a_monorepo_gets_no_drops` (`pom.xml`, `services/api/go.mod`, `web/package.json` with react and jest).
-    - `test_the_role_filter`: roles `po` in the JavaFX repo → no `add:javafx`; no drops (PO has none of the skills).
-    - `test_the_persons_choice_wins`: after `change --drop-skill javafx`, no `add:javafx`; after `change --add-skill golang-lint` in a Java repo, no `drop:golang-lint`.
+    - `test_a_monorepo_gets_every_language` (`pom.xml`, `services/api/go.mod`, `web/package.json` with react and jest) → Java, Go, Jest, React, accessibility and the mirror skill suggested for `dev`.
+    - `test_the_role_filter`: roles `po` in the JavaFX repo → none; roles `qa` → `java-junit`, `javafx`, `maven-via-artifactory`, `sonarqube-findings` only.
+    - `test_the_persons_choice_wins`: after `change --drop-skill javafx`, no `add:javafx`; after `change --add-skill java-junit`, no `add:java-junit` (already placed).
+    - `test_drop_rules_work_and_never_fire_without_code`: a temp kit with an extra rule `{"skill": "brainstorming", "action": "drop", "unless": ["go"], "reason": "test"}`: in a Java repo, `dev` gets `drop:brainstorming`; in an empty repo, nothing; after `change --add-skill brainstorming` (explicit), nothing.
     - `test_declined_ones_are_marked_not_open`: with `declined_recommendations = ["add:javafx"]`, the item is there with `declined: True` and `open_items` leaves it out.
+    - `test_others_lists_every_unplaced_skill_once_grouped`: for `dev` in the JavaFX repo, `others()` contains no placed skill, no suggested or declined skill, no `git-verbs` (unsupported), and is sorted by `groups` order then skill; `playbook-qa` is under *Role playbooks*; `skill-creator` under *Other*.
     - `test_the_same_repo_gives_the_same_list`: two runs, and a run with a different `HOME` holding a `~/.m2/settings.xml` → identical results.
     - `test_build_and_vendor_folders_are_not_read` (`node_modules/react/package.json`, `target/…/pom.xml` ignored).
 - [ ] **Step 3: Implement.**
   - `state.new()` adds `"declined_recommendations": []`; `state.load()` cleans it like `skipped_connectors`.
-  - `recommend.py`: `RULES_REL = "roles/recommend.json"`, `DETECT_REL = f"{packs.SKILLS_REL}/maven-via-artifactory/scripts/detect_stack.py"`, `SIGNALS = ("java", "maven", "javafx", "go", "node", "jest", "react", "web", "sonar", "blackduck", "code")`. `signals()` loads `detect_stack` with `importlib.util.spec_from_file_location` from the kit (never from the placed copy), calls `scan(root)` without `home`, and maps its `files`/fields to `SIGNALS` (design §5.2). `compute()`:
+  - `recommend.py`: `RULES_REL = "roles/recommend.json"`, `DETECT_REL = f"{packs.SKILLS_REL}/maven-via-artifactory/scripts/detect_stack.py"`, `SIGNALS = ("java", "maven", "javafx", "go", "node", "jest", "react", "web", "sonar", "blackduck", "code")`. `signals()` loads `detect_stack` with `importlib.util.spec_from_file_location` from the kit (never from the placed copy), calls `scan(root)` without `home`, and maps its fields to `SIGNALS` (design §5.2). `compute()`:
 
 ```python
 def compute(kit, root, st, all_packs):
@@ -672,7 +740,7 @@ def compute(kit, root, st, all_packs):
     have = set(packs.combine(all_packs, c)["skills"])
     roles = set(c["roles"])
     out = []
-    for r in sorted(load_rules(kit), key=lambda r: (r["action"] != "add", r["skill"])):
+    for r in sorted(load(kit)["rules"], key=lambda r: (r["action"] != "add", r["skill"])):
         sid = f"{r['action']}:{r['skill']}"
         if r["action"] == "add":
             hit = [s for s in r["when"] if s in found]
@@ -689,9 +757,10 @@ def compute(kit, root, st, all_packs):
                         "declined": sid in st.get("declined_recommendations", [])})
     return out
 ```
+  - `others()`: `packs.available_skills(kit)` minus the person's skills (`packs.combine`), minus every skill in `items` (suggested or declined); group and summary from the catalogue, else the fallbacks above.
   - `packs.validate()` appends `recommend.validate(kit)` errors (prefixed `roles/recommend.json:`); `place.REQUIRED` adds the two paths.
 - [ ] **Step 4: Green** (the full run; `validate_packs.py` ok).
-- [ ] **Step 5: Name screen, Commit** (ask first): `feat(recommend): deterministic skill suggestions from the repo's files; rules as data`.
+- [ ] **Step 5: Name screen, Commit** (ask first): `feat(recommend): deterministic skill suggestions from the repo's files and a catalogue of the other skills; rules as data`.
 
 ### Task 17: The `recommend` command, summaries, change and update (sequential, test first)
 
@@ -699,26 +768,27 @@ def compute(kit, root, st, all_packs):
 
 - [ ] **Step 1: Failing tests.**
   - `test_recommend.py`:
-    - `test_recommend_lists_numbered_items_and_the_exact_change_command`: output starts `Skill suggestions for this repo (from its files; nothing is changed yet):`; lines `1. add:javafx — add ai-sdlc-javafx: this repo uses JavaFX (pom.xml).` …; then `To take them all: python3 .ai-sdlc/kit/setup.py change --add-skill javafx --add-skill sonarqube-findings --drop-skill accessibility …` (one flag per skill, in list order); `To take some: the same command with only those skills.`; `To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <ids, comma-separated>  (or --decline all)`; exit 0; `helpers.snapshot` unchanged.
+    - `test_recommend_lists_numbered_items_and_the_exact_change_command`: output starts `Skill suggestions for this repo (from its files; nothing is changed yet):`; lines like `1. add:110-java-maven-best-practices — add ai-sdlc-110-java-maven-best-practices: this repo builds with Maven (pom.xml).`; then `To take them all: python3 .ai-sdlc/kit/setup.py change --add-skill 110-java-maven-best-practices --add-skill java-code-review …` (one flag per skill, in list order); `To take some: the same command with only those skills.`; `To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <ids, comma-separated>  (or --decline all)`; exit 0; `helpers.snapshot` unchanged.
     - `test_no_suggestions_says_so` → `No skill suggestions for this repo.`
+    - `test_all_adds_the_other_skills_grouped`: `recommend --all` → after the suggestions, `Other skills you can add (nothing is changed yet):`, then a heading line per non-empty group in `groups` order (`Java:`, `Go:`, …), lines `- ai-sdlc-golang-lint — golangci-lint: run, configure, read and fix findings.`, then `To add any of them: python3 .ai-sdlc/kit/setup.py change --add-skill <name> [--add-skill <name> …]`; no placed or suggested skill is listed; exit 0; nothing changed.
     - `test_decline_some_and_all`: `recommend --decline add:javafx` → exit 0, `state.json` has it, no other file changed; `recommend` then shows it under `Declined earlier (to take one, use the change command above):`; `--decline all` declines every open one.
-    - `test_an_unknown_id_is_refused`: `--decline add:nothing` → exit 2, `Not a current suggestion: add:nothing. …`, state unchanged.
-    - `test_change_clears_a_declined_id`: decline `add:javafx`, then `change --add-skill javafx` → not in `declined_recommendations`; same for `drop:` with `--drop-skill`.
-    - `test_json_output`: `recommend --json` → a list of objects with exactly the keys `id, action, skill, reason, evidence, declined`.
+    - `test_an_unknown_id_is_refused`: `--decline add:nothing` → exit 2, `Not a current suggestion: add:nothing. …`, state unchanged. `--decline` with `--all` is refused (exit 2: decline takes suggestion ids only).
+    - `test_change_clears_a_declined_id`: decline `add:javafx`, then `change --add-skill javafx` → not in `declined_recommendations`.
+    - `test_json_output`: `recommend --json` → `{"suggestions": [...], "others": []}`, suggestion keys exactly `id, action, skill, reason, evidence, declined`; with `--all`, `others` items have exactly `skill, group, summary`.
     - `test_not_set_up` → exit 2, the "do the onboarding" message.
-  - `test_setup.py::test_setup_mentions_open_suggestions`: setup as `dev` in the JavaFX repo → summary has `- Skill suggestions for this repo: 8 (say "recommend skills")` (count from `compute`, not hard-coded); in an empty repo, no such line.
-  - `test_change.py::test_only_a_roles_change_mentions_suggestions`: `change --lang de` → no line; `change --roles po,dev` → the line.
-  - `test_update.py::test_update_mentions_only_new_suggestions`: an old kit without `roles/recommend.json` rules for `javafx` (copy, edit the file) → setup, `recommend --decline all`; update from a current copy (9.9.9) in the JavaFX repo → the line counts only `add:javafx` (new); a second update → no line. Also: a declined id for a skill the newer kit lacks is dropped from state.
-  - `test_cli.py`: `COMMANDS` adds `"recommend"`; `test_change_flags_parse` unchanged; new `test_recommend_flags_parse` (`--json`, `--decline`).
+  - `test_setup.py::test_setup_mentions_open_suggestions`: setup as `dev` in the JavaFX repo → summary has `- Skill suggestions for this repo: N (say "recommend skills")` with `N == len(open_items(compute(...)))`; in an empty repo, no such line.
+  - `test_change.py::test_only_a_roles_change_mentions_suggestions`: in the JavaFX repo, `change --lang de` → no line; `change --roles po,dev` → the line.
+  - `test_update.py::test_update_mentions_only_new_suggestions`: an old kit whose `roles/recommend.json` lacks the `javafx` rule (copy, edit the file) → setup as `dev` in the JavaFX repo, `recommend --decline all`; update from a current copy (9.9.9) → the line counts 1 (`add:javafx`, new); a second update → no line. Also: a declined id for a skill the newer kit lacks is dropped from state.
+  - `test_cli.py`: `COMMANDS` adds `"recommend"`; new `test_recommend_flags_parse` (`--all`, `--json`, `--decline`).
 - [ ] **Step 2: Run, expect FAIL.**
 - [ ] **Step 3: Implement.**
-  - `setup.py`: `r = sub.add_parser("recommend", help="suggest skill changes from this repo's files; changes nothing")`, `r.add_argument("--json", action="store_true")`, `r.add_argument("--decline", metavar="IDS", help="comma-separated suggestion ids, or all")`; docstring line `python3 .ai-sdlc/kit/setup.py recommend [--json] [--decline <ids>|all]`.
-  - `commands.cmd_recommend`: `_need_state`; `items = recommend.compute(...)`; `--decline`: validate ids against open items (`all` = every open id), add to `st["declined_recommendations"]` (sorted, unique), `state.save`, print `Noted: … You can still take them with the change command.`; `--json`: `json.dumps(items, ensure_ascii=False)`; otherwise the text of design §5.4. `HANDLERS["recommend"]`.
+  - `setup.py`: `r = sub.add_parser("recommend", help="suggest skills from this repo's files; --all also lists every other skill; changes nothing")`, `r.add_argument("--all", action="store_true", help="also list the other skills you can add")`, `r.add_argument("--json", action="store_true")`, `r.add_argument("--decline", metavar="IDS", help="comma-separated suggestion ids, or all")`; docstring line `python3 .ai-sdlc/kit/setup.py recommend [--all] [--json] [--decline <ids>|all]`.
+  - `commands.cmd_recommend`: `_need_state`; `items = recommend.compute(...)`; `--decline` (not with `--all`): validate ids against open items (`all` = every open id), add to `st["declined_recommendations"]` (sorted, unique), `state.save`, print `Noted: … You can still take them with the change command.`; `--json`: `{"suggestions": items, "others": others if --all else []}`; otherwise the text of design §5.4, plus the "Other skills" part with `--all`. `HANDLERS["recommend"]`.
   - `_suggestions_line(kit, root, st, all_packs)`: `[]` or `[f'- Skill suggestions for this repo: {n} (say "recommend skills")']`, `n = len(open_items(...))`; never raises (a detection error gives no line). Called in `cmd_setup`, `cmd_update`, and `cmd_change` when `args.roles is not None`, appended after `_summary`.
   - `cmd_change`: for each added skill remove `add:<s>`, for each dropped skill remove `drop:<s>` from `declined_recommendations`.
   - `cmd_update`: keep only declined ids whose skill is in `packs.available_skills(kit)`.
 - [ ] **Step 4: Green** (the full run).
-- [ ] **Step 5: Name screen, Commit** (ask first): `feat(recommend): setup.py recommend, --decline and --json; one summary line in setup, update and a roles change`.
+- [ ] **Step 5: Name screen, Commit** (ask first): `feat(recommend): setup.py recommend with --all, --decline and --json; one summary line in setup, update and a roles change`.
 
 ### Task 18: Onboarding (sequential, test first)
 
@@ -726,63 +796,70 @@ def compute(kit, root, st, all_packs):
 
 - [ ] **Step 1: Failing tests** in `test_onboarding.py`:
   - `test_every_spoken_request_has_a_section` adds `"Recommend skills"`.
-  - `test_the_onboarding_offers_skill_suggestions_once`: section "Do the onboarding" contains `` "`python3 .ai-sdlc/kit/setup.py recommend`" ``, `"This is an offer, not a fourth question."`, `"You can take all, some or none."`, `"recommend --decline all"`, `"Never apply a suggestion they did not choose."`; the step comes after the "Mark them as seen" step and before "Close".
+  - `test_the_onboarding_offers_skill_suggestions_once`: section "Do the onboarding" contains `` "`python3 .ai-sdlc/kit/setup.py recommend`" ``, `"This is an offer, not a fourth question."`, `"You can take all, some or none."`, `"recommend --decline all"`, `"Never apply a suggestion they did not choose."`; the step comes after "Mark them as seen" and before "Close".
+  - `test_the_onboarding_offers_the_other_skills_once`: the next step contains `` "`python3 .ai-sdlc/kit/setup.py recommend --all`" ``, `"'None' is fine."`, `"--add-skill"`, `"Never add a skill they did not pick."`, and says nothing is stored for "none".
+  - `test_recommend_skills_covers_the_other_skills`: section "Recommend skills" contains `"show me the other skills"` and `recommend --all`.
   - `test_update_offers_new_suggestions`: section "Update the kit" contains `"Skill suggestions for this repo"`.
-  - (`test_every_command_named_is_real_and_its_flags_belong_to_it` then checks `recommend --decline`.)
-  - `test_skill_guidance.py::test_do_the_onboarding_always_goes_to_onboarding_md` also expects `"recommend skills"` in the core "Changing the setup" list.
-- [ ] **Step 2: Implement.** In the "To Copilot" line, add "recommend skills" to the list of requests. New step 8 in "Do the onboarding" (renumber Close to 9 and the connect offer to 10), exactly:
+  - (`test_every_command_named_is_real_and_its_flags_belong_to_it` then checks `recommend --all` and `--decline`.)
+  - `test_skill_guidance.py::test_do_the_onboarding_always_goes_to_onboarding_md` also expects `"recommend skills"` and `"show me the other skills"` in the core "Changing the setup" list.
+- [ ] **Step 2: Implement.** In the "To Copilot" line, add "recommend skills" and "show me the other skills" to the requests. Two new steps in "Do the onboarding" after step 7 (renumber Close to 10 and the connect offer to 11), exactly:
 
-  `8. **Suggest skills for this repo (optional).** Run \`python3 .ai-sdlc/kit/setup.py recommend\`. It reads the repo's files and changes nothing. If it says there are no suggestions, say nothing and go on. Otherwise tell the person each suggestion in one plain sentence with its reason (for example "add the JavaFX skill: this repo uses JavaFX"), then ask once: "Would you like these changes? You can take all, some or none." This is an offer, not a fourth question. Wait for the answer. All or some: run the \`change\` command the output gives, with only the skills they chose; then, if they left some out, run \`python3 .ai-sdlc/kit/setup.py recommend --decline <the ids they did not take>\`. None, or "not now": run \`python3 .ai-sdlc/kit/setup.py recommend --decline all\` and say they can say "recommend skills" at any time. Never apply a suggestion they did not choose.`
+  `8. **Suggest skills for this repo (optional).** Run \`python3 .ai-sdlc/kit/setup.py recommend\`. It reads the repo's files and changes nothing. If it says there are no suggestions, say nothing and go on. Otherwise tell the person each suggestion in one plain sentence with its reason (for example "add the JavaFX skill: this repo uses JavaFX"), then ask once: "Would you like these skills? You can take all, some or none." This is an offer, not a fourth question. Wait for the answer. All or some: run the \`change\` command the output gives, with only the skills they chose; then, if they left some out, run \`python3 .ai-sdlc/kit/setup.py recommend --decline <the ids they did not take>\`. None, or "not now": run \`python3 .ai-sdlc/kit/setup.py recommend --decline all\` and say they can say "recommend skills" at any time. Never apply a suggestion they did not choose.`
 
-  New section `## Recommend skills` (after "Change my preferences"): the person said "recommend skills" or "which skills fit this repo?"; run `recommend`; relay the open suggestions and the declined ones; same choice flow as step 8; a declined one is taken with the `change` command.
+  `9. **Other skills (optional).** Run \`python3 .ai-sdlc/kit/setup.py recommend --all\` and show only its part "Other skills you can add": the groups and one line per skill, as printed. Ask once: "Would you like any of these as well? 'None' is fine." Wait for the answer. For the skills they pick, run \`python3 .ai-sdlc/kit/setup.py change --add-skill <name>\` (one \`--add-skill\` per skill). For "none", run nothing: nothing is stored, and the list is only shown again when they say "show me the other skills". Never add a skill they did not pick.`
+
+  New section `## Recommend skills` (after "Change my preferences"): the person said "recommend skills", "which skills fit this repo?" or "show me the other skills"; run `recommend` (or `recommend --all` for the other skills); relay the open suggestions, the declined ones, and (with `--all`) the other skills; same choice flow as steps 8 and 9; a declined suggestion is taken with the `change` command.
   "Update the kit" step 3, append: `If the summary has a line "Skill suggestions for this repo", offer them as in onboarding step 8.`
-  Core instructions "Changing the setup": add `"recommend skills"` to the list.
-- [ ] **Step 3: Green** (the full run). **Name screen, Commit** (ask first): `feat(onboarding): offer skill suggestions once after setup; "recommend skills" at any time`.
+  "Check the kit": the `missing:` line from Task K1.
+  Core instructions "Changing the setup": add `"recommend skills"` and `"show me the other skills"`.
+- [ ] **Step 3: Green** (the full run). **Name screen, Commit** (ask first): `feat(onboarding): offer skill suggestions and the other skills once after setup; "recommend skills" at any time`.
 
 ### Task 19: Docs and CI (sequential)
 
 **Files:** `README.md`, `template/.claude/skills/README.md`, `docs/how-to.md`, `.github/workflows/ci.yml`.
 
-- [ ] **Step 1: `README.md`.** Role table: the new skills per role. After the process-skills paragraph, one paragraph: the **stack skills** (one phrase each, upstream and licence, by role), the three library skills that come through suggestions, the mirror rule; and one paragraph on **skill suggestions** ("recommend skills", nothing changes without a yes, declined ones are remembered per repo). The brand paragraph: the full 44-layout master, layout previews and examples, the builder and the one check. "What ends up in your repo": about 25 MB more for the brand skill.
-- [ ] **Step 2: `template/.claude/skills/README.md`.** New "## Stack skills" table (13 rows: skill, use it for, source and licence) and one line on which roles get which; the brand row updated.
-- [ ] **Step 3: `docs/how-to.md`.** §5: `"recommend skills"` with the terminal example (`recommend`, `--decline`); the Copilot examples add *"add the javafx skill"*. Counts and version wait for Task 20.
+- [ ] **Step 1: `README.md`.** Role table unchanged. After the process-skills paragraph, one paragraph on the **stack skills** (one phrase each, upstream and licence; library skills: they come through suggestions or "show me the other skills"; the mirror rule), and one on **skill suggestions** ("recommend skills", the other-skills list, nothing changes without a yes, declined ones are remembered per repo). The brand paragraph: both templates (slim by default, the full 44-layout master for maps and the other full-only layouts), layout previews and examples, the builder and the one check, ATM by default. "What ends up in your repo": the brand skill's big files stay in `.ai-sdlc/kit` (about 13 MB, once); the placed skill is small.
+- [ ] **Step 2: `template/.claude/skills/README.md`.** New "## Stack skills" table (13 rows: skill, use it for, source and licence) and one line: library skills, suggested by repo and role; the brand row updated (`.kit-only`).
+- [ ] **Step 3: `docs/how-to.md`.** §5: "recommend skills" and "show me the other skills" with the terminal examples (`recommend`, `recommend --all`, `--decline`); the Copilot examples add *"add the javafx skill"*. Counts and version wait for Task 20.
 - [ ] **Step 4: `ci.yml`, personal-e2e**, after the `ai-sdlc-brainstorming` line:
-  `test ! -e .agents/skills/ai-sdlc-java-junit          # stack skills are by role: PO and SM do not get them`
+  `test ! -e .agents/skills/ai-sdlc-java-junit          # stack skills are library skills: setup places none`
   `python3 .ai-sdlc/kit/setup.py recommend | grep -q "No skill suggestions for this repo."   # the team repo has no code`
-  and `test -f .agents/skills/ai-sdlc-frq-brandbook/assets/templates/frq-master.pptx` next to the other brand checks (the byte compare already covers it).
-- [ ] **Step 5:** the full run. **Name screen, Commit** (ask first): `docs: stack skills, skill suggestions and the merged brand skill; CI checks stack skills are by role`.
+  `python3 .ai-sdlc/kit/setup.py recommend --all | grep -q "Other skills you can add"`
+  and replace the brand byte-compare lines (`B=.agents/skills/ai-sdlc-frq-brandbook`, `K=.ai-sdlc/kit/…`) with: `test -f "$K/assets/templates/frq-master.pptx" && test -f "$K/assets/templates/frq-template-slim-core.pptx"`, `test ! -e "$B/assets/templates"` (kit-copy-only), and the existing run of the **placed** `check_brand.py` on the fixture deck (it must find its assets). Remove still ends byte-identical.
+- [ ] **Step 5:** the full run. **Name screen, Commit** (ask first): `docs: stack skills, skill suggestions and the merged brand skill; CI checks library skills and kit-copy-only assets`.
 
 ### Task 20: Release 0.9.0 (sequential, test first)
 
 **Files:** `scripts/personal/tests/test_release.py`, `VERSION`, `CHANGELOG.md`, `docs/how-to.md`.
 
-- [ ] **Step 1: Failing tests** in `test_release.py`: `test_version` expects `"0.9.0"`; new `test_changelog_0_9_0_has_the_stack_pack`: the `[0.9.0]` entry contains `` "`ai-sdlc-java-junit`" ``, `` "`ai-sdlc-golang-testing`" ``, `` "`ai-sdlc-react-testing-library`" ``, `` "`ai-sdlc-maven-via-artifactory`" ``, `` "`ai-sdlc-javafx`" ``, `"recommend"`, `"never \`@latest\`"`, `"react-best-practices"` (not taken), `"frq-4-pptx-agent"`, `"44 layouts"`.
+- [ ] **Step 1: Failing tests** in `test_release.py`: `test_version` expects `"0.9.0"`; new `test_changelog_0_9_0_has_the_stack_pack`: the `[0.9.0]` entry contains `` "`ai-sdlc-java-junit`" ``, `` "`ai-sdlc-golang-testing`" ``, `` "`ai-sdlc-react-testing-library`" ``, `` "`ai-sdlc-maven-via-artifactory`" ``, `` "`ai-sdlc-javafx`" ``, `"recommend"`, `"--all"`, `"library skills"`, `"never \`@latest\`"`, `"react-best-practices"` (not taken), `"frq-4-pptx-agent"`, `"44 layouts"`, `".kit-only"`.
 - [ ] **Step 2:** `git switch -c release/0.9.0`; run → FAIL.
-- [ ] **Step 3:** `VERSION` → `0.9.0`. `CHANGELOG.md`: move the Unreleased lines under `## [0.9.0] — <date>` (`### Added` / `### Changed`): the 13 stack skills (upstream, commit, licence, roles, the three library skills); skill suggestions (`setup.py recommend`, `--decline`, `--json`, the onboarding step, update shows only new ones, rules in `roles/recommend.json`); the mirror rule in the core instructions; the brand merge (the owner's `frq-4-pptx-agent` v1.0 merged into `ai-sdlc-frq-brandbook`: the full master with 44 layouts, cleaned; layout previews, examples, key visuals, logos, CSS; `frq_pptx.py` builder; one check; `new_deck.py` on the full master; about 25 MB more per repo); "Not taken: vercel-labs `react-best-practices` (no licence file) …". Unreleased stays empty.
-- [ ] **Step 4: Verify the how-to example by running it** (as in 0.7.0 Task 10 step 4, scratch folder outside the repo): `setup --name "Ana" --roles po,qa --lang en` → `Set up AI-SDLC 0.9.0 …`, `Wrote N file(s)`. Use the **printed** numbers in `docs/how-to.md` (line 71–73 block). Re-run the §5 `change` example and update its numbers if they changed.
-- [ ] **Step 5: Full verification, both Pythons** (the full run, `validate_packs.py`, `validate-skills.py`); the brand builder tests once in a venv with python-pptx. Paste the summary lines in the PR.
+- [ ] **Step 3:** `VERSION` → `0.9.0`. `CHANGELOG.md`: move the Unreleased lines under `## [0.9.0] — <date>` (`### Added` / `### Changed`): the 13 stack skills as **library skills** (upstream, commit, licence; suggested by repo and role, or picked); skill suggestions (`setup.py recommend`, `--all` for the other skills, `--decline`, `--json`; the two onboarding steps; update shows only new ones; rules and catalogue in `roles/recommend.json`); the mirror rule in the core instructions; kit-copy-only skill assets (`.kit-only`; the brand skill's binaries stay in `.ai-sdlc/kit`, an update removes the ones 0.8.0 placed); the brand merge (the owner's `frq-4-pptx-agent` v1.0 merged into `ai-sdlc-frq-brandbook`: the full master with 44 layouts, cleaned, next to the slim template, which stays the default; layout previews, examples, key visuals, both logo sets, CSS; `frq_pptx.py` builder; one check; ATM by default); "Not taken: vercel-labs `react-best-practices` (no licence file) …". Unreleased stays empty.
+- [ ] **Step 4: Verify the how-to example by running it** (as in 0.7.0 Task 10 step 4, scratch folder outside the repo): `setup --name "Ana" --roles po,qa --lang en` → `Set up AI-SDLC 0.9.0 …`, `Wrote N file(s)` (fewer than 0.8.0's 99: the brand binaries are no longer placed). Use the **printed** numbers in `docs/how-to.md` (line 71–73 block). Re-run the §5 `change` example and update its numbers.
+- [ ] **Step 5: Full verification, both Pythons** (the full run, `validate_packs.py`, `validate-skills.py`); the brand builder tests once in a venv with python-pptx. Measure and paste in the PR: the size of `.ai-sdlc/kit` and of `.agents/skills/ai-sdlc-frq-brandbook/` after setup.
 - [ ] **Step 6: Name screen on the whole branch:** `git diff main...HEAD | grep -n -i -E "$OTHER"` and `git diff main...HEAD | grep -n -E '/Users/|~/work/'` → nothing; `grep -rn -i -E '\b(frq|frequentis|mosaix)\b' template/.claude/skills/{java-code-review,java-junit,110-java-maven-best-practices,golang-testing,golang-code-style,golang-lint,javascript-typescript-jest,react-testing-library,accessibility,javafx,maven-via-artifactory,sonarqube-findings,blackduck-findings} roles/*/instructions.md roles/recommend.json` → nothing.
-- [ ] **Step 7: Commit** (ask first): `chore(release): kit 0.9.0 — stack pack, skill suggestions, one brand skill`.
-- [ ] **Step 8: PR** `release/0.9.0` → `main` (ask before push). Body: what ships, what is not taken and why, the placement rule and the suggestions, the brand merge, test summary, owner decisions; ends with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. CI green. **Do not merge yet.**
+- [ ] **Step 7: Commit** (ask first): `chore(release): kit 0.9.0 — stack skills, skill suggestions, one brand skill`.
+- [ ] **Step 8: PR** `release/0.9.0` → `main` (ask before push). Body: what ships, what is not taken and why, the placement rule, suggestions and the other-skills list, the brand merge and kit-copy-only assets, test summary, owner decisions; ends with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. CI green. **Do not merge yet.**
 
 ### Task 21: Copilot CLI re-test (owner, manual, before merge)
 
 On the VM, with the Copilot CLI and a trusted folder, from the `release/0.9.0` copy. Sample repos (made by the coordinator, synthetic): **A** a Maven JavaFX app with `.mvn/settings.xml` pointing at a mirror URL, `sonar-project.properties`, JUnit 5, AssertJ; **B** a Go module with `go 1.23` in `go.mod`; **C** a React app with Jest and Testing Library; plus one deck spec and one off-brand `.pptx`. Note each result in the PR; fixes go on `release/0.9.0` first.
 
-1. **Onboarding, developer, repo A:** suggestions come once, after setup, each with a reason; take `add:javafx`, refuse `drop:accessibility`, take the other drops. `USER.md` and `recommend` agree; nothing applied that was not chosen.
-2. **"Not now", then update:** in repo B as QA say "not now"; update from a 9.9.9 copy → no suggestion line (no nag). "recommend skills" still lists them under "Declined earlier".
+1. **Onboarding, developer, repo A:** suggestions come once, after setup, each with a reason; take `javafx`, `java-junit` and the mirror skill, refuse the rest. Then the other-skills list comes once, grouped; pick `golang-lint`. `USER.md` and `recommend` agree; nothing applied that was not chosen.
+2. **"Not now", then update:** in repo B as QA say "not now" to both steps; update from a 9.9.9 copy → no suggestion line (no nag). "recommend skills" lists them under "Declined earlier"; "show me the other skills" shows the list again.
 3. **"Write tests first for <class>"** in A → TDD skill and `ai-sdlc-java-junit` load; JUnit version and AssertJ taken from the POM; no Mockito added; the new file shown before saving.
 4. **"Add the dependency <x>"** in A → no `<repositories>`; asks before running Maven; with the mirror unreachable, stops and reports (artifact, mirror URL, error).
-5. **"Write tests for this function"** in B → no `synctest.Test`, no `b.Loop()`, no `t.Context()` (Go 1.23); no `gotests` install.
-6. **"Lint this"** in B → runs `golangci-lint run` if installed, else says it is missing; never `go install …@latest`; no `--fix` before a yes.
-7. **"Test this component"** in C → Jest and Testing Library, no Vitest, no `npm install` before a yes.
+5. **"Write tests for this function"** in B (after accepting `golang-testing`) → no `synctest.Test`, no `b.Loop()`, no `t.Context()` (Go 1.23); no `gotests` install.
+6. **"Lint this"** in B (after adding `golang-lint`) → runs `golangci-lint run` if installed, else says it is missing; never `go install …@latest`; no `--fix` before a yes.
+7. **"Test this component"** in C (after accepting the suggestions) → Jest and Testing Library, no Vitest, no `npm install` before a yes.
 8. **"Accessibility audit of this page"** in C → no MCP tool, no `npx lighthouse` download.
 9. **Sonar:** paste three issue rows → explanations, a diff per fix, never asks for a token, says a false positive is marked by the person in SonarQube.
 10. **Black Duck:** paste two CSV rows (one CVE, one licence risk) → upgrade through `<dependencyManagement>`; the licence one is handed to the person.
 11. **JavaFX:** "the UI freezes while loading" → work moved to a `Task`/`Service`, results back with `Platform.runLater`; TestFX headless with Monocle proposed.
-12. **Brand, build:** "build a deck from this spec" (title, agenda, divider, 50:50, an EMEA map, a timeline, closing) → asks the classification first, shows the outline, asks before installing python-pptx into `~/.ai-sdlc/venv`, builds on the 44-layout master, runs the check, renders into `.ai-sdlc/tmp/`, shows the result.
+12. **Brand, build:** "build a deck from this spec" (title, agenda, divider, 50:50, an EMEA map, a timeline, closing) → asks the classification first, shows the outline, asks before installing python-pptx into `~/.ai-sdlc/venv`, uses the full master because of the map (and says so), runs the check, renders into `.ai-sdlc/tmp/`. A second deck without a map uses the slim template (smaller file). ATM key visual on the title slide unless another unit is named.
 13. **Brand, Apply:** "make this deck on-brand" with the off-brand `.pptx` → one table of Must and Should fixes, "all, Must only, or by slide number", writes `<name>-frq.pptx`, never touches the input, re-checks.
-14. **Role check:** onboarding as PO in repo A → no stack skills, no `add:javafx` suggestion.
+14. **Kit-copy-only assets:** `.agents/skills/ai-sdlc-frq-brandbook/` has no `.pptx` or `.jpg`; Copilot reads a layout preview by its exact `.ai-sdlc/kit/…` path when asked "show me the World Map layout".
+15. **Role check:** onboarding as PO in repo A → no suggestions (role filter); the other-skills list still offers everything.
 
 Merge only after this and with the owner's yes.
 
@@ -790,13 +867,12 @@ Merge only after this and with the owner's yes.
 
 ## Self-review
 
-- Design §2 (vendored): Tasks 2–10; §2.1 (not taken): `TestPack`, CHANGELOG. §3 (kit-written): Tasks 11–14; §3.1 (core mirror sentence): Task 15. §4 (placement): Task 15; §5 (recommend): Tasks 16–18; §5.6 (update): Task 17. §6 (teams): nothing built; Task 16 keeps rules separate from packs and computes on `packs.combine`. §7 (testing): Tasks 1, 12, 15–18, B1–B4, 20, 21. §8 (brand merge): Tasks B1–B4, 19, 20, 21.
-- Names used across tasks: `VENDORED`, `KIT_WRITTEN`, `STACK`, `FILES`, `MIRROR_RULE`, `READ_ONLY_RULE`, `GIT_RULE`, `SHOW_RULE`, `declined_recommendations`, `recommend.compute`, `open_items`, `_suggestions_line` — consistent.
-- Every owner decision 1–5 has a task: 1 (9 skills, edits) Tasks 2–10; 2 (4 kit-written) Tasks 11–14; 3 (placement, recommend, teams hook) Tasks 15–18 and design §6; 4 (connectors later) design §9; 5 (kit rules) Global Constraints, Tasks 1, 20, 21. Scope addition (brand merge): B1–B4.
+- Design §2 (vendored): Tasks 2–10; §2.1 (not taken): `TestPack`, CHANGELOG. §3 (kit-written): Tasks 11–14; §3.1 (core mirror sentence): Task 15. §4 (placement, library): Task 15; §5 (recommend, catalogue, `--all`): Tasks 16–18; §5.6 (update): Task 17. §6 (teams): nothing built; Task 16 keeps rules separate from packs and computes on `packs.combine`. §7 (testing): Tasks 1, 12, K1, 15–18, B1–B4, 20, 21. §8 (brand merge): Tasks B1–B4; §8.5 (templates): B3, B4; §8.7 (kit-copy-only): B2, B3, K1, 19. §10 (decisions): all of the above.
+- Names used across tasks: `VENDORED`, `KIT_WRITTEN`, `STACK`, `FILES`, `MIRROR_RULE`, `READ_ONLY_RULE`, `GIT_RULE`, `SHOW_RULE`, `declined_recommendations`, `recommend.compute`, `open_items`, `others`, `_suggestions_line`, `place.kit_only`, `KIT_ONLY_FILE`, `asset_path`, `BUDGET_ALL`, `BUDGET_PLACED` — consistent.
 
 ## Design problems found while planning
 
-1. **Dotfiles are not placed.** `golang-lint/assets/.golangci.yml` would be skipped by `place.placed_skill_files`, and the skill's links would break. Fix: renamed `assets/golangci.yml` (Task 7).
+1. **Dotfiles are not placed.** `golang-lint/assets/.golangci.yml` would be skipped by `place.placed_skill_files`, and the skill's links would break. Fix: renamed `assets/golangci.yml` (Task 7). The same rule keeps `.kit-only` out of repos.
 2. **`allowed-tools` pre-approves commands** (`Bash(git:*)`, `Agent`) in some tools: against "a human validates everything". Fix: dropped from the frontmatter (all vendored).
 3. **Apache-2.0 §4** asks for a change notice in each changed file, not only in `PROVENANCE.md` (Task 4).
 4. **`go get <module>` without a version is `@latest`.** Fix: `@<version>`, picked with the person (Task 5).
@@ -806,19 +882,27 @@ Merge only after this and with the owner's yes.
 8. **The owner's master names employees and the tenant**; the owner's `set_footer` accepts any classification text; its `render` writes to `/tmp`; its `audit` duplicates `check_brand.py`. Fixes in B1 and B3.
 9. **Four key visuals are byte-identical** in both skills: kept once, alias in the manifest (B2).
 10. **The brand description is already 973 characters**: it must be rewritten, not extended (B4).
+11. **A deck built on the full master is about 9 MB** even with a few slides (the template's layouts and pictures travel with it). Hence the slim template stays the default and the full master is taken only for a full-only layout (B3).
+12. **With library placement, drop rules have nothing to drop** (every stack skill is the person's explicit choice, which wins). The engine keeps drop rules for the client and teams; 0.9.0 ships none (Task 16).
+13. **Kit-only assets need exact paths**: Copilot's search skips the git-excluded `.ai-sdlc/kit`, so the placed text names them by full path and links are rewritten (B4, K1).
 
-## Open questions for the owner
+## Decisions (owner, 2026-10-09/10)
 
-1. **Placement (design §4.2).** Language skills in the role packs (proposed: works without the suggestion step, ~3.3 KB more per turn for a developer, drops trim it per repo), or library-only and added by suggestions (less context, but nothing without the step)?
-2. **Per-role choices.** `maven-via-artifactory` also for the Engineering Manager? `accessibility` also for the Architect? `java-junit` also for the Architect?
-3. **Go and React versions** in the client's repos (oldest `go` line; React 18 or 19; Jest 29 or 30)? The skills handle each, but the re-test repos should match.
-4. **AssertJ and Mockito:** standard in the client's Java repos? (Today: used only if the POM has them.)
-5. **JavaFX source:** the Zulu FX JDK (JavaFX built in), `org.openjfx` dependencies, or both in different repos?
-6. **Black Duck detection:** how do the client's pipelines run Detect (Jenkinsfile step, a `detect.sh` call, properties in `application.yml`)? The `blackduck` signal is a heuristic until we know.
-7. **Name `maven-via-artifactory`** also covers npm and Go. Keep it, or rename (for example `packages-via-mirror`) before it ships? Also keep the upstream name `110-java-maven-best-practices` (placed `ai-sdlc-110-java-maven-best-practices`), or rename to `maven-best-practices` as a local change?
-8. **The 0.8.0 slim template** (1.2 MB): retire it now that the full master ships, or keep both? (Kept in 0.9.0 until you say.)
-9. **Default business unit** for decks: ATM (owner skill) or ask each time (0.8.0, C8)? Proposed: ask, offer ATM first.
-10. **Size:** about 25 MB more per repo (the kit copy plus the placed brand skill). Accept for 0.9.0, or plan for 0.10.0 to keep the big binaries only in `.ai-sdlc/kit` and point the placed skill at them?
-11. **The wide ATM aircraft photo** was left out in 0.8.0 for unknown rights. Ship it now (owner: keep every artifact) and list it for GCM, or leave it out until GCM confirms?
-12. **Two logo sets** (0.8.0 converted shape for shape, owner skill traced): keep both (proposed) or keep one?
-13. **Conflicts C11–C16** (design §8.4): agree with the proposed resolutions?
+1. **Skills** (2026-10-09): the nine vendored and four kit-written skills, with the edits listed in Tasks 2–14; Vercel `react-best-practices` not taken (no licence file).
+2. **Placement: library + recommend** (2026-10-10). The 13 skills are in no role pack; role packs stay as they are. They arrive only through an accepted suggestion or the person's own choice, stored like `--add-skill`. The per-role question is moot; suggestions still use the roles in `roles/recommend.json` as a filter (so a PO is not offered Go linting), and the other-skills list offers everything (Tasks 15–18).
+3. **Other skills step** (2026-10-10): a final onboarding step offers every available skill that is not installed, grouped (Java, Go, React and web, Quality and security, Ways of working, Role playbooks, Documents and diagrams, Other), one line each; "none" is fine; also later with "show me the other skills" → `setup.py recommend --all` (the simplest: one command, read-only) (Tasks 16–18).
+4. **Size fixed in 0.9.0** (2026-10-10): every binary file of `frq-brandbook` (both templates, layout previews, examples, key visuals, background JPEGs, logo PNGs) is kit-copy-only through a generic `.kit-only` file; the placed skill names them by exact path; scripts look in the placed folder, then `.ai-sdlc/kit`, with a plain error otherwise; `check`, `update`, `remove`, `change --drop-skill`, the manifest and CI handle it. Per repo about 13 MB once (Tasks B2, B3, K1, 19).
+5. **Both templates stay** (2026-10-10): the slim template is the default (smaller decks); the full master only when a slide needs a full-only layout (maps and the others), or on request (B3, B4).
+6. **ATM is the default business unit** (2026-10-10; C14).
+7. **Versions and tools are detected, never assumed** (2026-10-10): Go, React, Jest, AssertJ, Mockito, the JavaFX source and Black Duck Detect usage come from `detect_stack.py`; when not found, the skill asks.
+8. **Names kept** (2026-10-10): `maven-via-artifactory` and `110-java-maven-best-practices` (placed `ai-sdlc-110-java-maven-best-practices`; the kit has never renamed a vendored skill).
+9. **The wide ATM aircraft photo ships** (2026-10-10), listed as a GCM open item in `PROVENANCE.md`, with the layout photos whose rights are unclear.
+10. **Both logo sets stay** (2026-10-10); the 0.8.0 ones (converted shape for shape) are preferred.
+11. **C11–C16 resolutions accepted** (2026-10-10); C11, C12 and C13 go to GCM for confirmation.
+12. **Brand merge in 0.9.0** (2026-10-09): `frq-4-pptx-agent` v1.0 merged into `frq-brandbook`, the full master cleaned of personal and tenant data, every artifact kept.
+13. **Connectors** (SonarQube, Black Duck, Artifactory) in 0.10.0; SharePoint later (2026-10-09).
+
+### Still open (not blocking 0.9.0)
+
+- **For GCM** (recorded in the brand skill's `PROVENANCE.md`): confirm C11–C13; the rights of the layout photos and the wide ATM aircraft photo; the official logo pack (to replace both logo sets).
+- **For the owner, only if you disagree with a proposal made here:** the role filter on suggestions (point 2), `.kit-only` covering *every* binary of the brand skill including the small logo PNGs (point 4), and the slim-by-default rule (point 5).
