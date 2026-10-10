@@ -122,6 +122,7 @@ Use this before any upgrade proposal, also when another skill (for example
    Add `--repo <key>` when the person names a repository; otherwise the connector uses the
    default they saved. Then propose only a version in that list, and cite the item's `url`.
    A newer `latest` is not a reason to upgrade on its own.
+   Say which version the repo uses now (the POM, or detect_stack output) next to the mirror's list.
 3. **The version is not in the list:** say so, and follow section 3 (stop and report; the
    Artifactory admins add or proxy it). Never work around it.
 4. **Not connected** (exit code 3) or another error: ask the person to check the mirror's

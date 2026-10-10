@@ -26,6 +26,8 @@ If the one you need is not connected (or a command exits with code 3), tell the 
 python3 .ai-sdlc/kit/setup.py connect <name>
 ```
 
+What to have ready: Jira and Confluence: a personal access token (Data Center), or your email and an API token (Cloud); Bitbucket: an HTTP access token; Jama: an API client ID and client secret; Jenkins: your user name and an API token; SonarQube: a user token; Black Duck: an API token; Artifactory: an access or identity token, plus your default repository keys if you know them.
+
 To go through all the tools their roles usually use (the setup summary's "Connectors for your roles"), suggest instead that they run, **themselves, in their own terminal**: `python3 .ai-sdlc/kit/setup.py connect --suggested`. It asks about each tool one at a time (`y` connect, `s` skip, `a` skip the rest; Enter skips), then offers any other tool. **Never run `connect` or `connect --suggested` yourself**: they ask for secrets. A tool marked "skipped" was skipped on purpose; do not suggest it again unless the person asks for it.
 
 When they say it is done, or ask you to test it, run `python3 .ai-sdlc/kit/setup.py connect <name> --test`. It uses the saved login, asks nothing, and makes one read-only call. To delete a saved login, only when they ask: run `python3 .ai-sdlc/kit/setup.py disconnect <name>` first (without `--yes` it changes nothing; it shows what it would remove and asks), relay that and ask the person, and run it again with `--yes` only after they say yes. Never add `--yes` on your own.

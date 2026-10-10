@@ -119,6 +119,20 @@ class TestConnectors(unittest.TestCase):
         for c in registry.discover().values():
             self.assertIn(c.title, desc)
 
+    def test_what_to_have_ready_names_every_tool_and_matches_onboarding(self):
+        """Copilot re-test 2026-10-10 (N2)."""
+        from personal.connectors import registry
+        part = skill("connectors").split("## Is it connected?", 1)[1].split("\n## ", 1)[0]
+        ready = re.search(r"What to have ready: [^\n]+", part)
+        self.assertTrue(ready, "no 'What to have ready' line")
+        line = ready.group(0)
+        for c in registry.discover().values():
+            self.assertIn(c.title, line)
+        self.assertIn("Artifactory: an access or identity token, plus your default repository "
+                      "keys", line)
+        onboarding = (KIT / "ONBOARDING.md").read_text(encoding="utf-8")
+        self.assertIn(line, onboarding)
+
     def test_tools_for_this_repo(self):
         part = skill("connectors").split("## Tools for this repo", 1)[1].split("\n## ", 1)[0]
         for needed in ("setup.py recommend", "Tools to connect for this repo",

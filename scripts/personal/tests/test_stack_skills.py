@@ -471,6 +471,9 @@ class TestMavenViaArtifactory(Checks, unittest.TestCase):
                        "say the version is not confirmed", "section 3"):
             self.assertIn(needed, part)
         self.assertIn("Check the mirror has the version", text.split("## 6.", 1)[0])  # from 5
+        # Copilot re-test 2026-10-10 (N4)
+        self.assertIn("Say which version the repo uses now (the POM, or detect_stack output) "
+                      "next to the mirror's list.", part)
 
 
 class TestSonarqubeFindings(Checks, unittest.TestCase):
@@ -529,6 +532,12 @@ class TestBlackduckFindings(Checks, unittest.TestCase):
                 self.assertIn("in their own terminal", line)
         self.assertIn("reads Black Duck through the read-only blackduck connector when connected",
                       description(text))
+        # Copilot re-test 2026-10-10 (S4): the mirror commands inline in section 3, step 2
+        step2 = text.split("2. **Check that the mirror has it.**", 1)[1].split("\n3. ", 1)[0]
+        for needed in ("`python3 .ai-sdlc/kit/connectors.py artifactory versions <group:artifact> --json`",
+                       "`artifactory npm <package> --json`", "`artifactory go <module> --json`",
+                       "cite the mirror item's `url` next to the versions you name"):
+            self.assertIn(needed, step2)
 
 
 class TestPack(unittest.TestCase):
