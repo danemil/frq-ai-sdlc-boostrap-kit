@@ -68,6 +68,7 @@ Run `python3 .ai-sdlc/kit/setup.py check` and relay each item:
 - `missing:` or `unexcluded:`: run `python3 .ai-sdlc/kit/setup.py change` with no options. It puts files back and hides them again.
   If the `missing:` path is under `.ai-sdlc/kit`, the kit folder itself is incomplete (a skill keeps that file only there): follow "Update the kit" with a whole copy of the kit.
 - `unknown:`: a file named like the kit's that the kit did not write. Ask before deleting it. (The person's own `ai-sdlc-personal.instructions.md` and `ai-sdlc-personal-*` skills are never reported.)
+- `kept-edit:`: a file they edited that their choices no longer need; the kit kept it instead of deleting their edit. Say so, and that they can delete it if they don't need it. Ask before deleting it.
 - `kit-copy:`: a newer copy means "update the kit". A same-version copy: ask whether they copied it in to update; if so, update from it, otherwise it can be deleted. An older one can be deleted, after asking.
 - `stale-kit`: run `python3 .ai-sdlc/kit/setup.py update`. If it says the kit folder is incomplete, ask the person to copy the whole kit folder in again (as in "Update the kit", step 2) and update from that copy.
 - `team-…` and `skill-clash:…`: as in steps 6 and 7 above.

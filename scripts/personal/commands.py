@@ -460,7 +460,13 @@ def _remove_plan(root, st) -> tuple[int, list[str]]:
             gone += 1
         elif fs == reuse.MODIFIED:
             kept.append(rel)
-    return gone, kept
+    return gone, sorted(kept + _earlier_kept(root, st))
+
+
+def _earlier_kept(root, st) -> list[str]:
+    """Edited files an earlier change or update kept (state.json kept_edits) still on disk."""
+    return [rel for rel in sorted(st.get("kept_edits", {}))
+            if rel not in st["files"] and (Path(root) / rel).is_file()]
 
 
 def cmd_remove(args, cwd, kit):
@@ -479,7 +485,9 @@ def cmd_remove(args, cwd, kit):
         lines.append("Remove the kit from this repo? Only after a yes: "
                      "python3 .ai-sdlc/kit/setup.py remove --yes")
         return 2, lines
+    earlier = _earlier_kept(root, st)
     report = place.apply(root, st, {})            # deletes unedited files, keeps edited ones
+    report["kept"] = sorted(set(report["kept"]) | set(earlier))
     kit_dir = root / paths.KIT_REL
     if place.is_kit(kit_dir):
         shutil.rmtree(kit_dir)

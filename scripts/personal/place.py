@@ -12,7 +12,10 @@ is on disk, and what the kit would write now:
     FOREIGN        not ours: leave it alone and report it
 
 A placed file that is no longer wanted is deleted while unedited, and kept (and
-reported) once edited. A path git tracks is never written or deleted.
+reported) once edited. A kept edit is remembered in state.json `kept_edits` (its last
+`files` entry), so check names it as a notice instead of an unknown file, and a later
+choice that needs the file again treats it as the person's edit (MODIFIED) once more.
+A path git tracks is never written or deleted.
 
 A placed skill is its whole folder (SKILL.md plus references/, assets/, …), each
 file recorded in state.json like any other. Text files are handled as str; a file
@@ -261,6 +264,12 @@ def apply(root, st, wanted: dict[str, str | bytes]) -> dict[str, list[str]]:
     root = Path(root)
     report = {"written": [], "kept": [], "skipped": [], "removed": []}
     tracked = paths.tracked(root, set(wanted) | set(st["files"]))
+    kept_edits = st.setdefault("kept_edits", {})
+    for rel in sorted(kept_edits):
+        if not (root / rel).is_file():
+            del kept_edits[rel]                      # the person deleted it: forgotten
+        elif rel in wanted and rel not in st["files"]:
+            st["files"][rel] = kept_edits.pop(rel)   # needed again: their edit, as before
     keep = set(wanted)
     for rel, text in sorted(wanted.items()):
         data = text if isinstance(text, bytes) else text.encode("utf-8")
@@ -287,6 +296,7 @@ def apply(root, st, wanted: dict[str, str | bytes]) -> dict[str, list[str]]:
             report["removed"].append(rel)
         elif reuse.file_state(root, st, rel) == reuse.MODIFIED:
             report["kept"].append(rel)
+            kept_edits[rel] = dict(st["files"][rel])
         reuse.forget(st, rel)
     prune_dirs(root, st)
     return report

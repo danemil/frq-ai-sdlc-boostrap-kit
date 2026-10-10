@@ -60,6 +60,18 @@ class TestState(unittest.TestCase):
         path.write_text(json.dumps({"schema": 1, "kit_version": "0.9.0", "declined_recommendations": {}}))
         self.assertEqual(state.load(self.root)["declined_recommendations"], [])
 
+    def test_older_state_has_no_kept_edits(self):
+        path = self.root / paths.STATE_REL
+        path.parent.mkdir()
+        path.write_text(json.dumps({"schema": 1, "kit_version": "0.8.0", "choices": {"name": "Ana"}}))
+        self.assertEqual(state.load(self.root)["kept_edits"], {})
+        good = {"class": "kit", "sha256": "ab"}
+        path.write_text(json.dumps({"schema": 1, "kit_version": "0.9.0",
+                                    "kept_edits": {"a": good, "b": "x", "c": {"class": "kit"}}}))
+        self.assertEqual(state.load(self.root)["kept_edits"], {"a": good})
+        path.write_text(json.dumps({"schema": 1, "kit_version": "0.9.0", "kept_edits": ["a"]}))
+        self.assertEqual(state.load(self.root)["kept_edits"], {})
+
     def test_missing_corrupt_or_foreign_schema_is_not_set_up(self):
         self.assertIsNone(state.load(self.root))
         path = self.root / paths.STATE_REL

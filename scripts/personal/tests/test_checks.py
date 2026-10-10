@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """`check`: missing, unknown and unhidden files, kit copies, a stale kit, the one-liner."""
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -46,6 +47,38 @@ class TestCheck(unittest.TestCase):
             "unexcluded:.claude/skills/ai-sdlc-notes/SKILL.md",
             "unknown:.claude/skills/ai-sdlc-notes/SKILL.md",
             "unknown:.github/instructions/ai-sdlc-extra.instructions.md"])
+
+    def test_an_edit_kept_after_a_change_is_a_notice_not_unknown(self):
+        """A file the person edited and no longer needs stays (place.apply keeps it); check
+        names it as a notice, exit 0, until they delete it (re-test round 2, S6)."""
+        sm = ".github/instructions/ai-sdlc-sm.instructions.md"
+        (self.root / sm).write_text("my sm notes\n")
+        code, out = helpers.cli(self.root, self.kit, "change", "--roles", "po")
+        self.assertEqual(code, 0, out)
+        self.assertTrue((self.root / sm).is_file())
+        self.assertEqual(self.ids(), [f"kept-edit:{sm}"])
+        self.assertTrue(checks.is_notice(f"kept-edit:{sm}"))
+        code, out = helpers.cli(self.root, self.kit, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"[kept-edit:{sm}]", out)
+        self.assertIn("delete it if you don't need it", out)
+        self.assertNotIn("unknown:", out)
+        (self.root / sm).unlink()
+        self.assertEqual(self.ids(), [])
+        code, out = helpers.cli(self.root, self.kit, "change")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads((self.root / paths.STATE_REL).read_text())["kept_edits"], {})
+
+    def test_a_kept_edit_the_roles_need_again_is_the_kits_file_again(self):
+        sm = ".github/instructions/ai-sdlc-sm.instructions.md"
+        (self.root / sm).write_text("my sm notes\n")
+        helpers.cli(self.root, self.kit, "change", "--roles", "po")
+        code, out = helpers.cli(self.root, self.kit, "change", "--roles", "po,sm")
+        self.assertEqual(code, 0, out)
+        self.assertEqual((self.root / sm).read_text(), "my sm notes\n")
+        self.assertIn(f"- Kept your edit in {sm}.", out)
+        self.assertEqual(self.ids(), [])
+        self.assertIn(sm, json.loads((self.root / paths.STATE_REL).read_text())["files"])
 
     def test_python_bytecode_in_a_kit_skill_is_not_unknown(self):
         """Running a skill's script (the brand checker) can leave __pycache__/*.pyc behind."""

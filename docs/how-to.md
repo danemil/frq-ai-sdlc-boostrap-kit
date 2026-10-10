@@ -478,7 +478,7 @@ Check: 3 to look at:
 
 `check` also names the tools your roles usually connect to, marking the ones connected or skipped.
 
-**Notices and problems.** `team-…`, `skill-clash:…` and `kit-copy:…` are *notices*: something to read, nothing is broken. With notices only, `check` says *"Check: nothing to fix; N notice(s) to read:"* and exits `0`. Every other finding is a *problem* to fix, and `check` exits `1`.
+**Notices and problems.** `team-…`, `skill-clash:…`, `kit-copy:…` and `kept-edit:…` are *notices*: something to read, nothing is broken. With notices only, `check` says *"Check: nothing to fix; N notice(s) to read:"* and exits `0`. Every other finding is a *problem* to fix, and `check` exits `1`.
 
 | Finding id | What it means | What to do |
 |---|---|---|
@@ -486,6 +486,7 @@ Check: 3 to look at:
 | `missing:<file>` | A file the kit placed is gone. | `python3 .ai-sdlc/kit/setup.py change` (no options) puts it back. After taking a `.kit-new`, this is expected until you run `change`. |
 | `unknown:<file>` | A file named like the kit's (`ai-sdlc-*`) that the kit did not write, for example one Copilot made. Your personal notes and personal skills are never reported. | Look at it. Delete it if you don't need it, or rename it to a personal file. |
 | `unexcluded:<file>` | A kit file that git does not hide (it could end up in a commit). | `python3 .ai-sdlc/kit/setup.py change` (no options) hides it again. |
+| `kept-edit:<file>` | A file the kit placed and you edited, that your choices no longer need (after a change of roles or skills, or an update). The kit kept it rather than delete your edit. | Look at it. Delete it if you don't need it; the notice then goes. |
 | `kit-copy:<folder>` | Another kit folder in the repo that git does not hide. *"A newer kit (…) is waiting"*: it is newer. *"Another copy of the kit (same version …)"*: it has your version. Otherwise it is older. | Newer: [update](#2-update-the-kit-to-a-newer-version). Same version: update if you copied it in for that, otherwise delete the folder. Older: delete the folder. |
 | `stale-kit` | The kit folder and your setup disagree on the version (an update did not finish, or the kit folder was replaced by hand). | `python3 .ai-sdlc/kit/setup.py update` |
 | `team-agents-md` | The team has its own `AGENTS.md`; Copilot reads it together with the kit's files. | Information only. Ask Copilot to look for real contradictions; the team's rule wins. Then acknowledge it (below). |

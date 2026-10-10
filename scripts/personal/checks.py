@@ -7,14 +7,16 @@ Each finding is (id, text). Ids are stable, so ONBOARDING.md can map them to fix
                        the person's own notes and personal skills (paths.is_personal) are not
     unexcluded:<path>  an ai-sdlc* file git does not hide
     stale-kit          the kit folder and state.json disagree on the version
+    kept-edit:<path>   a file the kit placed and the person edited that their choices no
+                       longer need: kept, not deleted (state.json kept_edits)
     kit-copy:<dir>     another kit folder in the repo that git does not hide (newer: it waits
                        for "update the kit"; same version: update from it or delete it;
                        older: delete it)
     and the team-file warnings from conflicts.py that are not acknowledged.
 
 Notices and problems. A notice is for reading, nothing is broken: the team-… and
-skill-clash:… warnings, and kit-copy:… (a kit folder waiting for "update the kit", or
-one to delete). Everything else (missing, unknown, unexcluded, stale-kit, not-set-up)
+skill-clash:… warnings, kit-copy:… (a kit folder waiting for "update the kit", or
+one to delete) and kept-edit:… (an edited file kept after a change or an update). Everything else (missing, unknown, unexcluded, stale-kit, not-set-up)
 is a problem to fix. `check` exits 0 when it found notices only, 1 for any problem.
 """
 from __future__ import annotations
@@ -24,7 +26,7 @@ from pathlib import Path
 from . import conflicts, paths, place, reuse, state
 
 SCAN = (".github/instructions", ".github/hooks", ".github/skills", ".agents/skills", ".claude/skills")
-NOTICES = ("team-", "skill-clash:", "kit-copy:")
+NOTICES = ("team-", "skill-clash:", "kit-copy:", "kept-edit:")
 
 
 def is_notice(fid: str) -> bool:
@@ -97,8 +99,13 @@ def run(root) -> tuple[dict | None, list[tuple[str, str]]]:
             found.append((f"missing:{rel}", f"{rel} is missing."))
     found += kit_only_missing(root, st)
     present = ai_sdlc_files(root)
+    kept = {rel for rel in st.get("kept_edits", {}) if rel not in st["files"] and (root / rel).is_file()}
+    for rel in sorted(kept):
+        found.append((f"kept-edit:{rel}", f"{rel} has your edit, so it was kept, but your choices "
+                                         "no longer need it; delete it if you don't need it."))
     for rel in present:
-        if rel not in st["files"] and not rel.endswith(".tmp") and not paths.is_personal(rel):
+        if (rel not in st["files"] and rel not in kept and not rel.endswith(".tmp")
+                and not paths.is_personal(rel)):
             found.append((f"unknown:{rel}", f"{rel} looks like a kit file, but the kit did not write it."))
     if paths.repo_root(root)[1]:
         on_disk = sorted(set(present) | {r for r in st["files"] if (root / r).is_file()})

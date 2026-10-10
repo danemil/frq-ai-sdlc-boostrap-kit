@@ -239,6 +239,13 @@ class TestUpdate(unittest.TestCase):
         self.assertIn(f"- Kept your edit in {rel}.", out)
         self.assertTrue(edited.is_file())
         self.assertIn("Removed", out)
+        # The kept edit is a notice, not an unknown file: check exits 0 (re-test round 2, S6).
+        self.assertNotIn(f"unknown:{rel}", out)
+        self.assertIn(f"[kept-edit:{rel}]", out)
+        code, out = helpers.cli(root, root / paths.KIT_REL, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"[kept-edit:{rel}]", out)
+        self.assertIn("delete it if you don't need it", out)
 
 
 if __name__ == "__main__":
