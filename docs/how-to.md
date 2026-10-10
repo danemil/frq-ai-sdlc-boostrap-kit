@@ -437,7 +437,7 @@ Skill suggestions for this repo (from its files; nothing is changed yet):
 2. add:java-code-review — add ai-sdlc-java-code-review: this repo has Java code (pom.xml).
 3. add:java-junit — add ai-sdlc-java-junit: this repo has Java code (pom.xml).
 4. add:javafx — add ai-sdlc-javafx: this repo uses JavaFX (pom.xml).
-5. add:maven-via-artifactory — add ai-sdlc-maven-via-artifactory: this repo downloads packages; they come only through the company mirror (pom.xml).
+5. add:maven-via-artifactory — add ai-sdlc-maven-via-artifactory: this repo downloads Maven, npm or Go packages; they come only through the company mirror (pom.xml).
 To take them all: python3 .ai-sdlc/kit/setup.py change --add-skill 110-java-maven-best-practices --add-skill java-code-review --add-skill java-junit --add-skill javafx --add-skill maven-via-artifactory
 To take some: the same command with only those skills.
 To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <skill names or ids, comma-separated>  (or --decline all)

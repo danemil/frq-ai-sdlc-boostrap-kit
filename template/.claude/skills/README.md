@@ -55,7 +55,7 @@ From obra/superpowers v6.4.2, with the kit's changes listed in each `PROVENANCE.
 | **java-junit** | JUnit tests; JUnit version, AssertJ and Mockito read from the POM first. | github/awesome-copilot, MIT |
 | **110-java-maven-best-practices** | Improve a `pom.xml`; repositories only through the `settings.xml` mirror. | jabrena/plinth, Apache-2.0 |
 | **javafx** | JavaFX desktop UI: FX thread, FXML, bindings, TestFX (headless), packaging. | Written for this kit, MIT |
-| **maven-via-artifactory** | Packages only through the company mirror; the versions this repo uses (`scripts/detect_stack.py`). | Written for this kit, MIT |
+| **maven-via-artifactory** | Maven, npm and Go mirrors: packages only through the company mirror; the versions this repo uses (`scripts/detect_stack.py`). | Written for this kit, MIT |
 | **golang-testing** | Go tests for the repo's Go version (read from `go.mod`). | samber/cc-skills-golang, MIT |
 | **golang-code-style** | Go code style and clarity. | samber/cc-skills-golang, MIT |
 | **golang-lint** | golangci-lint: run, configure, read findings; fixes only after a yes. | samber/cc-skills-golang, MIT |

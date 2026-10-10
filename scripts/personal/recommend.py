@@ -25,8 +25,8 @@ from . import packs
 
 RULES_REL = "roles/recommend.json"
 DETECT_REL = f"{packs.SKILLS_REL}/maven-via-artifactory/scripts/detect_stack.py"
-SIGNALS = ("java", "maven", "javafx", "go", "node", "jest", "react", "web", "sonar", "blackduck", "code")
-CODE = ("java", "go", "node")
+SIGNALS = ("java", "maven", "javafx", "go", "node", "python", "jest", "react", "web", "sonar", "blackduck", "code")
+CODE = ("java", "go", "node", "python")
 ACTIONS = ("add", "drop")
 RULE_KEYS = {"skill", "action", "when", "unless", "roles", "reason"}
 ROLE_PLAYBOOKS = "Role playbooks"

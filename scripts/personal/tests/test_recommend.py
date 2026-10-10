@@ -83,6 +83,9 @@ class TestSignals(Base):
             "web": ({"public/index.html": "<!doctype html>\n"}, {"web"}),
             "sonar": ({"sonar-project.properties": "sonar.projectKey=x\n"}, {"sonar"}),
             "blackduck": ({"Jenkinsfile": "sh 'bash detect.sh --blackduck.url=x'\n"}, {"blackduck"}),
+            "pyproject": ({"pyproject.toml": "[project]\nname = 'x'\n"}, {"python", "code"}),
+            "requirements": ({"requirements-dev.txt": "pytest\n"}, {"python", "code"}),
+            "python file": ({"tools/report.py": "print('x')\n"}, {"python", "code"}),
         }
         for n, (label, (files, want)) in enumerate(cases.items()):
             with self.subTest(label):
@@ -115,6 +118,13 @@ class TestCompute(Base):
 
     def test_an_empty_repo_gets_no_suggestions(self):
         root = self.repo({"README.md": "x\n"})
+        self.assertEqual(self.ids(root, ["dev", "qa", "architect"]), [])
+
+    def test_a_python_repo_has_code_but_no_stack_suggestion(self):
+        """Python counts as code (a drop rule can fire), but no skill is Python's yet, and the
+        mirror skill covers Maven, npm and Go only (re-test round 2, N2)."""
+        root = self.repo({"pyproject.toml": "[project]\nname = 'x'\n", "src/x/app.py": "x = 1\n"})
+        self.assertEqual(recommend.signals(root, KIT)["code"], ["pyproject.toml", "src/x/app.py"])
         self.assertEqual(self.ids(root, ["dev", "qa", "architect"]), [])
 
     def test_a_monorepo_gets_every_language(self):
@@ -157,7 +167,9 @@ class TestCompute(Base):
         all_packs = packs.load(kit)
         java = self.repo({"pom.xml": PLAIN_POM}, "java")
         empty = self.repo({"README.md": "x\n"}, "empty")
+        python = self.repo({"requirements.txt": "requests\n"}, "python")
         self.assertIn("drop:brainstorming", self.ids(java, ["dev"], kit, all_packs))
+        self.assertEqual(self.ids(python, ["dev"], kit, all_packs), ["drop:brainstorming"])
         self.assertEqual(self.ids(java, ["dev"], kit, all_packs)[-1], "drop:brainstorming", "adds first")
         self.assertEqual(self.ids(empty, ["dev"], kit, all_packs), [])
         self.assertNotIn("drop:brainstorming", self.ids(java, ["dev"], kit, all_packs, add_skills=["brainstorming"]))

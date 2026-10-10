@@ -10,7 +10,7 @@ What it reports: the Java build (Maven or Gradle), the Java release, Spring Boot
 AssertJ, Mockito, TestFX and where JavaFX comes from (org.openjfx or a JDK that bundles
 it); Go and its toolchain; the React, Jest, Testing Library and TypeScript versions
 (declared, and locked when package-lock.json is there); signs of SonarQube and Black
-Duck; the Maven mirrors, npm registries and GOPROXY.
+Duck; whether there is Python code; the Maven mirrors, npm registries and GOPROXY.
 
 Python 3.9+, standard library only. It only reads files: it never writes, never runs a
 tool (no mvn, go or npm), never uses the network. It walks the root and three folder
@@ -51,7 +51,8 @@ BLACKDUCK_WORDS = ("blackduck", "synopsys_detect", "detect.sh")
 BLACKDUCK_PROP = re.compile(r"(?<![\w.])-{0,2}(detect|blackduck)\.[a-z][\w.-]*\s*[=:]", re.I)
 NODE_NAMES = {"react": "react", "jest": "jest", "testing_library_react": "@testing-library/react",
               "typescript": "typescript"}
-SIGNALS = ("maven", "java", "javafx", "go", "node", "jest", "react", "web", "sonar", "blackduck")
+SIGNALS = ("maven", "java", "javafx", "go", "node", "python", "jest", "react", "web", "sonar", "blackduck")
+PYTHON_FILES = re.compile(r"^(pyproject\.toml|setup\.py|setup\.cfg|requirements[\w.-]*\.txt|.+\.py)$")
 
 
 def strip_userinfo(text: Optional[str]) -> Optional[str]:
@@ -308,6 +309,13 @@ def go_part(s: Scan) -> dict:
     return out
 
 
+def python_part(s: Scan) -> None:
+    """Only a signal (a Python project is code); no versions are read."""
+    for rel, p in s.files:
+        if PYTHON_FILES.match(p.name):
+            s.note("python", rel)
+
+
 def node_part(s: Scan) -> dict:
     out = {"packages": [], "react": None, "jest": None, "testing_library_react": None,
            "typescript": None, "locked": {}}
@@ -455,6 +463,7 @@ def scan(root: Path, home: Optional[Path] = None, env=None) -> dict:
     java = java_part(s)
     go = go_part(s)
     node = node_part(s)
+    python_part(s)
     quality_part(s)
     mirrors = mirrors_part(s, home, env)
     return {"schema": SCHEMA, "java": java, "go": go, "node": node, "quality": s.quality,
