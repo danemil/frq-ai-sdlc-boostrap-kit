@@ -1786,6 +1786,7 @@ class TestSkillText(unittest.TestCase):
         self.assertNotIn("keep `Standard TITLE` as it is", self.skill)
         self.assertIn("the ATM key visual on the title slide", create)
         self.assertIn("--business-unit", create)
+        self.assertIn("the big square shows the unit's key visual and the five small unit tiles stay", create)
         self.assertIn("`docs/decks/`", create)
         # a one-shot run asked the classification and the presenter together (re-test round 2)
         self.assertIn("Also when nobody can answer in this run, ask only the classification and stop", create)
