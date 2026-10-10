@@ -221,6 +221,24 @@ class TestOnboarding(unittest.TestCase):
     def test_update_offers_new_suggestions(self):
         self.assertIn("Skill suggestions for this repo", section("Update the kit"))
 
+    def test_update_relays_tools_and_shows_suggestions_itself(self):
+        """Copilot re-test 2026-10-10 (S2): after an update, the tools line was not relayed,
+        and the person was told to say "recommend skills" instead of being shown them."""
+        step4 = section("Update the kit").split("\n4. ", 1)[1].split("\n5. ", 1)[0]
+        for needed in ("If the summary has a line 'Tools to connect for this repo', run "
+                       "`python3 .ai-sdlc/kit/setup.py recommend` and name each tool with its "
+                       "reason in one plain sentence, as in onboarding step 10",
+                       "the person connects it in their own terminal, never you",
+                       "show them now from the same `recommend` output, as in onboarding step 8",
+                       "do not ask the person to say 'recommend skills'"):
+            self.assertIn(needed, step4)
+
+    def test_step_8_leaves_tools_to_step_10(self):
+        """Copilot re-test 2026-10-10 (S3)."""
+        self.assertIn("If it prints only 'Tools to connect for this repo' (no skill "
+                      "suggestions), treat that as no suggestions here: say nothing about the "
+                      "tools yet; they come in step 10.", self.step(8))
+
     def test_check_names_a_missing_kit_copy_file(self):
         self.assertIn("under `.ai-sdlc/kit`", section("Check the kit"))
 
