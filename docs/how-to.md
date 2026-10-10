@@ -68,9 +68,9 @@ python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,qa --lang en
 ```text
 The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
-Set up AI-SDLC 0.8.0 for Ana: Product Owner, QA · English.
+Set up AI-SDLC 0.9.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
-- Wrote 99 file(s): .agents/skills/ (94 in 16 skills), .ai-sdlc/ (1), .github/hooks/ (1), .github/instructions/ (3)
+- Wrote 91 file(s): .agents/skills/ (86 in 16 skills), .ai-sdlc/ (1), .github/hooks/ (1), .github/instructions/ (3)
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
@@ -144,8 +144,8 @@ Example output, with one edited file:
 
 ```text
 $ python3 ai-sdlc-kit-new/setup.py update
-Updated to AI-SDLC 0.8.1 for Ana: Product Owner, QA · English.
-- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.8.0).
+Updated to AI-SDLC 0.9.1 for Ana: Product Owner, QA · English.
+- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.9.0).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 1 file(s): .github/instructions/ (1)
 - Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's newer copy is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare.
@@ -415,7 +415,7 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py change --lang de --git-comfort guided --rituals none --add-skill skill-creator --drop-skill drawio
-Updated AI-SDLC 0.8.0 for Ana: Product Owner, QA · German (Deutsch).
+Updated AI-SDLC 0.9.0 for Ana: Product Owner, QA · German (Deutsch).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 3 file(s): .agents/skills/ (1 in 1 skill), .ai-sdlc/ (1), .github/instructions/ (1)
 - Removed 6 file(s) no longer needed: .agents/skills/ (6 in 1 skill)
@@ -467,7 +467,7 @@ python3 .ai-sdlc/kit/setup.py check --quiet --hook   # the same line as JSON, fo
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py check --quiet
-AI-SDLC 0.8.0 · roles: PO, QA · en · ok
+AI-SDLC 0.9.0 · roles: PO, QA · en · ok
 $ python3 .ai-sdlc/kit/setup.py check
 Check: 3 to look at:
 - [missing:.github/instructions/ai-sdlc-qa.instructions.md] .github/instructions/ai-sdlc-qa.instructions.md is missing.
