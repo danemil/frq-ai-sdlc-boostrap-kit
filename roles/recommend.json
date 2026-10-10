@@ -36,6 +36,12 @@
     "systematic-debugging": {"group": "Ways of working", "summary": "Find the root cause before fixing."},
     "verification-before-completion": {"group": "Ways of working", "summary": "Evidence before saying done."},
     "receiving-code-review": {"group": "Ways of working", "summary": "Check review comments before acting."},
+    "playbook-architect": {"group": "Role playbooks", "summary": "The Architect's role contract: what the seat owns, shares and leaves to others."},
+    "playbook-em": {"group": "Role playbooks", "summary": "The Engineering Manager's role contract: what the seat owns, shares and leaves to others."},
+    "playbook-product": {"group": "Role playbooks", "summary": "The Product Owner and Product Manager role contract."},
+    "playbook-qa": {"group": "Role playbooks", "summary": "The QA role contract: what the seat owns, shares and leaves to others."},
+    "playbook-sm": {"group": "Role playbooks", "summary": "The Scrum Master / Team Coach (SAFe) role contract."},
+    "playbook-dev": {"group": "Role playbooks", "summary": "The Developer's role contract: what the seat owns, shares and leaves to others."},
     "skill-creator": {"group": "Other", "summary": "Create or improve a skill."}
   }
 }

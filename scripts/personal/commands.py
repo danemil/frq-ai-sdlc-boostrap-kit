@@ -408,7 +408,8 @@ def cmd_recommend(args, cwd, kit):
             return 0, ["Nothing to decline: there are no open skill suggestions."]
         st["declined_recommendations"] = sorted(set(st["declined_recommendations"]) | set(wanted))
         state.save(root, st)
-        return 0, [f"Noted: {', '.join(wanted)}. You can still take them with the change command."]
+        return 0, [f"Noted: {', '.join(wanted)}. You can still take "
+                   f"{'it' if len(wanted) == 1 else 'them'} with the change command."]
     rest = recommend.others(kit, st, all_packs, items) if args.all else []
     if args.json:
         return 0, [json.dumps({"suggestions": items, "others": rest}, indent=2, ensure_ascii=False)]

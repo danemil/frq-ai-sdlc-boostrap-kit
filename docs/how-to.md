@@ -397,7 +397,7 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 
 ## 5. Change your preferences
 
-**(a) Copilot:** say **"change my preferences"** and say what you want: *"answer me in German"*, *"add the dev role"*, *"stop doing git for me"*, *"turn off the session summary"*, *"leave out the drawio skill"*, *"add the brainstorming skill"*.
+**(a) Copilot:** say **"change my preferences"** and say what you want: *"answer me in German"*, *"add the dev role"*, *"stop doing git for me"*, *"turn off the session summary"*, *"leave out the drawio skill"*, *"add the brainstorming skill"*, *"add the javafx skill"*.
 
 **(b) Terminal:** `python3 .ai-sdlc/kit/setup.py change` with one or more of these options. Only the affected files change.
 
@@ -423,6 +423,31 @@ Updated AI-SDLC 0.8.0 for Ana: Product Owner, QA · German (Deutsch).
 - Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
 Check: all good.
 ```
+
+### Skill suggestions and the other skills
+
+**(a) Copilot:** say **"recommend skills"** (which skills fit this repo?) or **"show me the other skills"** (everything else you can add). Copilot lists them and asks once; say *"take javafx and java-junit"*, *"all of them"*, *"none"* or *"add the javafx skill"*. Nothing changes without your yes.
+
+**(b) Terminal:** `recommend` reads the repo's files and changes nothing:
+
+```text
+$ python3 .ai-sdlc/kit/setup.py recommend
+Skill suggestions for this repo (from its files; nothing is changed yet):
+1. add:110-java-maven-best-practices — add ai-sdlc-110-java-maven-best-practices: this repo builds with Maven (pom.xml).
+2. add:java-code-review — add ai-sdlc-java-code-review: this repo has Java code (pom.xml).
+3. add:java-junit — add ai-sdlc-java-junit: this repo has Java code (pom.xml).
+4. add:javafx — add ai-sdlc-javafx: this repo uses JavaFX (pom.xml).
+5. add:maven-via-artifactory — add ai-sdlc-maven-via-artifactory: this repo downloads packages; they come only through the company mirror (pom.xml).
+To take them all: python3 .ai-sdlc/kit/setup.py change --add-skill 110-java-maven-best-practices --add-skill java-code-review --add-skill java-junit --add-skill javafx --add-skill maven-via-artifactory
+To take some: the same command with only those skills.
+To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <ids, comma-separated>  (or --decline all)
+```
+
+- `recommend --all` adds "Other skills you can add": every skill you do not have, grouped (Java, Go, React and web, Quality and security, Ways of working, Role playbooks, Other), one line each, and the `change --add-skill` command.
+- `recommend --decline add:javafx` (or `--decline all`) remembers a no in `.ai-sdlc/state.json`; that suggestion is not offered again by setup or update, and `recommend` lists it under "Declined earlier". Taking it later with `change --add-skill javafx` clears the no.
+- `recommend --json` prints `{"suggestions": [...], "others": [...]}`.
+
+Suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.
 
 Your current choices are in `.ai-sdlc/USER.md`. Read it, but do not edit it by hand: use `change`. `change` with no options repairs the setup: it puts back missing files and hides them again.
 
