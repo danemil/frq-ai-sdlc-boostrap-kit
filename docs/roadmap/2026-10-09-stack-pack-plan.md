@@ -294,7 +294,7 @@ Files: `SKILL.md` (`b5da58d17eb7`).
 Files: `SKILL.md` (`09f59a3076ff`), `references/110-java-maven-best-practices.md` (`885a464f580b`). Licence Apache-2.0: §4(b) needs a prominent change notice **in each changed file**.
 
 Reference edits (bottom-up):
-- **L782** replace the start `**APPLY** Maven best practices directly by implementing` with `**PROPOSE**, as a diff that is applied only after the person says yes (this kit's copy),` (the rest of the line stays).
+- **L782** replace the start `**APPLY** Maven best practices directly by implementing` with `**PROPOSE**, as a diff that is applied only after the person says yes (this kit's copy),`; in the same line delete `add missing repository declarations, ` (it contradicts the mirror rule; added at the merge). The rest of the line stays.
 - **L384–423** (all of "### Example 6" up to the line before "### Example 7") → exactly:
 
 ~~~markdown
@@ -338,7 +338,7 @@ Description: (this kit's copy) Every artifact comes from the company mirror (Art
 
 `SKILL.md` edits:
 - **L20** `- Explicit repository declaration` → `- Repositories through the company mirror (\`settings.xml\`), never in the POM`.
-- **After L11** insert the kit section, with first line `Changed for this kit (Apache-2.0, section 4); see PROVENANCE.md.` and extra bullets:
+- **After the "What is covered in this Skill?" list** (before `## Constraints`) insert the kit section, with first line `Changed for this kit (Apache-2.0, section 4); see PROVENANCE.md.` and extra bullets:
   - `- **Run Maven only after a yes.** \`./mvnw\` downloads Maven on its first run from \`distributionUrl\` in \`.mvn/wrapper/maven-wrapper.properties\`: check that it points at the company mirror; if not, use the installed \`mvn\`. A failed resolution means stop and report, never a new repository.`
   - `- **Propose, then apply:** recommendations are proposed as a diff; nothing in a POM changes before a yes.`
 
@@ -439,6 +439,7 @@ npx --no-install axe https://example.com
 - **L20** delete `; with Chrome DevTools MCP, use \`take_snapshot\``. **L18** delete `; with Chrome DevTools MCP, use \`lighthouse_audit\``.
 - **Before L14** ("## Evidence-led audit workflow"): the kit section, plus `- **Desktop UI:** this skill is about web pages (WCAG). For JavaFX screens use \`ai-sdlc-javafx\` (if you have it).`
 - `WCAG.md` L180–182 (tool table) stay: they name tools, they do not install them.
+- Found while vendoring: the References list links `../web-quality-audit/SKILL.md`, a sibling skill the kit does not ship; the link is removed (recorded in `PROVENANCE.md`).
 
 ---
 

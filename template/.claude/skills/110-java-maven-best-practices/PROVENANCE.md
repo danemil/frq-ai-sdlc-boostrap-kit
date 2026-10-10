@@ -22,7 +22,7 @@ Upstream has no `NOTICE` file. The skill bundles no scripts. Apache-2.0 section 
 ## Local modifications
 
 `SKILL.md`:
-- **New section "This kit's copy"**, after the opening line. It starts with the change notice ("Changed for this kit (Apache-2.0, section 4); see PROVENANCE.md.") and has these bullets:
+- **New section "This kit's copy"**, after the "What is covered in this Skill?" list (before "Constraints"). It starts with the change notice ("Changed for this kit (Apache-2.0, section 4); see PROVENANCE.md.") and has these bullets:
   - **Git.** Never commit, push or merge on its own; follow the person's git-comfort setting and ask before each commit.
   - **Show before you change.** Show the proposed diff or content and wait for a yes; report evidence, not just "Fixed".
   - **Packages only through the company mirror.** No `<repositories>` in a POM, no downloads from the public internet, ask before anything that downloads; load `ai-sdlc-maven-via-artifactory` if it is installed.
@@ -35,7 +35,7 @@ Upstream has no `NOTICE` file. The skill bundles no scripts. Apache-2.0 section 
 - **Change notice** after the title: "Changed for this kit (Apache-2.0, section 4): Example 6, the pom.xml section order and the APPLY step. See PROVENANCE.md."
 - **Example 6** ("Manage Repositories Explicitly", whose good example declared `<repositories>` in the POM) is replaced by "Resolve Through the Mirror, Never Declare Repositories": the good example is a `settings.xml` mirror with `<mirrorOf>*</mirrorOf>`, the bad example is upstream's POM with a repository; a failed resolution means stop and report. The entry in the examples list is renamed to match.
 - **Example 5**: "repositories" removed from the suggested pom.xml section order.
-- **Output step**: "**APPLY** Maven best practices directly by implementing" became "**PROPOSE**, as a diff that is applied only after the person says yes (this kit's copy)," (the rest of that line is upstream's).
+- **Output step**: "**APPLY** Maven best practices directly by implementing" became "**PROPOSE**, as a diff that is applied only after the person says yes (this kit's copy)," and the clause "add missing repository declarations" was removed from that line (it contradicts the mirror rule); the rest of the line is upstream's.
 
 Setup prefixes the name to `ai-sdlc-110-java-maven-best-practices` when it places the skill.
 
