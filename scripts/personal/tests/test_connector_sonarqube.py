@@ -163,6 +163,15 @@ class TestAuth(Base):
         self.assertIn(TOKEN, a.secrets())
         self.assertIn(base64.b64encode(f"{TOKEN}:".encode()).decode(), a.secrets())
 
+    def test_the_auth_is_the_foundations_token_as_user(self):
+        # One implementation, in http.py, where the scrubbing is tested (Task A1).
+        import importlib
+        from personal.connectors import http
+        a = self.c.auth({"url": "https://sonar.example.com", "token": TOKEN})
+        self.assertIs(type(a), http.TokenAsUser)
+        module = importlib.import_module("personal.connectors.sonarqube")
+        self.assertFalse(hasattr(module, "_TokenAsUser"))
+
     def test_secret_absent_from_all_cli_output(self):
         srv = self.srv({
             "/api/users/current": ME,

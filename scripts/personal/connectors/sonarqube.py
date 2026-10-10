@@ -14,7 +14,6 @@ pages with `p` / `ps` and never returns more than 10,000 issues for one search.
 from __future__ import annotations
 
 import argparse
-import base64
 import re
 import urllib.parse
 
@@ -63,27 +62,9 @@ TYPES = {
 
 # --- auth -----------------------------------------------------------------------------
 
-class _TokenAsUser(http.Auth):
-    """The token as the Basic user name, empty password. Unlike `http.basic(token, "")`,
-    `secrets()` lists the token itself, so an error that quotes it is scrubbed."""
-    kind = "basic"
-
-    def __init__(self, token):
-        self._token = token
-        self._encoded = base64.b64encode(f"{token}:".encode("utf-8")).decode("ascii")
-
-    def headers(self, client) -> dict:
-        return {"Authorization": f"Basic {self._encoded}"}
-
-    def secrets(self) -> list[str]:
-        return [self._token, self._encoded]
-
-
 def auth(values) -> http.Auth:
-    # The foundation's `http.token_as_user` (0.10.0 Task A1) when present; the local
-    # class otherwise. Both send the same header and list the same secrets.
-    make = getattr(http, "token_as_user", None) or _TokenAsUser
-    return make(values["token"])
+    # The token as the Basic user name; `secrets()` lists the token itself (http.py).
+    return http.token_as_user(values["token"])
 
 
 def kind(values) -> str:
