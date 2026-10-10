@@ -1,6 +1,6 @@
 ---
 name: maven-via-artifactory
-description: 'Get Maven, npm and Go packages only through the company mirror (Artifactory): Maven settings.xml mirrors, .npmrc, GOPROXY; and find the versions this repo uses (Java release, Spring Boot, JUnit, Go, React, Jest). Use first, before adding or upgrading a dependency or any build that downloads, and when the person says "could not resolve", "could not find artifact", "dependency not found", "add a dependency", "upgrade a dependency", "which mirror", "which Java version", "which JUnit".'
+description: 'Get Maven, npm and Go packages only through the company mirror (Artifactory): Maven settings.xml mirrors, .npmrc, GOPROXY; find the versions this repo uses (Java release, Spring Boot, JUnit, Go, React, Jest), and check which versions the mirror has through the read-only artifactory connector when connected. Use first, before adding or upgrading a dependency or any build that downloads, and when the person says "could not resolve", "could not find artifact", "dependency not found", "add a dependency", "upgrade a dependency", "which mirror", "which Java version", "which JUnit".'
 license: MIT
 ---
 
@@ -100,8 +100,31 @@ directly.
 
 ## 5. Adding or upgrading a dependency
 
-1. Read the versions (section 4) and the existing `<dependencyManagement>` or BOM.
+1. Read the versions (section 4) and the existing `<dependencyManagement>` or BOM. Before
+   you name a new version, run section 6,
+   "Check the mirror has the version".
 2. Propose the change as a diff: the version in one place (a property or the managed
    section), not repeated in each module.
 3. After a yes, and after the person agrees to the download, build or run the tests.
 4. If it does not resolve, follow section 3.
+
+## 6. Check the mirror has the version
+
+Use this before any upgrade proposal, also when another skill (for example
+`ai-sdlc-blackduck-findings`) found the fixed version.
+
+1. Run `python3 .ai-sdlc/kit/connectors.py artifactory whoami --json`.
+2. **Connected** (exit code 0): list the versions the mirror has, with `--json`:
+   - Maven: `python3 .ai-sdlc/kit/connectors.py artifactory versions <group:artifact> --json`
+   - npm: `python3 .ai-sdlc/kit/connectors.py artifactory npm <package> --json`
+   - Go: `python3 .ai-sdlc/kit/connectors.py artifactory go <module> --json`
+
+   Add `--repo <key>` when the person names a repository; otherwise the connector uses the
+   default they saved. Then propose only a version in that list, and cite the item's `url`.
+   A newer `latest` is not a reason to upgrade on its own.
+3. **The version is not in the list:** say so, and follow section 3 (stop and report; the
+   Artifactory admins add or proxy it). Never work around it.
+4. **Not connected** (exit code 3) or another error: ask the person to check the mirror's
+   web page for that artifact, and say the version is not confirmed. They can connect
+   Artifactory themselves: say *connect artifactory*; they type the login in their own
+   terminal.
