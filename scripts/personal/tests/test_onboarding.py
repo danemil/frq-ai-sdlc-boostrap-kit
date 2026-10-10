@@ -50,7 +50,7 @@ class TestOnboarding(unittest.TestCase):
 
     def test_every_spoken_request_has_a_section(self):
         for title in ("Do the onboarding", "Change my preferences", "Update the kit",
-                      "Check the kit", "Remove the kit", "Connect a tool"):
+                      "Check the kit", "Remove the kit", "Connect a tool", "Recommend skills"):
             self.assertIn(f"\n## {title}\n", DOC)
 
     def test_connecting_is_left_to_the_person(self):
@@ -111,9 +111,42 @@ class TestOnboarding(unittest.TestCase):
                       onboarding)
 
     def test_connect_suggested_is_given_only_after_a_yes(self):
-        step9 = section("Do the onboarding").split("\n9. ", 1)[1]
-        self.assertLess(step9.index("Wait for the answer."), step9.index("connect --suggested"))
-        self.assertIn("Only if they say yes", step9)
+        step11 = section("Do the onboarding").split("\n11. ", 1)[1]
+        self.assertLess(step11.index("Wait for the answer."), step11.index("connect --suggested"))
+        self.assertIn("Only if they say yes", step11)
+
+    def step(self, n):
+        return section("Do the onboarding").split(f"\n{n}. ", 1)[1].split(f"\n{n + 1}. ", 1)[0]
+
+    def test_the_onboarding_offers_skill_suggestions_once(self):
+        onboarding = section("Do the onboarding")
+        step8 = self.step(8)
+        for needed in ("`python3 .ai-sdlc/kit/setup.py recommend`", "This is an offer, not a fourth question.",
+                       "You can take all, some or none.", "recommend --decline all",
+                       "Never apply a suggestion they did not choose.", "Wait for the answer."):
+            self.assertIn(needed, step8)
+        self.assertLess(onboarding.index("Mark them as seen"), onboarding.index("Suggest skills for this repo"))
+        self.assertLess(onboarding.index("Suggest skills for this repo"), onboarding.index("**Close.**"))
+
+    def test_the_onboarding_offers_the_other_skills_once(self):
+        step9 = self.step(9)
+        for needed in ("`python3 .ai-sdlc/kit/setup.py recommend --all`", "'None' is fine.", "--add-skill",
+                       "Never add a skill they did not pick.", "nothing is stored", "Wait for the answer."):
+            self.assertIn(needed, step9)
+        self.assertLess(section("Do the onboarding").index("Other skills (optional)"),
+                        section("Do the onboarding").index("**Close.**"))
+
+    def test_recommend_skills_covers_the_other_skills(self):
+        text = section("Recommend skills")
+        for needed in ('"recommend skills"', '"show me the other skills"', "recommend --all",
+                       "Declined earlier", "one question", "Never apply a suggestion they did not choose."):
+            self.assertIn(needed, text)
+
+    def test_update_offers_new_suggestions(self):
+        self.assertIn("Skill suggestions for this repo", section("Update the kit"))
+
+    def test_check_names_a_missing_kit_copy_file(self):
+        self.assertIn("under `.ai-sdlc/kit`", section("Check the kit"))
 
     def test_update_names_where_to_get_the_kit(self):
         # The address itself names the client, so it stays in README.md (the client-name rule

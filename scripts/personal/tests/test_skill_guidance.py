@@ -70,6 +70,8 @@ class TestCoreInstructions(unittest.TestCase):
         line = [l for l in core().splitlines() if l.startswith("**Changing the setup.**")][0]
         self.assertIn('"do the onboarding" (also when the kit is already set up', line)
         self.assertIn("`.ai-sdlc/kit/ONBOARDING.md`", line)
+        self.assertIn('"recommend skills"', line)
+        self.assertIn('"show me the other skills"', line)
 
     def test_german_uses_one_form_of_address(self):
         self.assertIn('In German, address $name as "Sie" throughout', core())
