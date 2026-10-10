@@ -699,6 +699,17 @@ class TestTokenAsUser(Base):
         self.assertNotIn(base64.b64encode(f"{SECRET}:".encode()).decode(), err.getvalue())
 
 
+class TestErrorBody(Base):
+    def test_blackduck_error_message_field_is_shown_and_scrubbed(self):
+        # Black Duck puts its reason in `errorMessage` (with `errorCode`).
+        srv = self.server({"/api/x": Reply(404, {"errorMessage": f"No version {SECRET}",
+                                                 "errorCode": "{central.constraint_violation}"})})
+        with self.assertRaises(http.ConnectorError) as cm:
+            http.Client(srv.url, http.bearer(SECRET)).get_json("/api/x")
+        self.assertIn("server says: No version <redacted>", str(cm.exception))
+        self.assertNotIn(SECRET, str(cm.exception))
+
+
 class TestTokenExchange(Base):
     def test_blackduck_exchange_once_then_bearer(self):
         srv = self.server(_bd_routes())

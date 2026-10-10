@@ -552,6 +552,7 @@ class Client:
             raw = exc.read(4000).decode("utf-8", "replace")
             data = json.loads(raw)
             msgs = (data.get("errorMessages") or data.get("errors") or data.get("message")
+                    or data.get("errorMessage")
                     or data.get("error_description") or data.get("error"))
             if isinstance(msgs, list):
                 msgs = "; ".join(str(m.get("message", m) if isinstance(m, dict) else m)
