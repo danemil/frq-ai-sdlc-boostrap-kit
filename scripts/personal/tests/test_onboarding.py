@@ -27,6 +27,10 @@ def section(title: str) -> str:
     return DOC.split(f"\n## {title}\n", 1)[1].split("\n## ", 1)[0]
 
 
+def core_text():
+    return (helpers.KIT / "roles/core/instructions.md").read_text(encoding="utf-8")
+
+
 class TestOnboarding(unittest.TestCase):
     def test_every_command_named_is_real_and_its_flags_belong_to_it(self):
         real = subcommands()
@@ -131,10 +135,40 @@ class TestOnboarding(unittest.TestCase):
     def test_the_onboarding_offers_the_other_skills_once(self):
         step9 = self.step(9)
         for needed in ("`python3 .ai-sdlc/kit/setup.py recommend --all`", "'None' is fine.", "--add-skill",
-                       "Never add a skill they did not pick.", "nothing is stored", "Wait for the answer."):
+                       "Never add a skill they did not pick.", "nothing is stored", "wait for the answer"):
             self.assertIn(needed, step9)
         self.assertLess(section("Do the onboarding").index("Other skills (optional)"),
                         section("Do the onboarding").index("**Close.**"))
+
+    # --- Copilot re-test round 2 (2026-10-10) ------------------------------------------
+
+    COPY = "copy each line exactly as printed: the skill name and its summary"
+
+    def test_declines_go_by_skill_name(self):
+        step8 = self.step(8)
+        self.assertIn("recommend --decline <the skill names they did not take", step8)
+        self.assertIn("--decline javafx,java-junit", step8)
+
+    def test_suggestions_and_other_skills_are_copied_line_by_line(self):
+        for text in (self.step(8), self.step(9), section("Recommend skills")):
+            self.assertIn(self.COPY, text.replace("Copy each line", "copy each line"))
+
+    def test_step_9_stops_before_the_close(self):
+        self.assertIn("Stop and wait for the answer before step 10.", self.step(9))
+
+    def test_the_seen_question_is_asked_even_without_a_contradiction(self):
+        step7 = self.step(7)
+        self.assertIn("even when there was no contradiction", step7)
+        self.assertIn('"Shall I mark these as seen?', step7)
+
+    def test_check_explains_a_kept_edit(self):
+        self.assertIn("`kept-edit:`", section("Check the kit"))
+
+    def test_an_update_reads_the_onboarding_of_the_new_copy(self):
+        update = section("Update the kit")
+        self.assertIn("read the `ONBOARDING.md` in that folder", update)
+        self.assertIn("not the one in `.ai-sdlc/kit`", update)
+        self.assertIn("read the `ONBOARDING.md` in the newer copy", core_text())
 
     def test_recommend_skills_covers_the_other_skills(self):
         text = section("Recommend skills")

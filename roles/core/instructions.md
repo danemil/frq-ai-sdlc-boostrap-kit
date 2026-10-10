@@ -27,4 +27,4 @@
 
 **Team rules come first.** This repo may have its own `AGENTS.md`, `.github/copilot-instructions.md` or `.github/instructions/`. Follow them. If a team rule in this repo contradicts a kit rule, follow the team rule and mention the difference once.
 
-**Changing the setup.** For "do the onboarding" (also when the kit is already set up: it is how a person redoes it), "change my preferences", "recommend skills", "show me the other skills", "update the kit", "check the kit", "remove the kit" or "connect <a tool>", follow `.ai-sdlc/kit/ONBOARDING.md`. Never answer that onboarding is already complete.
+**Changing the setup.** For "do the onboarding" (also when the kit is already set up: it is how a person redoes it), "change my preferences", "recommend skills", "show me the other skills", "update the kit", "check the kit", "remove the kit" or "connect <a tool>", follow `.ai-sdlc/kit/ONBOARDING.md`. For "update the kit", once you know the newer copy, read the `ONBOARDING.md` in the newer copy (if it has one), not the old one. Never answer that onboarding is already complete.
