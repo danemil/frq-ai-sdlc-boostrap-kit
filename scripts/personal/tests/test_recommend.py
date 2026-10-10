@@ -208,6 +208,161 @@ class TestCompute(Base):
         self.assertEqual(first, recommend.compute(KIT, root, st_for(["dev", "qa"]), self.packs))
 
 
+class TestCommand(Base):
+    """`setup.py recommend`: read-only text and JSON, --all, --decline (plan Task 17)."""
+
+    def set_up(self, files, roles="dev"):
+        root = self.repo(files)
+        code, out = helpers.cli(root, helpers.copy_kit(root / "kit-copy"), "setup", "--name", "Ana",
+                                "--roles", roles, "--lang", "en")
+        self.assertEqual(code, 0, out)
+        self.kit = root / paths.KIT_REL
+        return root
+
+    def run_cli(self, root, *argv, code=0):
+        got, out = helpers.cli(root, self.kit, "recommend", *argv)
+        self.assertEqual(got, code, out)
+        return out
+
+    def test_recommend_lists_numbered_items_and_the_exact_change_command(self):
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        before = helpers.snapshot(root)
+        out = self.run_cli(root)
+        lines = out.splitlines()
+        self.assertEqual(lines[0], "Skill suggestions for this repo (from its files; nothing is changed yet):")
+        self.assertEqual(lines[1], "1. add:110-java-maven-best-practices — add ai-sdlc-110-java-maven-best-practices: "
+                                   "this repo builds with Maven (pom.xml).")
+        self.assertEqual(len([x for x in lines if x[:2].rstrip(".").isdigit()]), len(JAVAFX_DEV))
+        skills = [i.split(":")[1] for i in JAVAFX_DEV]
+        self.assertIn("To take them all: python3 .ai-sdlc/kit/setup.py change "
+                      + " ".join(f"--add-skill {s}" for s in skills), lines)
+        self.assertIn("To take some: the same command with only those skills.", lines)
+        self.assertIn("To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline "
+                      "<ids, comma-separated>  (or --decline all)", lines)
+        self.assertEqual(helpers.snapshot(root), before)
+
+    def test_no_suggestions_says_so(self):
+        root = self.set_up({"README.md": "x\n"})
+        self.assertEqual(self.run_cli(root).strip(), "No skill suggestions for this repo.")
+
+    def test_all_adds_the_other_skills_grouped(self):
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        before = helpers.snapshot(root)
+        lines = self.run_cli(root, "--all").splitlines()
+        start = lines.index("Other skills you can add (nothing is changed yet):")
+        self.assertGreater(start, lines.index("To take some: the same command with only those skills."))
+        part = lines[start + 1:]
+        groups = recommend.load(self.kit)["groups"]
+        heads = [x[:-1] for x in part if x.endswith(":") and not x.startswith("- ")]
+        self.assertEqual(heads, sorted(heads, key=groups.index))
+        self.assertIn("- ai-sdlc-golang-lint — golangci-lint: run, configure, read and fix findings.", part)
+        self.assertEqual(part[-1], "To add any of them: python3 .ai-sdlc/kit/setup.py change --add-skill <name> "
+                                   "[--add-skill <name> …]")
+        listed = [x[2:].split(" — ")[0] for x in part if x.startswith("- ")]
+        for skill in ["playbook-dev", "brainstorming", "drawio", "javafx", "java-junit"]:
+            self.assertNotIn(f"ai-sdlc-{skill}", listed)
+        self.assertEqual(helpers.snapshot(root), before)
+
+    def test_decline_some_and_all(self):
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        before = helpers.snapshot(root)
+        out = self.run_cli(root, "--decline", "add:javafx")
+        self.assertIn("Noted: add:javafx.", out)
+        after = helpers.snapshot(root)
+        self.assertEqual(sorted(k for k in after if after[k] != before.get(k)), [paths.STATE_REL])
+        self.assertEqual(state.load(root)["declined_recommendations"], ["add:javafx"])
+        lines = self.run_cli(root).splitlines()
+        self.assertIn("Declined earlier (to take one, use the change command above):", lines)
+        self.assertIn("- add:javafx — add ai-sdlc-javafx: this repo uses JavaFX (pom.xml).", lines)
+        self.assertNotIn("add:javafx", lines[0:lines.index("To take some: the same command with only those skills.")][-1])
+        self.run_cli(root, "--decline", "all")
+        self.assertEqual(state.load(root)["declined_recommendations"], sorted(JAVAFX_DEV))
+        out = self.run_cli(root)
+        self.assertTrue(out.startswith("No new skill suggestions for this repo."), out)
+
+    def test_an_unknown_id_is_refused(self):
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        before = helpers.snapshot(root)
+        out = self.run_cli(root, "--decline", "add:nothing", code=2)
+        self.assertIn("Not a current suggestion: add:nothing.", out)
+        out = self.run_cli(root, "--decline", "add:javafx", "--all", code=2)
+        self.assertIn("--decline takes suggestion ids only", out)
+        self.assertEqual(helpers.snapshot(root), before)
+
+    def test_change_clears_a_declined_id(self):
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        self.run_cli(root, "--decline", "add:javafx,add:java-junit")
+        code, out = helpers.cli(root, self.kit, "change", "--add-skill", "javafx")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(state.load(root)["declined_recommendations"], ["add:java-junit"])
+
+    def test_json_output(self):
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        data = json.loads(self.run_cli(root, "--json"))
+        self.assertEqual(set(data), {"suggestions", "others"})
+        self.assertEqual(data["others"], [])
+        self.assertEqual([i["id"] for i in data["suggestions"]], JAVAFX_DEV)
+        for i in data["suggestions"]:
+            self.assertEqual(set(i), {"id", "action", "skill", "reason", "evidence", "declined"})
+        data = json.loads(self.run_cli(root, "--json", "--all"))
+        self.assertTrue(data["others"])
+        for o in data["others"]:
+            self.assertEqual(set(o), {"skill", "group", "summary"})
+
+    def test_not_set_up(self):
+        root = self.repo({"README.md": "x\n"})
+        code, out = helpers.cli(root, KIT, "recommend")
+        self.assertEqual(code, 2, out)
+        self.assertIn('Say "do the onboarding"', out)
+
+    def test_setup_mentions_open_suggestions_and_a_roles_change_does(self):
+        root = self.repo({"pom.xml": JAVAFX_POM})
+        code, out = helpers.cli(root, helpers.copy_kit(root / "kit-copy"), "setup", "--name", "Ana",
+                                "--roles", "dev", "--lang", "en")
+        self.assertEqual(code, 0, out)
+        kit = root / paths.KIT_REL
+        n = len(recommend.open_items(recommend.compute(kit, root, state.load(root), packs.load(kit))))
+        self.assertEqual(n, len(JAVAFX_DEV))
+        self.assertIn(f'- Skill suggestions for this repo: {n} (say "recommend skills")', out)
+        code, out = helpers.cli(root, kit, "change", "--lang", "de")
+        self.assertNotIn("Skill suggestions for this repo", out)
+        code, out = helpers.cli(root, kit, "change", "--roles", "po,dev")
+        self.assertIn("- Skill suggestions for this repo:", out)
+        code, out = helpers.cli(root, kit, "check")
+        self.assertNotIn("Skill suggestions", out)
+        empty = self.repo({"README.md": "x\n"}, "empty")
+        code, out = helpers.cli(empty, helpers.copy_kit(empty / "kit-copy"), "setup", "--name", "Ana",
+                                "--roles", "dev", "--lang", "en")
+        self.assertNotIn("Skill suggestions for this repo", out)
+
+    def test_update_mentions_only_new_suggestions(self):
+        root = self.repo({"pom.xml": JAVAFX_POM})
+        old = helpers.copy_kit(root / "kit-old")
+        f = old / recommend.RULES_REL
+        data = json.loads(f.read_text(encoding="utf-8"))
+        data["rules"] = [r for r in data["rules"] if r["skill"] != "javafx"]
+        f.write_text(json.dumps(data), encoding="utf-8")
+        code, out = helpers.cli(root, old, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
+        self.assertEqual(code, 0, out)
+        kit = root / paths.KIT_REL
+        helpers.cli(root, kit, "recommend", "--decline", "all")
+        st = state.load(root)
+        st["declined_recommendations"].append("add:a-skill-the-kit-dropped")
+        state.save(root, st)
+        newer = helpers.copy_kit(root / "kit-newer")
+        (newer / "VERSION").write_text("9.9.9\n")
+        code, out = helpers.cli(root, newer, "update")
+        self.assertEqual(code, 0, out)
+        self.assertIn('- Skill suggestions for this repo: 1 (say "recommend skills")', out)
+        self.assertNotIn("add:a-skill-the-kit-dropped", state.load(root)["declined_recommendations"])
+        code, out = helpers.cli(root, kit, "recommend")
+        self.assertIn("1. add:javafx", out)
+        helpers.cli(root, kit, "recommend", "--decline", "all")
+        code, out = helpers.cli(root, kit, "update")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("Skill suggestions for this repo", out)
+
+
 class TestRulesFile(unittest.TestCase):
     """roles/recommend.json validates, and each kind of mistake gives one readable error."""
 
