@@ -13,6 +13,7 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Connector suggestions from the repo's files: `connect` rules in `roles/recommend.json` (for anyone, never for a tool the person's roles already suggest or one already connected); `setup.py recommend` shows "Tools to connect for this repo", `--decline connect:<tool>`, `<tool>` or `all-tools` (`--decline all` stays skills only), `--json` adds `connectors`; one summary line in setup, update and a roles change; `connect --suggested` offers them after the role tools, with their reason; a skipped one is declined.
 
 ### Changed
+- Role defaults: developers also get SonarQube, Black Duck and Artifactory suggested; QA SonarQube; architects SonarQube and Black Duck. `roles/recommend.json` gains the three connector rules: `sonar` → `sonarqube`, `blackduck` → `blackduck`, `code` → `artifactory`, for anyone.
 - Connectors: one token-exchange auth for Jama's OAuth and Black Duck; a stricter POST gate (only an auth's own token request), with a test that no connector module can send a POST. A token sent as the Basic user name (`token_as_user`) is scrubbed from errors like any other secret.
 
 ## [0.9.0] — 2026-10-10

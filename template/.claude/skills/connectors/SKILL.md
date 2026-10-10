@@ -75,9 +75,9 @@ Suggest connecting only the tools for the person's roles (the core instructions 
 |---|---|
 | Product Owner, Product Manager | jira, confluence, jama |
 | Scrum Master / Team Coach | jira, confluence |
-| Developer | bitbucket, jira, jenkins |
-| QA | jira, jama, jenkins |
-| Architect | confluence, bitbucket, jira |
+| Developer | bitbucket, jira, jenkins, sonarqube, blackduck, artifactory |
+| QA | jira, jama, jenkins, sonarqube |
+| Architect | confluence, bitbucket, jira, sonarqube, blackduck |
 | Engineering Manager | jenkins, bitbucket, jira |
 
 When a task would use evidence from a tool outside that list (for example builds or pull requests for a Scrum Master), say what evidence is missing and do not suggest connecting the tool; anyone may connect any of the five if they ask.

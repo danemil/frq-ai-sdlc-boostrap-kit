@@ -30,9 +30,11 @@ CONNECTORS = {
     "po": ["jira", "confluence", "jama"],
     "pm": ["jira", "confluence", "jama"],
     "sm": ["jira", "confluence"],
-    "dev": ["bitbucket", "jira", "jenkins"],
-    "qa": ["jira", "jama", "jenkins"],
-    "architect": ["confluence", "bitbucket", "jira"],
+    # 0.10.0 (owner approval 2026-10-10, design 2026-10-10 §6.1): SonarQube, Black Duck and
+    # Artifactory appended for dev; SonarQube for qa; SonarQube and Black Duck for architect.
+    "dev": ["bitbucket", "jira", "jenkins", "sonarqube", "blackduck", "artifactory"],
+    "qa": ["jira", "jama", "jenkins", "sonarqube"],
+    "architect": ["confluence", "bitbucket", "jira", "sonarqube", "blackduck"],
     "em": ["jenkins", "bitbucket", "jira"],
 }
 CORE_SKILLS = ["connectors", "deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",

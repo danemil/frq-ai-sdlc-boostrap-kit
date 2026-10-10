@@ -1,5 +1,5 @@
 {
-  "about": "Skill suggestions from the repo's files and the list of other skills (design 2026-10-09 §5). add: when a signal is found and the person has one of the roles. drop: when none of the signals is found and the repo has code (none in 0.9.0).",
+  "about": "Skill suggestions from the repo's files and the list of other skills (design 2026-10-09 §5). add: when a signal is found and the person has one of the roles. drop: when none of the signals is found and the repo has code (none in 0.9.0). connect: suggest a connector when a signal is found, for anyone, unless the person's roles already suggest it or it is connected (design 2026-10-10 §6.2).",
   "rules": [
     {"skill": "java-code-review", "action": "add", "when": ["java"], "roles": ["dev", "architect"], "reason": "this repo has Java code"},
     {"skill": "java-junit", "action": "add", "when": ["java"], "roles": ["dev", "qa"], "reason": "this repo has Java code"},
@@ -13,7 +13,10 @@
     {"skill": "react-testing-library", "action": "add", "when": ["react"], "roles": ["dev", "qa"], "reason": "this repo uses React"},
     {"skill": "accessibility", "action": "add", "when": ["web"], "roles": ["dev", "qa"], "reason": "this repo has a web UI"},
     {"skill": "sonarqube-findings", "action": "add", "when": ["sonar"], "roles": ["dev", "qa", "architect"], "reason": "this repo is analysed by SonarQube"},
-    {"skill": "blackduck-findings", "action": "add", "when": ["blackduck"], "roles": ["dev", "qa", "architect"], "reason": "this repo is scanned by Black Duck"}
+    {"skill": "blackduck-findings", "action": "add", "when": ["blackduck"], "roles": ["dev", "qa", "architect"], "reason": "this repo is scanned by Black Duck"},
+    {"connector": "sonarqube", "action": "connect", "when": ["sonar"], "reason": "this repo is analysed by SonarQube"},
+    {"connector": "blackduck", "action": "connect", "when": ["blackduck"], "reason": "this repo is scanned by Black Duck"},
+    {"connector": "artifactory", "action": "connect", "when": ["code"], "reason": "this repo downloads packages; the connector checks which versions the company mirror has"}
   ],
   "groups": ["Java", "Go", "React and web", "Quality and security", "Ways of working", "Role playbooks", "Documents and diagrams", "Other"],
   "catalogue": {

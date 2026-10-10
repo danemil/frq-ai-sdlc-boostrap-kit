@@ -366,7 +366,7 @@ class TestCommand(Base):
         old = helpers.copy_kit(root / "kit-old")
         f = old / recommend.RULES_REL
         data = json.loads(f.read_text(encoding="utf-8"))
-        data["rules"] = [r for r in data["rules"] if r["skill"] != "javafx"]
+        data["rules"] = [r for r in data["rules"] if r.get("skill") != "javafx"]
         f.write_text(json.dumps(data), encoding="utf-8")
         code, out = helpers.cli(root, old, "setup", "--name", "Ana", "--roles", "dev", "--lang", "en")
         self.assertEqual(code, 0, out)
@@ -471,8 +471,13 @@ class TestConnectorItems(Base):
         self.assertEqual(self.items(root, ["po"]), first)
 
     def test_no_connect_rule_no_scan(self):
+        kit = helpers.kit_with_connector_rule(self.base / "nokit", light=True)
+        f = kit / recommend.RULES_REL
+        data = json.loads(f.read_text(encoding="utf-8"))
+        data["rules"] = [r for r in data["rules"] if r["action"] != "connect"]
+        f.write_text(json.dumps(data), encoding="utf-8")
         with mock.patch.object(recommend, "signals") as scan:
-            got = recommend.connector_items(KIT, self.base, st_for(["po"]), self.packs, set())
+            got = recommend.connector_items(kit, self.base, st_for(["po"]), self.packs, set())
         self.assertEqual(got, [])
         scan.assert_not_called()
 
@@ -643,6 +648,9 @@ class TestRulesFile(unittest.TestCase):
         cls.kit = Path(cls.tmp.name) / "kit"
         shutil.copytree(KIT / packs.ROLES_REL, cls.kit / packs.ROLES_REL)
         shutil.copytree(KIT / packs.SKILLS_REL, cls.kit / packs.SKILLS_REL, ignore=helpers.SKIP)
+        # The connector modules too: the connect rules name them (0.10.0).
+        shutil.copytree(KIT / helpers.CONNECTORS_REL, cls.kit / helpers.CONNECTORS_REL,
+                        ignore=helpers.SKIP)
         cls.good = json.loads((KIT / recommend.RULES_REL).read_text(encoding="utf-8"))
 
     @classmethod
@@ -686,6 +694,49 @@ class TestRulesFile(unittest.TestCase):
                 errs = self.errors_with(change)
                 self.assertEqual(len(errs), 1, errs)
                 self.assertIn(word, errs[0])
+
+
+
+class TestRealConnectorRules(Base):
+    """The three connector rules of design 2026-10-10 §6.2, in the shipped kit (Task C1).
+    `code` stays the artifactory signal (owner decision 2026-10-10, §12 item 3)."""
+
+    REPO = {"pom.xml": JAVAFX_POM,                              # sonar-maven-plugin
+            "Jenkinsfile": "sh 'bash detect.sh --blackduck.url=x'\n"}
+
+    def connect_ids(self, root, roles):
+        st = st_for(roles)
+        return [i["id"] for i in recommend.connector_items(KIT, root, st, self.packs, set())]
+
+    def test_the_three_rules(self):
+        rules = [r for r in recommend.load(KIT)["rules"] if r["action"] == "connect"]
+        self.assertEqual(rules, [
+            {"connector": "sonarqube", "action": "connect", "when": ["sonar"],
+             "reason": "this repo is analysed by SonarQube"},
+            {"connector": "blackduck", "action": "connect", "when": ["blackduck"],
+             "reason": "this repo is scanned by Black Duck"},
+            {"connector": "artifactory", "action": "connect", "when": ["code"],
+             "reason": "this repo downloads packages; the connector checks which versions "
+                       "the company mirror has"},
+        ])
+
+    def test_a_po_in_a_sonar_and_blackduck_maven_repo(self):
+        self.assertEqual(self.connect_ids(self.repo(self.REPO), ["po"]),
+                         ["connect:artifactory", "connect:blackduck", "connect:sonarqube"])
+
+    def test_a_developer_gets_none(self):
+        self.assertEqual(self.connect_ids(self.repo(self.REPO), ["dev"]), [])
+
+    def test_qa_gets_artifactory_and_blackduck(self):
+        self.assertEqual(self.connect_ids(self.repo(self.REPO), ["qa"]),
+                         ["connect:artifactory", "connect:blackduck"])
+
+    def test_architect_gets_artifactory(self):
+        self.assertEqual(self.connect_ids(self.repo(self.REPO), ["architect"]),
+                         ["connect:artifactory"])
+
+    def test_an_empty_repo_gets_none(self):
+        self.assertEqual(self.connect_ids(self.repo({"README.md": "x\n"}), ["po"]), [])
 
 
 if __name__ == "__main__":

@@ -96,8 +96,8 @@ CONNECTORS_REL = "scripts/personal/connectors"
 
 def kit_with_connector_rule(dest, light=False):
     """A kit copy at `dest` with a stub connector module `stubtool` (TITLE "Stub Tool") and
-    one `connect` rule for it (signal `sonar`): stands in for the 0.10.0 connectors until
-    their modules exist. `light` copies only roles, skills and the connectors folder (enough
+    one `connect` rule for it (signal `sonar`), the only connect rule in that copy: tests
+    the engine apart from the shipped rules. `light` copies only roles, skills and the connectors folder (enough
     for recommend.validate and the engine). Run setup.py under `stubtool_registered(kit)`."""
     dest = Path(dest)
     if light:
@@ -111,6 +111,8 @@ def kit_with_connector_rule(dest, light=False):
     (dest / CONNECTORS_REL / "stubtool.py").write_text(module, encoding="utf-8")
     rules = dest / "roles/recommend.json"
     data = json.loads(rules.read_text(encoding="utf-8"))
+    # Only the stub rule: the shipped connect rules (0.10.0) would add their own items.
+    data["rules"] = [r for r in data["rules"] if r.get("action") != "connect"]
     data["rules"].append(dict(STUBTOOL_RULE))
     rules.write_text(json.dumps(data, indent=2), encoding="utf-8")
     return dest

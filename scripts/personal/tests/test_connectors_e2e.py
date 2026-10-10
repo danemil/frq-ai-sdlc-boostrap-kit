@@ -127,8 +127,11 @@ class TestConnectorsEndToEnd(unittest.TestCase):
                                stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.shown.append(r.stdout + r.stderr)
-        self.assertIn("- Connectors for your roles: bitbucket, jira (connected), jenkins "
-                      "(say 'connect bitbucket')", "\n".join(self.shown))
+        dev = json.loads((helpers.KIT / "roles/dev/role.json").read_text())["connectors"]
+        listed = ", ".join(n + (" (connected)" if n == "jira" else "") for n in dev)
+        first = next(n for n in dev if n != "jira")
+        self.assertIn(f"- Connectors for your roles: {listed} (say 'connect {first}')",
+                      "\n".join(self.shown))
         self.assertEqual(helpers.snapshot(self.config), before)
         self.assertEqual(helpers.git(root, "status", "--porcelain").stdout, "")
         self.assertFalse((root / ".config").exists())
