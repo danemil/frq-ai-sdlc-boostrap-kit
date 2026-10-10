@@ -132,6 +132,42 @@ class TestOnboarding(unittest.TestCase):
         self.assertLess(onboarding.index("Mark them as seen"), onboarding.index("Suggest skills for this repo"))
         self.assertLess(onboarding.index("Suggest skills for this repo"), onboarding.index("**Close.**"))
 
+    # 0.10.0 (design 2026-10-10 §6.2): tools suggested from the repo's files.
+    def test_close_names_tools_for_this_repo(self):
+        step10 = self.step(10)
+        self.assertIn("Tools to connect for this repo", step10)
+        self.assertIn("with its reason", step10)
+        self.assertLess(step10.index("Connectors for your roles"),
+                        step10.index("Tools to connect for this repo"))
+
+    def test_not_now_records_nothing(self):
+        """Owner decision 2026-10-10 (design §12 item 5): "not now" in step 11 records
+        nothing, for the repo tools as for the role tools; they are offered again."""
+        step11 = section("Do the onboarding").split("\n11. ", 1)[1]
+        self.assertNotIn("--decline", step11)
+        self.assertIn("records nothing", step11)
+        self.assertIn("offered again next time", step11)
+        self.assertIn("Tools to connect for this repo", step11)
+        self.assertIn("say *connect <tool>* at any time", step11)
+
+    def test_step_8_decline_all_is_skills_only(self):
+        self.assertIn("`python3 .ai-sdlc/kit/setup.py recommend --decline all` (this declines "
+                      "skills only; tools come later)", self.step(8))
+
+    def test_recommend_skills_relays_tools(self):
+        text = section("Recommend skills")
+        for needed in ("Tools to connect for this repo", "in their own terminal",
+                       "`python3 .ai-sdlc/kit/setup.py recommend --decline <tool>`",
+                       "`python3 .ai-sdlc/kit/setup.py connect <name>`"):
+            self.assertIn(needed, text)
+        self.assertIn("never by you", text)
+
+    def test_connect_a_tool_has_the_token_hints(self):
+        text = section("Connect a tool")
+        for needed in ("SonarQube: a user token", "Black Duck: an API token",
+                       "Artifactory: an access or identity token"):
+            self.assertIn(needed, text)
+
     def test_the_onboarding_offers_the_other_skills_once(self):
         step9 = self.step(9)
         for needed in ("`python3 .ai-sdlc/kit/setup.py recommend --all`", "'None' is fine.", "--add-skill",
