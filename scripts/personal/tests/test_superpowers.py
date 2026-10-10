@@ -45,7 +45,11 @@ TRIGGERS = {   # E2E 2026-10-09: these never triggered on plain phrasings
     "test-driven-development": ["write tests first", "test-first", "TDD", "red-green", "failing test",
                                 "tests for this function"],
     "verification-before-completion": ['"fixed"', '"done"', '"tests pass"', '"ready to merge"'],
+    # Copilot re-test 2026-10-10: a bug report or a request for tests did not load them
+    "systematic-debugging": ['"bug"', '"freezes"', '"error"', '"fails"', '"could not"', '"crash"',
+                             '"exception"'],
 }
+TRIGGERS["test-driven-development"] += ['"write a test"', '"tests for"', '"add tests"']
 BRAINSTORMING_DESCRIPTION = (     # decision 2: upstream "You MUST use this before …", softened
     'description: "Use before any creative work - creating features, building components, '
     'adding functionality, or modifying behavior. Explores user intent, requirements and '

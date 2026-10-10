@@ -24,7 +24,7 @@ Not bundled: upstream `skills/golang-lint/evals/evals.json` (blob `868dc5e501a7`
 
 `SKILL.md`:
 
-- **Frontmatter trimmed** to `name`, `description`, `license` and `metadata` (author, version). Removed: `user-invocable`, `compatibility`, the `openclaw` block (which installed golangci-lint with brew), `allowed-tools` and `paths`. The last sentence of the description (a pointer to the upstream CI skill) is removed.
+- **Frontmatter trimmed** to `name`, `description`, `license` and `metadata` (author, version). Removed: `user-invocable`, `compatibility`, the `openclaw` block (which installed golangci-lint with brew), `allowed-tools` and `paths`. The last sentence of the description (a pointer to the upstream CI skill) is removed, and trigger phrases are added to the one before it ("lint", "run the linter", "fix the lint errors" in a Go repo; Copilot re-test 2026-10-10: a lint request did not load the skill).
 - **No multi-agent switches.** The "Orchestration mode" paragraph and the "Parallelizing Legacy Codebase Cleanup" section are removed. Coding mode runs `golangci-lint run` on the changed packages and shows the findings, fixing them only after a yes (upstream: a background agent running `--fix`). Interpret/fix mode no longer suggests parallel agents.
 - **No installs.** The "Dependencies" block (`go install …golangci-lint@latest`) is replaced by the kit section.
 - **New section "This kit's copy"** before "# Go Linting": the kit's git rule, show-before-you-change rule and company-mirror rule, plus "golangci-lint must already be installed" (never install it; if missing, say so and stop) and "Fixes after a yes" (`--fix`, `fmt`, `migrate`).

@@ -1,6 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code, and when someone says "write tests first", "test-first", "TDD", "red-green", "a failing test" or "tests for this function"
+description: Use when implementing any feature or bugfix, before writing implementation code, and when someone says "write tests first", "test-first", "TDD", "red-green", "a failing test", "tests for this function", "write a test", "tests for" or "add tests"
 ---
 
 # Test-Driven Development (TDD)

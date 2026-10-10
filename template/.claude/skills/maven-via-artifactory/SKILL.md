@@ -1,6 +1,6 @@
 ---
 name: maven-via-artifactory
-description: 'Get packages only through the company mirror (Artifactory): Maven settings.xml mirrors, .npmrc, GOPROXY; and find the versions this repo uses (Java release, Spring Boot, JUnit, Go, React, Jest). Use before adding or upgrading a dependency, or a build that downloads, and when the person says "could not resolve", "add a dependency", "which Java version", "which JUnit".'
+description: 'Get Maven, npm and Go packages only through the company mirror (Artifactory): Maven settings.xml mirrors, .npmrc, GOPROXY; and find the versions this repo uses (Java release, Spring Boot, JUnit, Go, React, Jest). Use first, before adding or upgrading a dependency or any build that downloads, and when the person says "could not resolve", "could not find artifact", "dependency not found", "add a dependency", "upgrade a dependency", "which mirror", "which Java version", "which JUnit".'
 license: MIT
 ---
 
@@ -15,7 +15,7 @@ mirror, stay on it, and read the versions the repo already uses, so you never gu
 - **Git:** never commit, push or merge on your own. Follow the person's git-comfort setting and ask before each commit.
 - **Show before you change:** before editing or creating any file (a new test file too), show the proposed diff or content and wait for a yes; if you can't ask, stop after proposing. Report evidence (the test output), never just "Fixed".
 - **The mirror is the only source:** never add a `<repositories>` or `<pluginRepositories>` block to a POM, never point npm or Go at a public registry, and never change the mirror settings yourself.
-- **No secrets:** never open, print or paste `settings.xml` or `.npmrc` in full. They can hold passwords and tokens. Use the script below; it reads only the mirror lines.
+- **No secrets:** never `cat`, `grep` or print `settings.xml`, `.npmrc`, `.netrc` or similar credential files, in the repo or the home folder. They can hold passwords and tokens. Read the mirrors with the script below (`detect_stack.py`, `--home` for the home folder); it reads only the mirror lines.
 
 ## 1. Find the mirror
 
@@ -34,8 +34,10 @@ The script is [scripts/detect_stack.py](scripts/detect_stack.py). It lists:
 - **`GOPROXY`** from the environment.
 
 It never shows a username, password or token, and it cuts them out of URLs. Without
-`--home` it reads only the repo. If no mirror is found, say so and ask the person how
-their machine reaches Artifactory. Do not invent a URL.
+`--home` it reads only the repo. The repo's `.mvn/settings.xml` and `.npmrc` count as much
+as the home folder: **never say there is no mirror after looking only in the home
+folder.** If neither has one, say what the detector read and ask the person how their
+machine reaches Artifactory. Do not invent a URL.
 
 ## 2. Resolve only through it
 

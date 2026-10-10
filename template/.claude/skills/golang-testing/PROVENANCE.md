@@ -28,7 +28,7 @@ Not bundled: upstream `skills/golang-testing/evals/evals.json` (blob `9b80e02b72
 
 `SKILL.md`:
 
-- **Frontmatter trimmed** to `name`, `description`, `license` and `metadata` (author, version). Removed: `user-invocable`, `compatibility`, the `openclaw` block (which installed `gotests@latest`), `allowed-tools` and `paths`. The last sentence of the description (pointers to two upstream skills the kit does not ship) is removed.
+- **Frontmatter trimmed** to `name`, `description`, `license` and `metadata` (author, version). Removed: `user-invocable`, `compatibility`, the `openclaw` block (which installed `gotests@latest`), `allowed-tools` and `paths`. The last sentence of the description (pointers to two upstream skills the kit does not ship) is removed, and trigger phrases are added to the one before it ("write a Go test", "add tests", "go test", "table-driven test"; Copilot re-test 2026-10-10: a Go test request did not load the skill).
 - **No extended-thinking or multi-agent switches.** The `ultrathink` sentence and the "Orchestration mode" paragraph are removed; Audit mode works through its three concerns one after another instead of in parallel.
 - **No generator installs.** Write mode writes table-driven tests and uses `gotests` only if it is already installed; the "Dependencies" block (`go install …gotests@latest`) is replaced by the kit section.
 - **"Community default" becomes "Team default"**: a team skill that explicitly supersedes this one takes precedence.

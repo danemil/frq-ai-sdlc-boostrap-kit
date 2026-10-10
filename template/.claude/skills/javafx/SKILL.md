@@ -1,6 +1,6 @@
 ---
 name: javafx
-description: 'JavaFX desktop UI: the FX application thread, Task and Service, FXML and controllers, CSS, properties and bindings, listener leaks, MVVM or MVCI, TestFX tests (headless with Monocle), javafx-maven-plugin, jlink and jpackage. Use when the code imports javafx, has .fxml files, or the person says "JavaFX", "FXML", "the UI freezes", "TestFX", "jpackage".'
+description: 'JavaFX desktop UI: the FX application thread, Task and Service, FXML and controllers, CSS, properties and bindings, listener leaks, MVVM or MVCI, TestFX tests (headless with Monocle), javafx-maven-plugin, jlink and jpackage. Use when the code imports javafx, has .fxml files, or the person says "JavaFX", "FXML", "the UI freezes", "frozen", "not responding", "the window hangs", "TestFX", "jpackage".'
 license: MIT
 ---
 
@@ -73,6 +73,11 @@ executor.submit(load);
   tasks when their view closes (`task.cancel()`; check `isCancelled()` in long loops).
 - `Platform.runLater` is for a short hand-over, not a place for slow work: what it runs
   also runs on the FX thread.
+- **When you propose a fix for a UI freeze, also propose a TestFX test** that shows it: it
+  clicks the control, then checks the UI still answers (for example with
+  `WaitForAsyncUtils.waitForFxEvents()` and a timeout) and the result arrives. It runs
+  headless with Monocle (see [references/testing-and-packaging.md](references/testing-and-packaging.md)).
+  Add TestFX or Monocle to the build only if it has them, or after the person agrees.
 
 ## 3. FXML, controllers and CSS
 

@@ -32,7 +32,8 @@ Upstream has no `NOTICE` file. The skill bundles no scripts. Apache-2.0 section 
 - The frontmatter (`name`, `description`, `license`, `metadata`) is unchanged.
 
 `references/110-java-maven-best-practices.md`:
-- **Change notice** after the title: "Changed for this kit (Apache-2.0, section 4): Example 6, the pom.xml section order and the APPLY step. See PROVENANCE.md."
+- **Change notice** after the title: "Changed for this kit (Apache-2.0, section 4): the Goal paragraph, Example 6, the pom.xml section order and the APPLY step. See PROVENANCE.md."
+- **Goal paragraph**: its last sentence, "Custom repositories should be declared explicitly and their use minimized, preferably managed via a central repository manager.", became "Dependencies and plugins resolve only through the company mirror (the `settings.xml` mirror of the central repository manager), never through repositories declared in the POM." (Copilot re-test 2026-10-10: it contradicted the mirror-only rule.)
 - **Example 6** ("Manage Repositories Explicitly", whose good example declared `<repositories>` in the POM) is replaced by "Resolve Through the Mirror, Never Declare Repositories": the good example is a `settings.xml` mirror with `<mirrorOf>*</mirrorOf>`, the bad example is upstream's POM with a repository; a failed resolution means stop and report. The entry in the examples list is renamed to match.
 - **Example 5**: "repositories" removed from the suggested pom.xml section order.
 - **Output step**: "**APPLY** Maven best practices directly by implementing" became "**PROPOSE**, as a diff that is applied only after the person says yes (this kit's copy)," and the clause "add missing repository declarations" was removed from that line (it contradicts the mirror rule); the rest of the line is upstream's.

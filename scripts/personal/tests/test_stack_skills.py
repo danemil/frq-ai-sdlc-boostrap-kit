@@ -131,8 +131,11 @@ REVIEWED = {   # upstream lines with a git word that tell the AI to do nothing; 
 TRIGGERS = {
     "java-junit": ["write a JUnit test", "parameterized test", "Mockito"],
     "javascript-typescript-jest": ["write a Jest test", "mock this module", "snapshot test"],
-    "javafx": ["JavaFX", "FXML", "the UI freezes", "TestFX", "jpackage"],
-    "maven-via-artifactory": ["could not resolve", "add a dependency", "which Java version"],
+    "javafx": ["JavaFX", "FXML", "the UI freezes", "TestFX", "jpackage", "frozen", "not responding"],
+    "maven-via-artifactory": ["could not resolve", "add a dependency", "which Java version",
+                              "upgrade a dependency", "dependency not found", "which mirror"],
+    "golang-lint": ["lint", "golangci-lint", "go vet"],
+    "golang-testing": ["Go tests", "go test", "table-driven"],
     "sonarqube-findings": ["Sonar", "quality gate failed", "code smell"],
     "blackduck-findings": ["Black Duck", "BDSA", "vulnerable dependency", "licence risk"],
 }
@@ -348,6 +351,14 @@ class TestMavenBestPractices(Checks, unittest.TestCase):
         rules = self.rules()
         self.assertIn("distributionUrl", rules)
         self.assertIn("./mvnw", rules)
+
+    def test_the_goal_says_mirror_only_not_custom_repositories(self):
+        """Re-test round 2: the Goal paragraph still allowed explicitly declared repositories."""
+        goal = self.text(MAVEN_REF).split("## Goal", 1)[1].split("###", 1)[0]
+        self.assertNotIn("Custom repositories should be declared explicitly", goal)
+        self.assertIn("only through the company mirror", goal)
+        self.assertIn("the Goal paragraph", self.text(MAVEN_REF))
+        self.assertIn("Custom repositories should be declared explicitly", self.text("PROVENANCE.md"))
 
     def test_apache_change_notice_in_every_changed_file(self):
         self.assertIn("Changed for this kit", self.text("SKILL.md"))

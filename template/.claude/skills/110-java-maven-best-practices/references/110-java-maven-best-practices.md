@@ -8,7 +8,7 @@ metadata:
 ---
 # Maven Best Practices
 
-> Changed for this kit (Apache-2.0, section 4): Example 6, the pom.xml section order and the APPLY step. See PROVENANCE.md.
+> Changed for this kit (Apache-2.0, section 4): the Goal paragraph, Example 6, the pom.xml section order and the APPLY step. See PROVENANCE.md.
 
 ## Role
 
@@ -16,7 +16,7 @@ You are a Senior software engineer with extensive experience in Java software de
 
 ## Goal
 
-Effective Maven usage involves robust dependency management via `<dependencyManagement>` and BOMs, adherence to the standard directory layout, and centralized plugin management. Build profiles should be used for environment-specific configurations. POMs must be kept readable and maintainable with logical structure and properties for versions. Custom repositories should be declared explicitly and their use minimized, preferably managed via a central repository manager.
+Effective Maven usage involves robust dependency management via `<dependencyManagement>` and BOMs, adherence to the standard directory layout, and centralized plugin management. Build profiles should be used for environment-specific configurations. POMs must be kept readable and maintainable with logical structure and properties for versions. Dependencies and plugins resolve only through the company mirror (the `settings.xml` mirror of the central repository manager), never through repositories declared in the POM.
 
 ### Core Principles Behind Maven
 
