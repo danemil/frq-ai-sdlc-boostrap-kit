@@ -28,6 +28,18 @@ SECRET = "suggest-S3CRET-token-91"
 SETUP_ARGS = ["setup", "--name", "Ana", "--roles", "sm", "--lang", "en"]   # sm: jira, confluence
 
 
+def role_tools(role):
+    """The role pack's default connectors, in order (from the real kit's role.json)."""
+    path = helpers.KIT / "roles" / role / "role.json"
+    return json.loads(path.read_text(encoding="utf-8"))["connectors"]
+
+
+def other_tools(*offered):
+    """The "Connect another tool?" list: every connector the kit has, minus those offered.
+    Derived from the registry, so a new connector module needs no test change."""
+    return ", ".join(n for n in registry.names() if n not in offered)
+
+
 class FakeTTY(io.StringIO):
     """Typed answers, one per line, on a stdin that says it is a terminal."""
 
@@ -109,7 +121,7 @@ class TestWalk(Base):
     def test_the_other_tools_step_connects_by_name_until_enter(self):
         code, out = self.suggested("s\ns\njenkins\nnosuch\n\n")
         self.assertEqual(code, 0, out)
-        self.assertIn("Connect another tool? Available: bitbucket, jama, jenkins "
+        self.assertIn(f"Connect another tool? Available: {other_tools(*role_tools('sm'))} "
                       "(type its name; Enter = done)", out)
         self.assertEqual(self.connected, ["jenkins"])
         self.assertIn("There is no tool 'nosuch' to connect here.", out)
@@ -254,7 +266,9 @@ class TestRepoTools(Base):
         copy = helpers.kit_with_connector_rule(self.root / "kit-copy")
         with helpers.stubtool_registered(self.kit):
             code, out = helpers.cli(self.root, copy, "setup", "--name", "Ana", "--roles", "dev",
-                                    "--lang", "en")    # dev: bitbucket, jira, jenkins
+                                    "--lang", "en")
+        self.role_tools = role_tools("dev")           # skipped one by one with SKIP_ROLE
+        self.SKIP_ROLE = "s\n" * len(self.role_tools)
         self.assertEqual(code, 0, out)
         self.connected = []
 
@@ -266,20 +280,21 @@ class TestRepoTools(Base):
         return json.loads((self.root / paths.STATE_REL).read_text())["declined_recommendations"]
 
     def test_repo_tools_come_after_role_tools_with_their_reason(self):
-        code, out = self.suggested("s\ns\ns\ny\n\n")
+        code, out = self.suggested(self.SKIP_ROLE + "y\n\n")
         self.assertEqual(code, 0, out)
         self.assertIn(STUB_PROMPT, out)
-        self.assertGreater(out.index(STUB_PROMPT), out.index("Connect Jenkins now?"))
+        last = registry.discover()[self.role_tools[-1]].title
+        self.assertGreater(out.index(STUB_PROMPT), out.index(f"Connect {last} now?"))
         self.assertEqual(self.connected, ["stubtool"])
         self.assertEqual(self.declined(), [])
-        self.assertEqual(self.skipped(), ["bitbucket", "jenkins", "jira"])
+        self.assertEqual(self.skipped(), sorted(self.role_tools))
 
     def test_a_skipped_repo_tool_is_declined(self):
-        code, out = self.suggested("s\ns\ns\ns\n\n")
+        code, out = self.suggested(self.SKIP_ROLE + "s\n\n")
         self.assertEqual(code, 0, out)
         self.assertEqual(self.declined(), ["connect:stubtool"])
         self.assertNotIn("stubtool", self.skipped())
-        self.assertEqual(self.skipped(), ["bitbucket", "jenkins", "jira"])
+        self.assertEqual(self.skipped(), sorted(self.role_tools))
         self.assertIn('Not now for this repo: stubtool. Say "recommend skills" to see them again.',
                       out)
 
@@ -287,21 +302,22 @@ class TestRepoTools(Base):
         code, out = self.suggested("a\n")
         self.assertEqual(code, 0, out)
         self.assertNotIn(STUB_PROMPT, out)
-        self.assertEqual(self.skipped(), ["bitbucket", "jenkins", "jira"])
+        self.assertEqual(self.skipped(), sorted(self.role_tools))
         self.assertEqual(self.declined(), ["connect:stubtool"])
 
     def test_a_at_a_repo_tool(self):
-        code, out = self.suggested("s\ns\ns\na\n")
+        code, out = self.suggested(self.SKIP_ROLE + "a\n")
         self.assertEqual(code, 0, out)
         self.assertEqual(self.declined(), ["connect:stubtool"])
         self.assertNotIn("Connect another tool?", out)
 
     def test_the_other_tools_step_leaves_out_the_repo_tools(self):
-        code, out = self.suggested("s\ns\ns\ns\n\n")
-        self.assertIn("Connect another tool? Available: confluence, jama (type its name", out)
+        code, out = self.suggested(self.SKIP_ROLE + "s\n\n")
+        self.assertIn("Connect another tool? Available: "
+                      f"{other_tools(*self.role_tools, 'stubtool')} (type its name", out)
 
     def test_end_of_input_records_only_answers(self):
-        code, out = self.suggested("s\ns\ns\n")             # EOF at the repo tool
+        code, out = self.suggested(self.SKIP_ROLE)            # EOF at the repo tool
         self.assertEqual(code, 0, out)
         self.assertEqual(self.declined(), [])
 
@@ -313,8 +329,8 @@ class TestRepoTools(Base):
         self.assertEqual((self.root / paths.STATE_REL).read_bytes(), before)
 
     def test_a_declined_one_is_not_offered_and_connect_clears_it(self):
-        self.suggested("s\ns\ns\ns\n\n")
-        code, out = self.suggested("s\ns\ns\n\n")
+        self.suggested(self.SKIP_ROLE + "s\n\n")
+        code, out = self.suggested(self.SKIP_ROLE + "\n")
         self.assertNotIn(STUB_PROMPT, out)
         with helpers.stubtool_registered(self.kit), \
                 mock.patch.object(manage, "connect", side_effect=self.fake_connect):
