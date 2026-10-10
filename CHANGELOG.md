@@ -10,6 +10,10 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-10-11
+### Fixed
+- **"Update the kit" (Copilot re-test round 2):** Copilot copies each skill suggestion line exactly as printed, names the tools first and asks the skills question last; a role tool not yet connected or skipped (a newer kit can add one, as 0.10.0 added SonarQube for QA) is named too.
+
 ## [0.10.0] — 2026-10-10
 ### Added
 - **Three read-only connectors: `sonarqube`, `blackduck`, `artifactory`** (one module each in `scripts/personal/connectors/`, found by the registry; `setup.py connect <name>` in the person's own terminal, `connectors.py <name> <command> [--json]`, every item with its `url`).

@@ -233,6 +233,16 @@ class TestOnboarding(unittest.TestCase):
                        "do not ask the person to say 'recommend skills'"):
             self.assertIn(needed, step4)
 
+    def test_update_copies_lines_asks_last_and_names_new_role_tools(self):
+        """Copilot re-test round 2, 2026-10-10: after an update the suggestion lines were
+        reworded, the skills question was not last, and a tool new for the role was not named."""
+        step4 = section("Update the kit").split("\n4. ", 1)[1].split("\n5. ", 1)[0]
+        for needed in ("copy each suggestion line exactly as printed",
+                       "ask the skills question last, after naming the tools",
+                       "If the line 'Connectors for your roles' names a tool not marked "
+                       "connected or skipped, name it too"):
+            self.assertIn(needed, step4)
+
     def test_step_8_leaves_tools_to_step_10(self):
         """Copilot re-test 2026-10-10 (S3)."""
         self.assertIn("If it prints only 'Tools to connect for this repo' (no skill "

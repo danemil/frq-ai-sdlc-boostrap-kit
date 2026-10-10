@@ -13,13 +13,18 @@ def read(rel):
 
 class TestRelease(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(read("VERSION").strip(), "0.10.0")
+        self.assertEqual(read("VERSION").strip(), "0.10.1")
 
     def test_the_newest_changelog_entry_is_the_version_and_unreleased_is_empty(self):
         log = read("CHANGELOG.md")
         unreleased = log.split("## [Unreleased]", 1)[1].split("\n## [", 1)
         self.assertEqual(unreleased[0].strip(), "")
         self.assertTrue(unreleased[1].startswith(read("VERSION").strip() + "] — "))
+
+    def test_changelog_0_10_1_has_the_update_wording(self):
+        entry = read("CHANGELOG.md").split("## [0.10.1]", 1)[1].split("\n## [", 1)[0]
+        for text in ("Update the kit", "exactly as printed", "skills question last"):
+            self.assertIn(text, entry)
 
     def test_changelog_0_10_0_has_the_connectors(self):
         entry = read("CHANGELOG.md").split("## [0.10.0]", 1)[1].split("\n## [", 1)[0]
