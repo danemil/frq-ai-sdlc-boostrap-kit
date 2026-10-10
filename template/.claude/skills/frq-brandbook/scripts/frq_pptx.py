@@ -21,6 +21,8 @@ under the kit's rules:
 - The title slide (Standard TITLE) shows the ATM key visual in its big square by default
   (C14); another business unit's with "business_unit" in the spec or --business-unit, the
   template's globe with "CORP" or "key_visual": false. Only the built deck changes.
+- A slide on a world or EMEA map layout takes "pins": [{"lat", "lon", "label"}]: a light blue
+  marker at that place (map_point: a Robinson projection calibrated on the layouts; see MAPS).
 - render writes only under .ai-sdlc/tmp/ (the LibreOffice profile too), never to /tmp.
 - The palette comes from ../brand-tokens.json; the templates and pictures are found through
   brand_assets.py (the placed skill first, then .ai-sdlc/kit), so this works from the placed
@@ -491,6 +493,79 @@ def place_block(slide, box, block, notes):
     return block
 
 
+# --- map pins from latitude and longitude ---------------------------------------------------
+# The world maps in the full master are a Robinson projection. Calibrated 2026-10-10 by a
+# least-squares fit of 14 compact countries' latitude/longitude extents to the boxes of their
+# named shapes on each layout (through the group transforms): x = a·lon·X(lat) + b·X(lat) + c,
+# y = d·Y(lat) + e, in inches, X and Y from the Robinson table. The fitted central meridian is
+# about 5°E. Error, checked on 12 other countries' centres: about 0.02 in on average
+# (under 1°), at most about 0.07 in in South America (2 to 3°). The Europe, Germany and UK
+# layouts are not calibrated (their shapes carry no country names).
+ROBINSON = [(1.0, 0.0), (0.9986, 0.062), (0.9954, 0.124), (0.99, 0.186), (0.9822, 0.248),
+            (0.973, 0.31), (0.96, 0.372), (0.9427, 0.434), (0.9216, 0.4958), (0.8962, 0.5571),
+            (0.8679, 0.6176), (0.835, 0.6769), (0.7986, 0.7346), (0.7597, 0.7903),
+            (0.7186, 0.8435), (0.6732, 0.8936), (0.6213, 0.9394), (0.5722, 0.9761), (0.5322, 1.0)]
+_WORLD = {"fit": (0.02491, -0.12678, 4.82889, -2.35311, 3.30494), "box": (1.023, 1.031, 7.955, 3.881)}
+MAPS = {"map": _WORLD, "world map": _WORLD, "world map | americas": _WORLD, "1_map apac": _WORLD,
+        "world map | emea": {"fit": (0.02947, -0.14997, 1.49459, -2.78377, 3.36721),
+                             "box": (0.796, 0.713, 5.606, 4.254)}}
+PIN_IN = 0.12                                          # pin diameter, inches
+
+
+def robinson(lat):
+    """(X, Y) of the Robinson table for a latitude, linearly interpolated every 5°."""
+    a = min(abs(float(lat)), 90.0)
+    i = min(int(a // 5), 17)
+    t = (a - 5 * i) / 5
+    x = ROBINSON[i][0] + (ROBINSON[i + 1][0] - ROBINSON[i][0]) * t
+    y = ROBINSON[i][1] + (ROBINSON[i + 1][1] - ROBINSON[i][1]) * t
+    return x, (y if lat >= 0 else -y)
+
+
+def map_point(layout_name, lat, lon):
+    """(x, y) in inches on the slide for a latitude and longitude on a world or EMEA map layout."""
+    m = MAPS.get(str(layout_name).strip().lower())
+    if m is None:
+        raise ValueError(f"no calibrated map on layout {layout_name!r}; use one of: "
+                         + ", ".join(sorted(MAPS)))
+    if not (-90 <= float(lat) <= 90 and -180 <= float(lon) <= 180):
+        raise ValueError(f"latitude {lat} or longitude {lon} is out of range")
+    a, b, c, d, e = m["fit"]
+    X, Y = robinson(lat)
+    x, y = a * float(lon) * X + b * X + c, d * Y + e
+    left, top, width, height = m["box"]
+    if not (left <= x <= left + width and top <= y <= top + height):
+        raise ValueError(f"{lat}, {lon} is outside the map on {layout_name!r}; use the World Map layout")
+    return x, y
+
+
+def add_map_pin(slide, lat, lon, label=None):
+    """A small light blue square at the place (like the template's map markers: it shows on the
+    blue sea and on the grey land), and an optional label on a white chip (Arial 10, #333333)."""
+    x, y = map_point(slide.slide_layout.name, lat, lon)
+    r = PIN_IN / 2
+    dot = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, *inches((x - r, y - r, PIN_IN, PIN_IN)))
+    dot.fill.solid()
+    dot.fill.fore_color.rgb = rgb(LIGHT_BLUE)
+    flat(dot)
+    dot.name = f"Map pin: {label}" if label else f"Map pin: {lat}, {lon}"
+    if label:
+        width = 0.16 + 0.075 * len(str(label))
+        chip = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, *inches((x + r + 0.04, y - 0.1, width, 0.2)))
+        chip.fill.solid()
+        chip.fill.fore_color.rgb = rgb(WHITE)
+        flat(chip)
+        chip.name = f"Map label: {label}"
+        tf = chip.text_frame
+        tf.margin_left = tf.margin_right = Emu(int(0.05 * 914400))
+        tf.margin_top = tf.margin_bottom = 0
+        tf.word_wrap = False
+        tf.text = str(label)
+        tf.paragraphs[0].alignment = 1                 # left
+        style_run(tf.paragraphs[0].runs[0], 10, BLACK)
+    return dot
+
+
 # --- the title slide's key visual (ATM by default, C14) -------------------------------------
 TITLE_LAYOUT = "standard title"
 UNITS = {b["id"]: b for b in TOKENS["business_units"]}
@@ -601,6 +676,8 @@ def build_slide(prs, sl):
         for p in tb.text_frame.paragraphs:
             for r in p.runs:
                 style_run(r, 14, WHITE)
+    for pin in sl.get("pins") or []:
+        add_map_pin(slide, pin["lat"], pin["lon"], pin.get("label"))
     remove_empty_placeholders(slide)
     all_notes = ([sl["notes"]] if sl.get("notes") else []) + notes
     if all_notes:

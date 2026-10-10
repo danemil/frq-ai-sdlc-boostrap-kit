@@ -1609,6 +1609,86 @@ class TestBuilder(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertEqual(self.title_picture(out), self.kv(bu))
 
+    # --- re-test round 2, N4: a map pin from latitude and longitude -------------------------
+
+    CITIES = {   # city: (lat, lon, the country shape it must fall in)
+        "Vienna": (48.21, 16.37, "Austria"), "Madrid": (40.42, -3.70, "Spain"),
+        "Sydney": (-33.87, 151.21, "Australia"), "Cape Town": (-33.92, 18.42, "South Africa"),
+        "Reykjavik": (64.15, -21.94, "Iceland"), "Nairobi": (-1.29, 36.82, "Kenya"),
+        "Tokyo": (35.68, 139.69, "Japan"), "Sao Paulo": (-23.55, -46.63, "Brazil"),
+        "Chicago": (41.88, -87.63, "USA"), "Dubai": (25.20, 55.27, "United Arab Emirates"),
+        "Warsaw": (52.23, 21.01, "Poland"), "Tehran": (35.69, 51.39, "Iran"),
+    }
+
+    def country_box(self, layout, name):
+        """The country shape's box on the slide, in inches (through the group transforms)."""
+        A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+
+        def tf_of(el, outer):
+            xf = el.find(A + "xfrm") if el.find(A + "xfrm") is not None else el.find(".//" + A + "xfrm")
+            o, e, co, ce = (xf.find(A + k) for k in ("off", "ext", "chOff", "chExt"))
+            sx, sy = int(e.get("cx")) / int(ce.get("cx")), int(e.get("cy")) / int(ce.get("cy"))
+            return lambda x, y: outer(int(o.get("x")) + (x - int(co.get("x"))) * sx,
+                                      int(o.get("y")) + (y - int(co.get("y"))) * sy)
+
+        def walk(shapes, tf):
+            for sh in shapes:
+                if sh.shape_type == 6:
+                    found = walk(sh.shapes, tf_of(sh._element.find(".//{http://schemas.openxmlformats.org/"
+                                                                   "presentationml/2006/main}grpSpPr"), tf))
+                    if found:
+                        return found
+                elif sh.name == name:
+                    x0, y0 = tf(sh.left, sh.top)
+                    x1, y1 = tf(sh.left + sh.width, sh.top + sh.height)
+                    return [v / 914400 for v in (x0, y0, x1, y1)]
+            return None
+        group = max((sh for sh in layout.shapes if sh.shape_type == 6), key=lambda g: len(g.shapes))
+        return walk(group.shapes, tf_of(group._element.find(
+            "{http://schemas.openxmlformats.org/presentationml/2006/main}grpSpPr"), lambda x, y: (x, y)))
+
+    def test_map_points_land_in_their_country_on_the_world_and_emea_maps(self):
+        from pptx import Presentation
+        fp = load_frq_pptx()
+        prs = Presentation(str(FULL))
+        for lname in ("World Map", "Map", "World Map | Americas", "1_MAP APAC", "World Map | EMEA"):
+            lay = next(l for l in prs.slide_layouts if l.name.strip() == lname)
+            for city, (lat, lon, country) in self.CITIES.items():
+                with self.subTest(layout=lname, city=city):
+                    try:
+                        x, y = fp.map_point(lname, lat, lon)
+                    except ValueError:
+                        self.assertEqual(lname, "World Map | EMEA", city)
+                        self.assertIn(city, ("Sydney", "Tokyo", "Sao Paulo", "Chicago", "Reykjavik"))
+                        continue
+                    x0, y0, x1, y1 = self.country_box(lay, country)
+                    self.assertTrue(x0 <= x <= x1 and y0 <= y <= y1, (x, y, (x0, y0, x1, y1)))
+        with self.assertRaises(ValueError):
+            fp.map_point("Headline + field", 48.2, 16.4)          # not a calibrated map
+
+    def test_pins_in_a_spec_are_placed_and_pass_the_check(self):
+        from pptx import Presentation
+        fp = load_frq_pptx()
+        spec = {"title": "Sites", "slides": [
+            {"layout": "Standard TITLE", "title": "Our towers in Europe and Africa"},
+            {"layout": "World Map | EMEA", "title": "Three sites run the new tower",
+             "pins": [{"lat": 48.21, "lon": 16.37, "label": "Vienna"},
+                      {"lat": -1.29, "lon": 36.82, "label": "Nairobi"}, {"lat": 40.42, "lon": -3.70}]},
+            {"layout": "Closing Slide"}]}
+        out = self.dir / "pins.pptx"
+        fp.build(spec, out, classification="Frequentis General", year=2026)
+        slide = Presentation(str(out)).slides[1]
+        pins = [sh for sh in slide.shapes if sh.name.startswith("Map pin")]
+        self.assertEqual(len(pins), 3)
+        x, y = fp.map_point("World Map | EMEA", 48.21, 16.37)
+        vienna = next(sh for sh in pins if sh.name == "Map pin: Vienna")
+        cx, cy = (vienna.left + vienna.width / 2) / 914400, (vienna.top + vienna.height / 2) / 914400
+        self.assertAlmostEqual(cx, x, places=2)
+        self.assertAlmostEqual(cy, y, places=2)
+        self.assertIn("Vienna", [sh.text_frame.text for sh in slide.shapes if sh.has_text_frame])
+        code, found = findings(out, "--year", "2026")
+        self.assertEqual(code, 0, [f for f in found if f["severity"] == "FAIL"])
+
     def test_build_and_footer_need_a_checked_classification_by_keyword(self):
         fp = load_frq_pptx()
         out = self.dir / "p.pptx"

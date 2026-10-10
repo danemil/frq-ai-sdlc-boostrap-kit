@@ -62,6 +62,8 @@ The spec is a JSON file:
 | `{"photo_request": "controller working position"}` | Warm-grey placeholder plus the speaker note "Request real photo … Frequentis Photo Stock (GCM)". Use it for every product, system, customer-site or people photograph. |
 | `{"icons": ["Analysis", "Planning"]}` | Blue icon-placeholder squares with descriptors, plus the speaker note "Insert icon from Frequentis Icon Stock: …". |
 
+**Map pins.** A slide on `World Map`, `Map`, `World Map | Americas`, `1_MAP APAC` or `World Map | EMEA` takes `"pins": [{"lat": 48.21, "lon": 16.37, "label": "Vienna"}]`: a light blue marker at that place and the label on a white chip. The maps are a Robinson projection, calibrated on the layouts' country shapes (`map_point()` in `frq_pptx.py`): within about 0.02 in on average, 0.07 in at worst (South America). A place outside the EMEA map is refused; use `World Map`. The Europe, Germany and UK layouts are not calibrated: place markers there by hand.
+
 For anything the builder does not cover (process chevrons, timelines, org charts, maps), build the slide on *Headline (standard)* (a map on its map layout), then add shapes with python-pptx as below, after looking at the matching example in `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/examples/` (for example `33-phases-chevrons.jpg`, `38-history-timeline.jpg`, `32-org-chart.jpg`, `42-map-highlight-region.jpg`).
 
 ## Manual python-pptx recipes
