@@ -25,7 +25,8 @@ class TestRelease(unittest.TestCase):
         entry = read("CHANGELOG.md").split("## [0.10.0]", 1)[1].split("\n## [", 1)[0]
         for text in ("sonarqube", "blackduck", "artifactory", "token exchange", "POST", "impacts",
                      "Tools to connect for this repo", "--decline all-tools", "fixed_in",
-                     "maven-metadata.xml", "No AQL", "SharePoint", "live confirmation"):
+                     "maven-metadata.xml", "No AQL", "SharePoint", "live confirmation",
+                     "Copilot re-test fixes", "from environment"):
             self.assertIn(text, entry)
 
     def test_changelog_0_9_0_has_the_stack_pack(self):
