@@ -13,6 +13,7 @@ import fnmatch
 import hashlib
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -30,6 +31,8 @@ KIT = helpers.KIT
 SKILL = KIT / packs.SKILLS_REL / "frq-brandbook"
 CHECK = SKILL / "scripts/check_brand.py"
 NEW_DECK = SKILL / "scripts/new_deck.py"
+FRQ_PPTX = SKILL / "scripts/frq_pptx.py"
+ASSETS = SKILL / "scripts/brand_assets.py"
 TEMPLATE = SKILL / "assets/templates/frq-template-slim-core.pptx"
 FULL = SKILL / "assets/templates/frq-master.pptx"          # the full 44-layout master (design §8.3)
 TOKENS = SKILL / "brand-tokens.json"
@@ -137,10 +140,17 @@ def sp(ph_type=None, idx=None, text="", rpr="", sppr="", name="Shape"):
             f"<p:txBody><a:bodyPr/><a:lstStyle/>{paras}</p:txBody></p:sp>")
 
 
-def build_pptx(dest, slides, base=TEMPLATE):
-    """Copy `base` and append slides: [(layout name, shapes xml, {chart part: xml})]."""
+def build_pptx(dest, slides, base=TEMPLATE, footer=True):
+    """Copy `base` and append slides: [(layout name, shapes xml, {chart part: xml})].
+    `footer`: fill the master footer's title and presenter, as frq_pptx.py and new_deck.py do
+    (the template's "Presentation title" and "<by Presenter>" are a check finding)."""
     with zipfile.ZipFile(base) as zin:
         parts = {n: zin.read(n) for n in zin.namelist()}
+    if footer:
+        master = parts["ppt/slideMasters/slideMaster1.xml"].decode("utf-8")
+        master = master.replace("<a:t>Presentation title</a:t>", "<a:t>Remote digital towers</a:t>")
+        master = master.replace("<a:t>&lt;by Presenter&gt;</a:t>", "<a:t>by Ana Pop</a:t>")
+        parts["ppt/slideMasters/slideMaster1.xml"] = master.encode("utf-8")
     ct = parts["[Content_Types].xml"].decode("utf-8")
     prels = parts["ppt/_rels/presentation.xml.rels"].decode("utf-8")
     pres = parts["ppt/presentation.xml"].decode("utf-8")
@@ -663,15 +673,17 @@ class TestCheckBrandScript(unittest.TestCase):
     def test_stdlib_only_and_python_3_9(self):
         src = CHECK.read_text(encoding="utf-8")
         tree = ast.parse(src, feature_version=(3, 9))
-        allowed = {"__future__", "argparse", "datetime", "json", "re", "sys", "zipfile", "xml",
+        allowed = {"__future__", "argparse", "datetime", "importlib", "json", "re", "sys", "zipfile", "xml",
                    "pathlib", "posixpath", "os", "collections", "zlib"}
-        mods = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                mods |= {a.name.split(".")[0] for a in node.names}
-            elif isinstance(node, ast.ImportFrom):
-                mods.add((node.module or "").split(".")[0])
-        self.assertLessEqual(mods, allowed)
+        for script in (CHECK, ASSETS):          # check_brand.py loads brand_assets.py by path
+            tree = ast.parse(script.read_text(encoding="utf-8"), feature_version=(3, 9))
+            mods = set()
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    mods |= {a.name.split(".")[0] for a in node.names}
+                elif isinstance(node, ast.ImportFrom):
+                    mods.add((node.module or "").split(".")[0])
+            self.assertLessEqual(mods, allowed, script.name)
 
     def test_golden_off_brand_deck(self):
         code, found = findings(GOLDEN, "--year", "2026")
@@ -740,10 +752,11 @@ class TestCheckBrandScript(unittest.TestCase):
 
     def test_the_scripts_leave_no_bytecode_behind(self):
         """E2E 2026-10-09: a __pycache__ in the placed skill showed up in `check`."""
-        for script in (CHECK, NEW_DECK):
+        for script in (CHECK, NEW_DECK, FRQ_PPTX, ASSETS):
             src = script.read_text(encoding="utf-8")
             self.assertIn("\nsys.dont_write_bytecode = True", src, script.name)
-            self.assertLess(src.index("sys.dont_write_bytecode = True"), src.index("import argparse"))
+            self.assertLess(src.index("sys.dont_write_bytecode = True"),
+                            src.index("from pathlib import" if script == ASSETS else "import argparse"))
 
     def test_a_deck_built_from_the_template_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -990,6 +1003,249 @@ class TestCheckBrandScript(unittest.TestCase):
         self.assertTrue(json.loads(out)["findings"])
 
 
+def template_layout_names(template):
+    """Layout names of a template, in master order (stdlib)."""
+    with zipfile.ZipFile(template) as z:
+        rels = z.read("ppt/slideMasters/_rels/slideMaster1.xml.rels").decode("utf-8")
+        master = z.read("ppt/slideMasters/slideMaster1.xml").decode("utf-8")
+        targets = {}
+        for rel in re.findall(r"<Relationship [^>]*/>", rels):
+            m = re.search(r'Target="\.\./slideLayouts/(slideLayout\d+\.xml)"', rel)
+            if m:
+                targets[re.search(r'Id="(\w+)"', rel).group(1)] = m.group(1)
+        order = re.findall(r'<p:sldLayoutId [^>]*r:id="(\w+)"', master)
+        return [re.search(r'<p:cSld name="([^"]*)"', z.read("ppt/slideLayouts/" + targets[r]).decode("utf-8"))
+                .group(1).strip() for r in order]
+
+
+def renamed_layout(src, dest, old, new):
+    """A copy of deck `src` whose layout `old` is called `new` (a foreign layout)."""
+    with zipfile.ZipFile(src) as zin, zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zout:
+        for n in zin.namelist():
+            data = zin.read(n)
+            if n == layout_file(src, old):
+                data = data.replace(f'<p:cSld name="{old}"'.encode(), f'<p:cSld name="{new}"'.encode())
+            zout.writestr(n, data)
+    return Path(dest)
+
+
+def chart_xml(body):
+    return ('<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+            f'xmlns:a="{NS_A}"><c:chart><c:plotArea>{body}</c:plotArea></c:chart></c:chartSpace>')
+
+
+def bracket(*middle):
+    """Title slide + `middle` slides + closing slide: the deck order the check wants."""
+    return ([("Standard TITLE", sp("title", None, "Remote digital towers cut costs"), None)] + list(middle)
+            + [("Closing Slide", "", None)])
+
+
+PORTED = {"deck.first-slide", "deck.last-slide", "layout.not-company", "template.not-company",
+          "footer.placeholder", "text.leftover", "shape.rounded", "chart.gridlines", "colour.chart-only",
+          "text.label-headline", "slide.words"}
+
+
+class TestPortedAuditRules(unittest.TestCase):
+    """The owner skill's audit rules, ported into check_brand.py (design §8.5): each one fails
+    a small deck built with zipfile; a deck on the full master built the right way has none."""
+
+    def found(self, deck, year="2024"):
+        return findings(deck, "--year", year)[1]
+
+    def deck(self, name, slides, **kw):
+        return build_pptx(Path(self.tmp.name) / name, slides, **kw)
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def test_check_deck_order(self):
+        found = self.found(self.deck("order.pptx", [
+            ("Headline (standard)", sp("title", None, "Costs fall by a third"), None)]))
+        self.assertIn("deck.first-slide", rules(found, "WARN", "file"))
+        self.assertIn("deck.last-slide", rules(found, "FAIL", "file"))
+        found = self.found(self.deck("ok.pptx", bracket()))
+        self.assertFalse(rules(found) & {"deck.first-slide", "deck.last-slide"})
+
+    def test_check_a_layout_not_from_the_master(self):
+        deck = self.deck("lay.pptx", bracket(("Headline (standard)", sp("title", None, "Costs fall by a third"), None)))
+        foreign = renamed_layout(deck, Path(self.tmp.name) / "foreign.pptx", "Headline (standard)", "Title Only")
+        self.assertIn("layout.not-company", rules(self.found(foreign), "FAIL", "slide", "slide 2"))
+        self.assertNotIn("layout.not-company", rules(self.found(deck)))
+
+    def test_check_a_deck_not_on_the_company_master(self):
+        self.assertIn("template.not-company", rules(findings(GOLDEN)[1], "FAIL", "file"))
+
+    def test_check_the_master_footer_placeholders(self):
+        found = self.found(self.deck("footer.pptx", bracket(), footer=False))
+        self.assertIn("footer.placeholder", rules(found, "FAIL", "file"))
+        msg = next(f["message"] for f in found if f["rule"] == "footer.placeholder")
+        self.assertIn("Presentation title", msg)
+        self.assertIn("<by Presenter>", msg)
+
+    def test_check_template_leftovers(self):
+        for text in ("Lorem ipsum dolor sit amet", "Click to add text", "xxx", "Annotations: delete me"):
+            with self.subTest(text=text):
+                found = self.found(self.deck("left.pptx", bracket(
+                    ("Headline (standard)", sp("title", None, "Costs fall by a third") + sp(None, None, text), None))))
+                self.assertIn("text.leftover", rules(found, "FAIL", "slide", "slide 2"))
+
+    def test_check_ampersand_and_exclamation_marks_stay_0_8_0_rules(self):
+        found = self.found(self.deck("amp.pptx", bracket(
+            ("Headline (standard)", sp("title", None, "Costs fall by a third") + sp(None, None, "Plan &amp; build now!!"), None))))
+        self.assertIn("text.ampersand", rules(found, "INFO", "slide", "slide 2"))
+        self.assertIn("text.exclamation", rules(found, "WARN", "slide", "slide 2"))
+
+    def test_check_rounded_rectangles(self):
+        rounded = ('<p:sp><p:nvSpPr><p:cNvPr id="50" name="Box"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>'
+                   '<a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="004182"/>'
+                   '</a:solidFill><a:ln><a:noFill/></a:ln></p:spPr></p:sp>')
+        found = self.found(self.deck("round.pptx", bracket(
+            ("Headline (standard)", sp("title", None, "Costs fall by a third") + rounded, None))))
+        self.assertIn("shape.rounded", rules(found, "WARN", "slide", "slide 2"))
+
+    def test_check_charts_gridlines_3d_off_palette_and_the_track_grey(self):
+        grid = chart_xml('<c:barChart/><c:valAx><c:majorGridlines/></c:valAx>')
+        threed = chart_xml('<c:bar3DChart/>')
+        off = chart_xml('<c:barChart><c:ser><c:spPr><a:solidFill><a:srgbClr val="4472C4"/></a:solidFill>'
+                        '</c:spPr></c:ser></c:barChart>')
+        track = chart_xml('<c:doughnutChart><c:ser><c:dPt><c:spPr><a:solidFill><a:srgbClr val="EDF1F2"/>'
+                          '</a:solidFill></c:spPr></c:dPt></c:ser></c:doughnutChart>')
+        title = sp("title", None, "Load peaks in the third quarter")
+        found = self.found(self.deck("charts.pptx", bracket(
+            ("Headline (standard)", title, {"chart1.xml": grid}),
+            ("Headline (standard)", title, {"chart2.xml": threed}),
+            ("Headline (standard)", title, {"chart3.xml": off}),
+            ("Headline (standard)", title, {"chart4.xml": track}),
+            ("Headline (standard)", title + sp(None, None, "Track", sppr='<a:solidFill><a:srgbClr val="EDF1F2"/></a:solidFill>'), None))))
+        self.assertIn("chart.gridlines", rules(found, "WARN", "slide", "slide 2"))
+        self.assertIn("effect.3d", rules(found, "FAIL", "slide", "slide 3"))
+        self.assertIn("colour.off-palette", rules(found, "FAIL", "slide", "slide 4"))
+        self.assertEqual(rules(found, None, "slide", "slide 5"), set(), "the track grey is fine in a chart (C12)")
+        self.assertIn("colour.chart-only", rules(found, "WARN", "slide", "slide 6"))
+        self.assertNotIn("colour.off-palette", rules(found, None, "slide", "slide 6"))
+
+    def test_check_a_label_headline_is_a_warning(self):
+        found = self.found(self.deck("label.pptx", bracket(
+            ("Headline (standard)", sp("title", None, "Next steps"), None),
+            ("Divider blue world", sp("title", None, "Costs"), None))))
+        self.assertIn("text.label-headline", rules(found, "WARN", "slide", "slide 2"))
+        self.assertNotIn("text.label-headline", rules(found, None, "slide", "slide 3"), "dividers may be short")
+
+    def test_check_a_wordy_slide(self):
+        text = "\\n".join(["Controllers work from one remote centre for several airports"] * 12)
+        found = self.found(self.deck("words.pptx", bracket(
+            ("Headline (standard)", sp("title", None, "Costs fall by a third") + sp(None, None, text), None))))
+        self.assertIn("slide.words", rules(found, "WARN", "slide", "slide 2"))
+
+    def test_a_deck_on_the_full_master_built_the_right_way_has_none_of_them(self):
+        deck = self.deck("full.pptx", bracket(
+            ("2_Agenda", sp("title", None, "Agenda") + sp(None, 10, "Why now\\nHow it works\\nNext steps"), None),
+            ("Divider blue world", sp("title", None, "Why remote towers now"), None),
+            ("Sub-headline + 50:50", sp("title", None, "Two options lead to one decision")
+             + sp("body", 14, "Both meet the safety case") + sp(None, 15, "Option A") + sp(None, 16, "Option B"), None),
+            ("World Map | EMEA", sp("title", None, "We serve air navigation in most of EMEA"), None)), base=FULL)
+        code, found = findings(deck, "--year", "2024")
+        self.assertEqual(code, 0, [f for f in found if f["severity"] == "FAIL"])
+        self.assertFalse(rules(found) & PORTED, [f for f in found if f["rule"] in PORTED])
+
+    def test_the_tokens_list_the_44_layouts_of_the_two_templates(self):
+        tokens = json.loads(TOKENS.read_text(encoding="utf-8"))
+        full, slim = template_layout_names(FULL), set(template_layout_names(TEMPLATE))
+        self.assertEqual(len(full), 44)
+        self.assertEqual(len(slim), 25)
+        self.assertEqual([(l["name"], l["templates"]) for l in tokens["pptx"]["layouts"]],
+                         [(n, "slim and full" if n in slim else "full only") for n in full])
+
+    def test_frq_pptx_audit_only_delegates_to_check_brand(self):
+        tree = ast.parse(FRQ_PPTX.read_text(encoding="utf-8"), feature_version=(3, 9))
+        funcs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+        self.assertNotIn("audit", funcs, "no second set of rules")
+        body = ast.dump(funcs["cmd_audit"])
+        self.assertIn("'check_brand'", body)
+        self.assertIn("attr='main'", body)
+        self.assertLess(len(funcs["cmd_audit"].body), 6)
+        src = FRQ_PPTX.read_text(encoding="utf-8")
+        for rule_words in ("LEFTOVER", "US_WORDS", "CONTRACTIONS", "GRADIENT_OK", "def _is_title_case"):
+            self.assertNotIn(rule_words, src)
+
+    def test_the_audit_command_prints_the_check_brand_result(self):
+        r = subprocess.run([sys.executable, "-I", str(FRQ_PPTX), "audit", str(GOLDEN), "--json"],
+                           capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 1, r.stderr)
+        code, found = findings(GOLDEN)
+        self.assertEqual([f["rule"] for f in json.loads(r.stdout)["findings"]], [f["rule"] for f in found])
+
+    def test_no_bare_pip_install_in_the_skill(self):
+        for rel in skill_files():
+            if not is_text(rel):
+                continue
+            for line in (SKILL / rel).read_text(encoding="utf-8").splitlines():
+                if re.search(r"\\bpip3? install\\b", line):
+                    self.assertIn("~/.ai-sdlc/venv", line, rel)
+
+    def test_new_deck_builds_through_frq_pptx_on_the_slim_template(self):
+        tree = ast.parse(NEW_DECK.read_text(encoding="utf-8"), feature_version=(3, 9))
+        calls = [ast.dump(n.func) for n in ast.walk(tree) if isinstance(n, ast.Call)]
+        self.assertTrue([c for c in calls if "id='frq_pptx'" in c and "attr='build'" in c])
+        self.assertNotIn("Presentation(", NEW_DECK.read_text(encoding="utf-8"), "one builder")
+        self.assertEqual(load_new_deck().TEMPLATE, "slim")
+
+
+def load_assets_from(path):
+    spec = importlib.util.spec_from_file_location("brand_assets_copy", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestAssetResolver(unittest.TestCase):
+    """scripts/brand_assets.py: the placed folder first, then the kit copy (design §8.7)."""
+
+    def test_assets_are_found_in_the_placed_folder_then_the_kit_copy(self):
+        rel = "templates/frq-master.pptx"
+        kit_rel = ".ai-sdlc/kit/template/.claude/skills/frq-brandbook"
+        with tempfile.TemporaryDirectory() as tmp:
+            root = helpers.make_repo(Path(tmp).resolve() / "repo", {"README.md": "team\\n"})
+            placed = root / PLACED
+            (placed / "scripts").mkdir(parents=True)
+            (placed / "scripts/brand_assets.py").write_bytes(ASSETS.read_bytes())
+            sub = root / "docs/decks"
+            sub.mkdir(parents=True)
+            mod = load_assets_from(placed / "scripts/brand_assets.py")
+            with self.assertRaises(mod.AssetMissing) as cm:
+                mod.asset_path(rel, start=sub)
+            self.assertIn(f"{kit_rel}/assets/{rel}", str(cm.exception))
+            self.assertIn("check the kit", str(cm.exception))
+            kit = root / kit_rel / "assets/templates"
+            kit.mkdir(parents=True)
+            (kit / "frq-master.pptx").write_bytes(b"kit copy")
+            self.assertEqual(mod.asset_path(rel, start=sub), kit / "frq-master.pptx")
+            self.assertEqual(mod.asset_path(rel), kit / "frq-master.pptx", "from the script's folder too")
+            (placed / "assets/templates").mkdir(parents=True)
+            (placed / "assets/templates/frq-master.pptx").write_bytes(b"placed")
+            self.assertEqual(mod.asset_path(rel, start=sub), placed / "assets/templates/frq-master.pptx")
+            with self.assertRaises(mod.AssetMissing):
+                mod.find("../../outside.txt")
+            r = subprocess.run([sys.executable, "-I", str(placed / "scripts/brand_assets.py"), "keyvisual/none.jpg"],
+                               capture_output=True, text=True, check=False, cwd=sub)
+            self.assertEqual(r.returncode, 2)
+            self.assertNotIn("Traceback", r.stderr)
+            self.assertFalse(list(placed.rglob("__pycache__")))
+
+    def test_in_the_kit_every_script_finds_its_assets(self):
+        mod = load_assets_from(ASSETS)
+        self.assertEqual(mod.asset_path("templates/frq-master.pptx"), FULL)
+        self.assertEqual(mod.find("brand-tokens.json"), TOKENS)
+
+
+def load_frq_pptx():
+    spec = importlib.util.spec_from_file_location("frq_pptx_mod", FRQ_PPTX)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def load_new_deck():
     spec = importlib.util.spec_from_file_location("new_deck_mod", NEW_DECK)
     mod = importlib.util.module_from_spec(spec)
@@ -1029,7 +1285,7 @@ class TestNewDeck(unittest.TestCase):
                                "## Controllers see more with fewer screens\n"
                                "> What changes for the tower team\n- One working position\n"
                                "  - Shared voice and data\n- Fewer handovers\n\n"
-                               "## Next steps\n- Pilot in one tower\n", encoding="utf-8")
+                               "## Next we pilot in one tower\n- Pilot in one tower\n", encoding="utf-8")
             out = Path(tmp) / "deck.pptx"
             r = subprocess.run([sys.executable, str(NEW_DECK), str(outline), str(out),
                                 "--classification", "Frequentis General", "--year", "2026"],
@@ -1059,6 +1315,11 @@ class TestNewDeck(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             prs = Presentation(str(TEMPLATE))
             layouts = {l.name: l for l in prs.slide_layouts}
+            s = prs.slides.add_slide(layouts["Standard TITLE"])     # a deck starts on the title slide
+            s.shapes.title.text = "Remote digital towers"
+            fp = load_frq_pptx()
+            fp.set_footer(prs, classification="Frequentis General", year=2024, title="Recipes",
+                          presenter="by Ana Pop")
             s = prs.slides.add_slide(layouts["Headline (standard)"])
             s.shapes.title.text = "Three steps to a decision"
             ns["flat_box"](s, Inches(0.5), Inches(1.2), Inches(2), Inches(1))
@@ -1075,6 +1336,7 @@ class TestNewDeck(unittest.TestCase):
             chart = s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(0.5), Inches(1.2),
                                        Inches(8), Inches(3.5), data).chart
             ns["brand_chart"](chart)
+            prs.slides.add_slide(layouts["Closing Slide"])           # and ends on the closing slide
             out = Path(tmp) / "recipe.pptx"
             prs.save(str(out))
             code, found = findings(out, "--year", "2024")
@@ -1136,6 +1398,218 @@ class TestNewDeck(unittest.TestCase):
                                        "--classification", "Frequentis General")
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn("not placed", r.stderr)
+
+
+MANY_LAYOUTS = {"title": "Remote digital towers", "presenter": "by Ana Pop", "slides": [
+    {"layout": "Standard TITLE", "title": "Remote digital towers cut staffing costs",
+     "subtitle": "Customer briefing, 9 October 2026"},
+    {"layout": "2_Agenda", "title": "Agenda",
+     "content": [["Why remote towers now", "How the solution works", "Business case"]]},
+    {"layout": "Divider blue world", "title": "Why remote towers now"},
+    {"layout": "Sub-headline + 50:50", "title": "Two options lead to one decision",
+     "subtitle": "Both meet the safety case",
+     "content": [["Upgrade the tower in place"], {"table": {"header": ["Option", "Cost"],
+                                                            "rows": [["A", "2,115"], ["B", "1,500"]]}}]},
+    {"layout": "World Map | EMEA", "title": "We serve air navigation across EMEA"},
+    {"layout": "Headline (standard)", "title": "Delivery runs in five phases"},
+    {"layout": "Closing Slide"}]}
+SLIM_ONLY = {"title": "Status", "slides": [
+    {"layout": "Standard TITLE", "title": "The pilot tower is ready for the trial"},
+    {"layout": "Headline + field", "title": "Two risks need an owner this sprint",
+     "content": [["Alarm routing is late", "Spare parts arrive in week three"]]},
+    {"layout": "Closing Slide"}]}
+
+
+def run_frq_pptx(*args, cwd=None, python=None, flags=("-I",), env=None):
+    r = subprocess.run([python or sys.executable, *flags, str(FRQ_PPTX), *map(str, args)],
+                       capture_output=True, text=True, check=False, cwd=cwd, env=env)
+    return r
+
+
+def count_layouts(deck):
+    with zipfile.ZipFile(deck) as z:
+        return len([n for n in z.namelist() if re.fullmatch(r"ppt/slideLayouts/slideLayout\d+\.xml", n)])
+
+
+class TestBuilderWithoutPptx(unittest.TestCase):
+    """frq_pptx.py guarantees that hold without python-pptx (design §8.5)."""
+
+    def test_without_python_pptx_it_says_how_to_get_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            spec = Path(tmp) / "spec.json"
+            spec.write_text(json.dumps(SLIM_ONLY), encoding="utf-8")
+            r = run_frq_pptx("build", spec, Path(tmp) / "out.pptx", "--classification", "Frequentis General",
+                             flags=("-I", "-S"))                        # -S: no site-packages, no pptx
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+            self.assertNotIn("Traceback", r.stderr)
+            self.assertIn("~/.ai-sdlc/venv", r.stderr)
+            self.assertIn("ai-sdlc-doc-powerpoint", r.stderr)
+            self.assertFalse((Path(tmp) / "out.pptx").exists())
+
+    def test_the_classification_is_required_and_checked_before_anything_else(self):
+        fp = load_frq_pptx()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "d.pptx"
+            with self.assertRaises(TypeError):
+                fp.build(SLIM_ONLY, out)                                 # no classification= : refused
+            for guess in ("secret", "General", "internal", "", None):
+                with self.subTest(guess=guess), self.assertRaises(ValueError):
+                    fp.build(SLIM_ONLY, out, classification=guess)
+                with self.subTest(guess=guess), self.assertRaises(ValueError):
+                    fp.set_footer(object(), classification=guess, year=2026)
+            with self.assertRaises(TypeError):
+                fp.set_footer(object(), "Frequentis General", 2026)      # positional: refused
+            with self.assertRaises(ValueError):                         # a spec cannot pick another class
+                fp.build(dict(SLIM_ONLY, classification="Frequentis Public"), out,
+                         classification="Frequentis General")
+            self.assertFalse(out.exists())
+            r = run_frq_pptx("build", Path(tmp) / "s.json", out)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("--classification", r.stderr)
+        self.assertEqual(fp.ALLOWED, fp.CLASSES + ("Frequentis [classification to be set]",))
+        self.assertEqual(fp.SERIES[:2], ["004182", "00AAE1"], "the palette comes from brand-tokens.json")
+
+    def test_render_writes_only_under_ai_sdlc_tmp(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = helpers.make_repo(Path(tmp).resolve() / "repo", {"README.md": "team\n"})
+            bin_ = Path(tmp) / "bin"
+            bin_.mkdir()
+            log = Path(tmp) / "soffice.log"
+            (bin_ / "soffice").write_text(
+                "#!/bin/sh\n"
+                f'echo "$@" >> "{log}"\n'
+                'out=""; deck=""\n'
+                'while [ $# -gt 0 ]; do case "$1" in --outdir) out="$2"; shift;; *.pptx) deck="$1";; esac; shift; done\n'
+                'name=$(basename "$deck" .pptx); echo pdf > "$out/$name.pdf"\n')
+            (bin_ / "pdftoppm").write_text('#!/bin/sh\nfor last; do :; done\necho png > "$last-1.png"\n')
+            for f in bin_.iterdir():
+                f.chmod(0o755)
+            deck = root / "docs/deck.pptx"
+            deck.parent.mkdir()
+            deck.write_bytes(GOLDEN.read_bytes())
+            env = dict(os.environ, PATH=f"{bin_}{os.pathsep}{os.environ.get('PATH', '')}")
+            r = run_frq_pptx("render", deck, cwd=root, env=env)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            out = root / ".ai-sdlc/tmp/deck"
+            self.assertTrue((out / "deck.pdf").is_file())
+            self.assertTrue((out / "slide-1.png").is_file())
+            self.assertIn((root / ".ai-sdlc/tmp/lo-profile").as_uri(), log.read_text())
+            r = run_frq_pptx("render", deck, Path(tmp) / "elsewhere", cwd=root, env=env)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn(".ai-sdlc", r.stderr)
+            self.assertFalse((Path(tmp) / "elsewhere").exists())
+            self.assertEqual(deck.read_bytes(), GOLDEN.read_bytes(), "the deck is never changed")
+            r = run_frq_pptx("render", deck, cwd=root, env=dict(os.environ, PATH=str(Path(tmp) / "none")))
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("PowerPoint", r.stderr)
+
+
+@unittest.skipUnless(importlib.util.find_spec("pptx"), "python-pptx is not installed here")
+class TestBuilder(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.dir = Path(self.tmp.name)
+
+    def spec(self, data, name="spec.json"):
+        p = self.dir / name
+        p.write_text(json.dumps(data), encoding="utf-8")
+        return p
+
+    def test_build_from_a_spec_with_many_layouts_passes_the_check(self):
+        out = self.dir / "deck.pptx"
+        r = run_frq_pptx("build", self.spec(MANY_LAYOUTS), out, "--classification", "Frequentis General",
+                         "--year", "2026")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("used the full master for: World Map | EMEA", r.stdout)
+        # the timeline recipe from references/build-spec.md: chevrons and an axis, one line weight
+        from pptx import Presentation
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.util import Inches, Pt
+        F = load_frq_pptx()
+        prs = Presentation(str(out))
+        slide = prs.slides[5]
+        for i, name in enumerate(["Analysis", "Design", "Build", "Test", "Operate"]):
+            c = slide.shapes.add_shape(MSO_SHAPE.CHEVRON, Inches(0.47 + i * 1.8), Inches(1.2), Inches(1.75), Inches(0.5))
+            c.fill.solid()
+            c.fill.fore_color.rgb = F.rgb(F.LIGHT_BLUE if i == 1 else F.WARM_GREY)
+            F.flat(c)
+        ln = slide.shapes.add_connector(1, Inches(0.47), Inches(3), Inches(9.53), Inches(3))
+        ln.line.color.rgb = F.rgb(F.BLUE)
+        ln.line.width = Pt(1.5)
+        ln.shadow.inherit = False
+        final = self.dir / "deck-timeline.pptx"
+        prs.save(str(final))
+        self.assertEqual([s.slide_layout.name.strip() for s in prs.slides],
+                         [s["layout"] for s in MANY_LAYOUTS["slides"]])
+        code, found = findings(final, "--year", "2026")
+        self.assertEqual(code, 0, [f for f in found if f["severity"] == "FAIL"])
+        self.assertFalse(rules(found) & PORTED, [f for f in found if f["rule"] in PORTED])
+        footer = " | ".join(t for t in re.findall(r"<a:t>([^<]*)</a:t>", zipfile.ZipFile(final).read(
+            "ppt/slideMasters/slideMaster1.xml").decode("utf-8")) if "Frequentis" in t or "Ana" in t or "towers" in t)
+        for part in ("Remote digital towers", "by Ana Pop", "Frequentis General", "© Frequentis AG 2026"):
+            self.assertIn(part, footer)
+        r = run_frq_pptx("audit", final)                          # the audit command is the check
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("Brand check:", r.stdout)
+
+    def test_build_and_footer_need_a_checked_classification_by_keyword(self):
+        fp = load_frq_pptx()
+        out = self.dir / "p.pptx"
+        result = fp.build(SLIM_ONLY, out, classification="Frequentis [classification to be set]", year=2026)
+        self.assertEqual(result["template"], "slim")
+        code, found = findings(out, "--year", "2026")
+        self.assertEqual(code, 0)
+        self.assertIn("footer.classification-to-set", rules(found, "WARN"))
+        r = run_frq_pptx("footer", out, self.dir / "p2.pptx", "--classification", "Frequentis Confidential",
+                         "--title", "Status", "--presenter", "by Ana Pop", "--year", "2026")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Frequentis Confidential", r.stdout)
+        r = run_frq_pptx("footer", out, self.dir / "p3.pptx", "--classification", "Confidential")
+        self.assertEqual(r.returncode, 2)
+        self.assertFalse((self.dir / "p3.pptx").exists())
+
+    def test_it_never_overwrites_its_input_or_an_existing_file(self):
+        out = self.dir / "d.pptx"
+        self.assertEqual(run_frq_pptx("build", self.spec(SLIM_ONLY), out, "--classification",
+                                      "Frequentis General").returncode, 0)
+        before = out.read_bytes()
+        for args in (("footer", out, out, "--classification", "Frequentis General"),
+                     ("build", self.spec(SLIM_ONLY), out, "--classification", "Frequentis General")):
+            r = run_frq_pptx(*args)
+            self.assertEqual(r.returncode, 2, args)
+            self.assertNotIn("Traceback", r.stderr)
+            self.assertEqual(out.read_bytes(), before)
+
+    def test_the_slim_template_is_the_default_and_the_full_master_only_when_needed(self):
+        slim_out, full_out = self.dir / "slim.pptx", self.dir / "full.pptx"
+        r = run_frq_pptx("build", self.spec(SLIM_ONLY), slim_out, "--classification", "Frequentis General")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(count_layouts(slim_out), 25)
+        self.assertNotIn("full master", r.stdout)
+        r = run_frq_pptx("build", self.spec(MANY_LAYOUTS), full_out, "--classification", "Frequentis General")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(count_layouts(full_out), 44)
+        self.assertIn("used the full master for: World Map | EMEA", r.stdout)
+        self.assertLess(slim_out.stat().st_size * 4, full_out.stat().st_size)
+        r = run_frq_pptx("build", self.spec(MANY_LAYOUTS), self.dir / "x.pptx", "--classification",
+                         "Frequentis General", "--template", "slim")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("World Map | EMEA", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
+        r = run_frq_pptx("build", self.spec(SLIM_ONLY), self.dir / "f.pptx", "--classification",
+                         "Frequentis General", "--template", "full")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(count_layouts(self.dir / "f.pptx"), 44)
+
+    def test_new_deck_output_has_the_slim_templates_25_layouts(self):
+        outline = self.dir / "o.md"
+        outline.write_text("# Remote digital towers\n\n## Controllers see more with fewer screens\n- One position\n",
+                           encoding="utf-8")
+        r = subprocess.run([sys.executable, str(NEW_DECK), str(outline), str(self.dir / "n.pptx"),
+                            "--classification", "Frequentis General"], capture_output=True, text=True, check=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(count_layouts(self.dir / "n.pptx"), 25)
 
 
 class TestPlacement(unittest.TestCase):

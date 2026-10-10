@@ -6,8 +6,12 @@
     python3 check_brand.py deck.pptx --year 2026
 
 Python 3.9+, standard library only (zipfile + xml.etree): no install, no venv. It reads
-the file and never changes it. The palette, fonts and footer come from
-../brand-tokens.json, next to this script, so a palette change is made in one place.
+the file and never changes it. The palette, fonts, footer and the master's layout names come
+from ../brand-tokens.json (found through brand_assets.py, next to this script), so a palette
+change is made in one place. This is the one brand check: `frq_pptx.py audit` runs it.
+The rules of the kit owner's frq-4-pptx-agent audit are ported in (deck order, foreign
+layouts, footer placeholders, template leftovers, rounded rectangles, chart gridlines, the
+chart-only track grey, label headlines, wordy slides); references/building-decks.md maps each.
 
 Severity: FAIL (breaks a brand rule), WARN (probably off-brand; a person decides),
 INFO (for the record). Slide-level findings are what the deck's author set and can fix.
@@ -26,6 +30,7 @@ sys.dont_write_bytecode = True                         # no __pycache__ in the p
 
 import argparse
 import datetime
+import importlib.util
 import json
 import posixpath
 import re
@@ -34,7 +39,22 @@ import zlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-TOKENS = Path(__file__).resolve().parent.parent / "brand-tokens.json"
+HERE = Path(__file__).resolve().parent
+
+
+def _sibling(name):
+    """Load a module next to this script by path (run with -I, the script's folder is not on sys.path)."""
+    spec = importlib.util.spec_from_file_location(f"frq_{name}", HERE / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+brand_assets = _sibling("brand_assets")
+try:
+    TOKENS = brand_assets.find("brand-tokens.json")
+except brand_assets.AssetMissing:
+    TOKENS = HERE.parent / "brand-tokens.json"         # reported as a plain error when read
 # Limits against hostile files: the largest real part (a map layout) is about 3.3 MB of XML.
 MAX_PART = 16 * 1024 * 1024          # one XML part, uncompressed
 MAX_TOTAL = 256 * 1024 * 1024        # all XML parts read, uncompressed
@@ -65,7 +85,16 @@ SYS_COLOURS = {"windowText": "000000", "window": "FFFFFF", "btnText": "000000"}
 PRESET_COLOURS = {"black": "000000", "white": "FFFFFF"}
 # Tints of these are fine (PDF p.7: "except for greys"); tints of blue, light blue and accents are not.
 GREYS = {"333333", "626469", "666666", "9FA0A3", "999999", "C9C3BA", "FFFFFF", "000000"}
-SLIDE_SEVERITY = {"colour.legend-only": "INFO", "colour.tint": "WARN"}
+SLIDE_SEVERITY = {"colour.legend-only": "INFO", "colour.tint": "WARN", "colour.chart-only": "WARN"}
+# Ported from the owner skill's audit (design 2026-10-09 §8.5).
+FOOTER_SHAPES = {"FRQ_Classification", "FRQ_Copyright", "FRQ_Filename"}
+FIRST_LAYOUTS = ("Standard TITLE", "Special topic TITLE")
+LAST_LAYOUT = "Closing Slide"
+LABEL_OK = {"Divider blue world", "Divider", "2_Agenda", "1_Agenda", "Q&A", "Closing Slide"}
+ROUNDED = {"roundRect", "round1Rect", "round2SameRect", "round2DiagRect", "snipRoundRect"}
+LEFTOVER = re.compile(r"lorem ipsum|click to (?:add|edit)|\bannotations?:|\bNOTE \||<by presenter>|event image"
+                      r"|special topic picture|^\s*(?:presentation title|xxx|abc|xyz)\s*$", re.I)
+MAX_WORDS = 90
 MONTHS = ("January|February|March|April|May|June|July|August|September|October|November|December"
           "|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec")
 CONTRACTIONS = (r"\b(?:\w+n['’]t|(?:it|that|there|what|let|here|who)['’]s|(?:we|you|they)['’](?:re|ve|ll|d)"
@@ -116,6 +145,18 @@ RULES = {
     "text.contraction": ("Write the words out in formal (customer) material: 'we are', 'do not'.", "PDF p.24"),
     "text.date": ("Write dates as '25 March 2026': no 'th', no comma.", "PDF p.22"),
     "text.number": ("One to twelve in words; 2,115; 15.50; 10m; 15bn; +10%.", "PDF p.22"),
+    # ported from the owner skill's audit (owner skill v1.0)
+    "deck.first-slide": ("Start the deck with the 'Standard TITLE' layout (or 'Special topic TITLE').", "PDF p.28; owner skill v1.0"),
+    "deck.last-slide": ("End the deck with the 'Closing Slide' layout.", "PDF p.28; template slide 10"),
+    "layout.not-company": ("Re-create the slide on a layout of the Frequentis master (references/layouts.md).", "template; owner skill v1.0"),
+    "template.not-company": ("Rebuild the deck on the Frequentis template (frq_pptx.py build, slim by default).", "template; owner skill v1.0"),
+    "footer.placeholder": ("Set the presentation title and presenter in the master footer (frq_pptx.py footer).", "PDF p.29; template (C4, C11)"),
+    "text.leftover": ("Delete template guidance and placeholder text (lorem ipsum, 'Click to add', annotations, xxx).", "template; owner skill v1.0"),
+    "shape.rounded": ("Use a rectangle: the square is a Frequentis design element.", "PDF p.17"),
+    "chart.gridlines": ("Remove the chart gridlines; label values directly.", "PDF p.18; template slide 60"),
+    "colour.chart-only": ("The track grey #EDF1F2 is for chart tracks only (KPI donuts); use a brand colour here.", "template KPI charts (C12)"),
+    "text.label-headline": ("Write the headline as the slide's key message, not a topic label.", "PDF p.29; template slide 4"),
+    "slide.words": ("Cut the text or split the slide; put the narrative into the speaker notes.", "PDF p.23, p.29"),
 }
 
 
@@ -132,6 +173,8 @@ def load_tokens(path=TOKENS) -> dict:
     chk = data["checker"]
     return {
         "palette": hexes(col["primary"]) | hexes(col["primary"], "web_hex") | hexes(col["accent"]),
+        "chart_only": hexes(col.get("chart_only", [])),
+        "layouts": {l["name"].strip() for l in data.get("pptx", {}).get("layouts", [])},
         "legend": hexes(col["legend_only"]),
         "gradient": {col["gradient"]["from"].lstrip("#").upper(), col["gradient"]["to"].lstrip("#").upper()},
         "classes": data["classification"],
@@ -373,10 +416,11 @@ def shape_style(sp, theme, tokens):
     return effects, gradient, filled, line
 
 
-def drawing_findings(root, tokens, theme) -> dict:
-    """{rule: detail} of the visual rules in one DrawingML part (slide, layout, master, chart)."""
+def drawing_findings(root, tokens, theme, chart=False) -> dict:
+    """{rule: detail} of the visual rules in one DrawingML part (slide, layout, master, chart).
+    `chart`: the part is a chart, where the track grey is allowed (C12)."""
     parents = parents_of(root)
-    off, legend, fonts, effects, threed, gradients, tints = (set() for _ in range(7))
+    off, legend, fonts, effects, threed, gradients, tints, chart_only = (set() for _ in range(8))
     italic = []
     for el in root.iter():
         kind = local(el.tag)
@@ -389,6 +433,9 @@ def drawing_findings(root, tokens, theme) -> dict:
         if kind != "schemeClr":
             if val in tokens["legend"]:
                 legend.add("#" + val)
+            elif val in tokens["chart_only"]:
+                if not chart:
+                    chart_only.add("#" + val)
             elif val and val not in tokens["palette"]:
                 off.add("#" + val if re.fullmatch(r"[0-9A-F]{6}", val) else val)
         if "gradFill" not in up and any(local(m.tag) in COLOUR_MODS for m in el):
@@ -432,6 +479,8 @@ def drawing_findings(root, tokens, theme) -> dict:
         out["colour.off-palette"] = f"Colours outside the palette: {listing(off)}."
     if legend:
         out["colour.legend-only"] = f"Legend-only colours: {listing(legend)}."
+    if chart_only:
+        out["colour.chart-only"] = f"Chart-only colour outside a chart: {listing(chart_only)}."
     if tints:
         out["colour.tint"] = f"Tints or shades of brand colours: {listing(tints)}."
     if fonts:
@@ -609,7 +658,7 @@ def check_pptx(pkg, tokens, year) -> Report:
     theme = read_theme(pkg, theme_part)
     theme_findings(report, theme, tokens)
 
-    template_texts, inherited = [], {}
+    template_texts, inherited, layout_names = [], {}, {}
     layouts = sorted({t for m in masters for typ, t in pkg.rels(m).values() if typ == "slideLayout"},
                      key=lambda n: int(re.sub(r"\D", "", posixpath.basename(n)) or 0))
     for part, scope in [(m, "master") for m in masters] + [(l, "layout") for l in layouts]:
@@ -619,6 +668,8 @@ def check_pptx(pkg, tokens, year) -> Report:
         csld = xml.find(P + "cSld")
         name = csld.get("name", "") if csld is not None else ""
         where = "slide master" if scope == "master" else f"layout '{name}'"
+        if scope == "layout":
+            layout_names[part] = name.strip()
         template_texts.append((where, "\n".join(t.text or "" for t in xml.iter(A + "t"))))
         for rule, detail in drawing_findings(xml, tokens, theme).items():
             inherited.setdefault((scope, rule), []).append((where, detail))
@@ -626,6 +677,8 @@ def check_pptx(pkg, tokens, year) -> Report:
         where = hits[0][0] if len(hits) == 1 else f"{len(hits)} {scope}s"
         names = "; ".join(f"{w}: {d}" for w, d in hits[:3]) + (" …" if len(hits) > 3 else "")
         report.add("INFO", scope, where, rule, f"From the template, inherited (not the slide's): {names}")
+
+    master_findings(report, pkg, masters, slides)
 
     parsed = []
     for n, part in enumerate(slides, start=1):
@@ -635,16 +688,18 @@ def check_pptx(pkg, tokens, year) -> Report:
         text = "\n".join(t.text or "" for t in xml.iter(A + "t"))
         charts = [pkg.xml(t) for typ, t in pkg.rels(part).values() if typ == "chart" and t in pkg.names]
         text += "".join("\n" + chart_text(c) for c in charts)
-        parsed.append((n, xml, charts, text))
+        layout = next((layout_names.get(t, "") for typ, t in pkg.rels(part).values() if typ == "slideLayout"), "")
+        parsed.append((n, xml, charts, text, layout))
     found_classes = classes_in([(None, p[3]) for p in parsed] + template_texts, tokens)
+    deck_order_findings(report, [p[4] for p in parsed], tokens)
     public = not found_classes or "Frequentis Public" in found_classes
 
     slide_texts = []
-    for n, xml, charts, text in parsed:
+    for n, xml, charts, text, layout in parsed:
         where = f"slide {n}" + (" (hidden)" if xml.get("show") in ("0", "false") else "")
         found = drawing_findings(xml, tokens, theme)
         for chart in charts:
-            for rule, detail in drawing_findings(chart, tokens, theme).items():
+            for rule, detail in drawing_findings(chart, tokens, theme, chart=True).items():
                 found[rule] = (found[rule] + " Chart: " + detail) if rule in found else "Chart: " + detail
         for rule, detail in found.items():
             report.add(SLIDE_SEVERITY.get(rule, "FAIL"), "slide", where, rule, detail)
@@ -678,6 +733,7 @@ def check_pptx(pkg, tokens, year) -> Report:
         outlines = outline_count(xml, theme, tokens)
         if outlines:
             report.add("WARN", "slide", where, "shape.outline", f"{outlines} filled shape(s) with an outline.")
+        ported_slide_findings(report, where, xml, charts, shapes, layout, tokens)
         no_alt = [c for c in (pic.find(f"{P}nvPicPr/{P}cNvPr") for pic in xml.iter(P + "pic"))
                   if c is not None and not (c.get("descr") or "").strip()]
         if no_alt:
@@ -686,6 +742,63 @@ def check_pptx(pkg, tokens, year) -> Report:
         report.add("INFO", "file", "deck", "file.empty", "The deck has no slides.")
     footer_findings(report, slide_texts, template_texts, tokens, year, "pptx")
     return report
+
+
+def master_findings(report, pkg, masters, slides):
+    """The master footer (ported audit rules): a company master, its placeholders replaced."""
+    if not slides:
+        return
+    for part in masters:
+        xml = pkg.xml(part)
+        if xml is None:
+            continue
+        names = {c.get("name", "") for c in xml.iter(P + "cNvPr")}
+        if not names & FOOTER_SHAPES:
+            report.add("FAIL", "file", "slide master", "template.not-company",
+                       "The slide master has no Frequentis footer (classification, copyright, title): "
+                       "the deck is not on the Frequentis template.")
+            continue
+        texts = [(t.text or "").strip() for t in xml.iter(A + "t")]
+        left = sorted({t for t in texts if t.lower() == "presentation title" or "<by presenter>" in t.lower()})
+        if left:
+            report.add("FAIL", "file", "slide master", "footer.placeholder",
+                       f"The master footer still says {listing(repr(t) for t in left)}.")
+
+
+def deck_order_findings(report, layouts, tokens):
+    """The deck starts on a title layout and ends on the Closing Slide (ported audit rule)."""
+    if not layouts:
+        return
+    if layouts[0] not in FIRST_LAYOUTS:
+        report.add("WARN", "file", "deck", "deck.first-slide",
+                   f"The deck starts on '{layouts[0] or 'an unknown layout'}', not 'Standard TITLE'.")
+    if layouts[-1] != LAST_LAYOUT:
+        report.add("FAIL", "file", "deck", "deck.last-slide",
+                   f"The deck ends on '{layouts[-1] or 'an unknown layout'}', not 'Closing Slide'.")
+
+
+def ported_slide_findings(report, where, xml, charts, shapes, layout, tokens):
+    """The owner audit's slide rules that the 0.8.0 checker did not have."""
+    if tokens["layouts"] and layout not in tokens["layouts"]:
+        report.add("FAIL", "slide", where, "layout.not-company",
+                   f"Layout '{layout or 'unknown'}' is not a layout of the Frequentis master.")
+    paras = [p[0] for _, ps in shapes for p in ps if p[3]]
+    left = sorted({m.group(0).strip() for t in paras for m in [LEFTOVER.search(t)] if m})
+    if left:
+        report.add("FAIL", "slide", where, "text.leftover", f"Template leftovers: {listing(repr(t) for t in left)}.")
+    rounded = [g for g in xml.iter(A + "prstGeom") if g.get("prst") in ROUNDED]
+    if rounded:
+        report.add("WARN", "slide", where, "shape.rounded", f"{len(rounded)} rounded rectangle(s).")
+    grid = sum(1 for c in charts if c is not None for el in c.iter()
+               if el.tag in (C + "majorGridlines", C + "minorGridlines"))
+    if grid:
+        report.add("WARN", "slide", where, "chart.gridlines", f"{grid} chart gridline set(s).")
+    title = next((" ".join(p[0] for p in ps if p[3]) for t, ps in shapes if t), "")
+    if title.strip() and len(title.split()) <= 2 and layout not in LABEL_OK:
+        report.add("WARN", "slide", where, "text.label-headline", f"Headline '{title.strip()}' is a label, not a message.")
+    words = sum(len(t.split()) for t in paras)
+    if words > MAX_WORDS:
+        report.add("WARN", "slide", where, "slide.words", f"{words} words on one slide.")
 
 
 # --- WordprocessingML and SpreadsheetML (lighter) -----------------------------------
@@ -859,8 +972,8 @@ def as_markdown(path, items) -> str:
     return "\n".join(lines)
 
 
-def check(path, year=None, tokens_path=TOKENS) -> dict:
-    tokens = load_tokens(tokens_path)
+def check(path, year=None, tokens_path=None) -> dict:
+    tokens = load_tokens(tokens_path or TOKENS)
     year = year or datetime.date.today().year
     kind = Path(path).suffix.lower().lstrip(".")
     checkers = {"pptx": check_pptx, "potx": check_pptx, "docx": check_docx, "dotx": check_docx,

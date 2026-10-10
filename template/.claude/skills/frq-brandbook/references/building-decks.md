@@ -124,7 +124,7 @@ def brand_table(slide, rows, x, y, w, row_h=Inches(0.35)):
 
 def brand_chart(chart, highlight=None):
     """2D chart: series in palette order (or one highlighted, the rest grey), no chart title."""
-    order = [BLUE, LIGHT, GREY, MID, WARM]
+    order = [BLUE, LIGHT, MID, WARM, GREY]                    # brand-tokens.json charts.series (C17)
     chart.has_title = False                                   # the slide headline carries the message
     for i, series in enumerate(chart.plots[0].series):
         colour = (BLUE if i == highlight else MID) if highlight is not None else order[i % len(order)]
@@ -136,10 +136,8 @@ def brand_chart(chart, highlight=None):
         chart.legend.font.color.rgb = BLACK
     for ax in (chart.category_axis, chart.value_axis):
         ax.tick_labels.font.color.rgb = BLACK                 # not the theme's blue text colour
-    axis = chart.value_axis
-    axis.has_major_gridlines = True
-    axis.major_gridlines.format.line.color.rgb = WARM          # light gridlines, or set False
-    axis.major_gridlines.format.line.width = Pt(0.5)
+    chart.value_axis.has_major_gridlines = False              # no gridlines (check rule chart.gridlines)
+    chart.category_axis.has_major_gridlines = False
 ```
 
 ## Look at the result
@@ -157,3 +155,42 @@ The checker reads XML; it does not see layout, overlaps, logo use or what PowerP
 - `Standard TITLE` already shows the globe and the five BU tiles; do not add a second key visual on top.
 - The template has no icon files. Where an icon helps, leave a blue #004182 square with an Arial descriptor below and a speaker note: "Insert icon from the Frequentis Icon Stock: <meaning>".
 - White text on light blue (#00AAE1) fails contrast at any size (C10): in new slides put #333333 text on light blue, or #004182 for large text (WCAG, kit rule).
+
+## Check rules
+
+`scripts/check_brand.py` is the one brand check (stdlib, no install); `frq_pptx.py audit` only runs it. Every rule of the kit owner's `frq-4-pptx-agent` v1.0 audit is covered. Severity: the owner's *Must* is FAIL and *Should* is WARN, except where the 0.8.0 rule was kept (marked).
+
+| # | Owner audit rule | `check_brand.py` id | Severity |
+|---|---|---|---|
+| 1 | No Frequentis master footer | `template.not-company` (new) | FAIL |
+| 2 | Footer title still "Presentation title" | `footer.placeholder` (new) | FAIL |
+| 3 | Footer presenter still "<by Presenter>" | `footer.placeholder` (new) | FAIL |
+| 4 | Copyright year not the current year | `footer.year` | WARN (0.8.0 kept) |
+| 5 | Layout not from the Frequentis master | `layout.not-company` (new; names in `brand-tokens.json`) | FAIL |
+| 6 | Deck does not start on *Standard TITLE* | `deck.first-slide` (new; *Special topic TITLE* also fine) | WARN |
+| 7 | Deck does not end on *Closing Slide* | `deck.last-slide` (new) | FAIL |
+| 8 | Title Case headline | `text.title-case` | WARN |
+| 9 | Headline is a label, not a message (two words or fewer; dividers, agendas, Q&A and closing exempt) | `text.label-headline` (new) | WARN |
+| 10 | Centred or right-aligned body text | `text.align` | WARN |
+| 11 | Italic text | `text.italic` | FAIL |
+| 12 | Non-Arial fonts | `font.non-brand` | FAIL |
+| 13 | Most text bold | `text.bold` | WARN |
+| 14 | Overcrowded: more than 90 words | `slide.words` (new) | WARN |
+| 15 | Overcrowded: too many paragraphs | `slide.bullets` | WARN |
+| 16 | "FRQ" or "FREQUENTIS" on slides | `text.frq`, `text.caps-name` | FAIL customer-facing, WARN internal (C16, 0.8.0 kept) |
+| 17 | "Thank you" or "Questions?" slide | `slide.thank-you` | FAIL |
+| 18 | Template leftovers (lorem ipsum, "Click to add", annotations, NOTE, xxx, event image, special topic picture) | `text.leftover` (new) | FAIL |
+| 19 | US spelling | `text.us-spelling` | WARN |
+| 20 | Contractions | `text.contraction` | WARN (0.8.0 pattern kept: it does not flag possessives) |
+| 21 | "&" in text | `text.ampersand` | INFO (0.8.0 kept: the PDF allows it when space forces it) |
+| 22 | Several exclamation marks | `text.exclamation` | WARN |
+| 23 | US date format | `text.date` | WARN |
+| 24 | Off-palette colours | `colour.off-palette` | FAIL |
+| 25 | Gradient other than blue to light blue | `gradient.non-brand` | FAIL on slides; the template's own stops INFO (C13) |
+| 26 | Shadow, glow or reflection | `effect.shadow` | FAIL |
+| 27 | 3D effect | `effect.3d` | FAIL |
+| 28 | Outline on a filled shape | `shape.outline` | WARN |
+| 29 | Rounded rectangle | `shape.rounded` (new) | WARN |
+| 30 | 3D chart | `effect.3d` | FAIL |
+| 31 | Off-palette chart colours | `colour.off-palette`; the track grey #EDF1F2 is fine in charts, `colour.chart-only` elsewhere (new, C12) | FAIL / WARN |
+| 32 | Chart gridlines | `chart.gridlines` (new) | WARN |
