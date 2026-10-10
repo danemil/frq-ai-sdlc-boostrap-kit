@@ -17,6 +17,7 @@ Write the test first. Watch it fail. Write minimal code to pass.
 
 - **Git:** never commit, push or merge on your own. Follow the person's git-comfort setting and ask before each commit.
 - **Show before you change:** before editing or creating any file (a new test file too), show the proposed diff or content and wait for a yes; if you can't ask, stop after proposing. Report evidence (the test output), never just "Fixed".
+- **Stack test skill:** load the test skill for the repo's language too, before you write the test, if you have it: Go `ai-sdlc-golang-testing`, Java `ai-sdlc-java-junit`, Jest `ai-sdlc-javascript-typescript-jest`, React components `ai-sdlc-react-testing-library`. It knows the test style and the versions this repo uses.
 
 ## When to Use
 

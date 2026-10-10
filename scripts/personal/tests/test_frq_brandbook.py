@@ -1787,6 +1787,8 @@ class TestSkillText(unittest.TestCase):
         self.assertIn("the ATM key visual on the title slide", create)
         self.assertIn("--business-unit", create)
         self.assertIn("`docs/decks/`", create)
+        # a one-shot run asked the classification and the presenter together (re-test round 2)
+        self.assertIn("Also when nobody can answer in this run, ask only the classification and stop", create)
         self.assertIn("never assume", create.split("`docs/decks/`", 1)[1][:200])
 
     def test_layouts_reference_names_all_44_and_links_each_preview(self):
