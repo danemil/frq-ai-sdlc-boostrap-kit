@@ -55,11 +55,11 @@ Charts: the key series blue, a second highlight light blue, the rest grey (order
 
 ## Create
 
-Ask one question at a time and wait for each answer.
+Ask one question at a time and wait for each answer: ask the classification alone first, then the rest one at a time.
 
-1. **Ask the classification** (Public, General or Confidential) and wait for the answer. Never guess it, never pick a "safe" one. If you cannot ask (a one-shot run), stop, or use the literal `Frequentis [classification to be set]` wherever the class goes and list it in the hand-over. The scripts run only with one of the three classes or that placeholder.
+1. **Ask the classification alone first** (Public, General or Confidential), in a message with no other question, and wait for the answer. Never guess it, never pick a "safe" one. If you cannot ask (a one-shot run), stop, or use the literal `Frequentis [classification to be set]` wherever the class goes and list it in the hand-over. The scripts run only with one of the three classes or that placeholder.
 2. **Infer the style.** *Executive* (presented live: board, steering, keynote): one message per slide, "reduce to max", detail in the notes. *Self-explanatory* (pre-read, handout, annex): sub-headlines, more text. No clear signal: ask once.
-3. **Footer details and business unit.** The presentation title and the presenter, inferred from the request if possible. ATM unless the person names another unit; for an internal team deck keep `Standard TITLE` as it is. Key visuals: [references/assets.md](references/assets.md).
+3. **Footer details and business unit.** The presentation title and the presenter, inferred from the request if possible. ATM unless the person names another unit: the builders put the ATM key visual on the title slide by default (`--business-unit DEF`, `PS`, `PT` or `MAR` for another unit, `CORP` for the template's globe; also for an internal deck, unless the person asks otherwise). Key visuals: [references/assets.md](references/assets.md).
 4. **Story first.** Build the message pyramid: one main message (it becomes the title), about three supporting messages (sections or key slides), proof points under each. Every headline states its slide's key message, not a label.
 5. **Outline first, then stop.** Show one line per slide or section (headline = the key message) and wait. Build nothing until the person agrees; if you cannot ask, stop after the outline.
 6. **Build from the bundled templates**, never from scratch, with the venv Python (python-pptx, installed only with consent as `ai-sdlc-doc-powerpoint` describes):
@@ -69,7 +69,8 @@ Ask one question at a time and wait for each answer.
    - Word: customer-facing documents start from the official Word template `Doknorme.dotm` (English) or `Doknormd.dotm` (German), from Word → Shared Templates (PDF p.45): ask the person for it. Excel, PDF, HTML, diagrams, issues, mail: [references/documents.md](references/documents.md).
 7. **Custom visuals** (processes, timelines, org charts, maps): open the matching example in `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/examples/` first, then add flat shapes inside the content area (recipes in build-spec.md).
 8. **Check your own output** with `scripts/check_brand.py` (below), then **look at it** (render it, see step 3 of Check). Fix every FAIL and every font WARN in what you wrote; list any other WARN for the person. Report the result as evidence found or not found; never call the file "on-brand" or "compliant".
-9. **Hand over** with the path, the headline list, the check result and what is left for a human (photos from the Frequentis Photo stock, icons from the Icon Stock, a classification still to be set).
+9. **Where to save it.** Propose saving the deck under `docs/decks/` (for example `docs/decks/<short-name>.pptx`) and ask; never assume the folder, and never overwrite a file.
+10. **Hand over** with the path, the headline list, the check result and what is left for a human (photos from the Frequentis Photo stock, icons from the Icon Stock, a classification still to be set).
 
 ## Check
 
@@ -83,6 +84,8 @@ Ask one question at a time and wait for each answer.
 4. To fix anything, go on with [Apply](#apply-an-existing-file).
 
 ## Apply an existing file
+
+Ask the classification alone first (if the file has none or the fix needs it), then the rest one at a time, each in its own message.
 
 1. **Check it** (above) and look at it: the story and the headlines too, not only the XML.
 2. **One table**: *Slide*, *Issue*, *Rule*, *Proposed fix*; **Must** fixes (the FAILs) first, then **Should** fixes (the WARNs). Keep the checker's # so the person can pick.

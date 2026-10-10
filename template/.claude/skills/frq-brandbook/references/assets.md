@@ -37,7 +37,7 @@ Brand key visuals shipped in the template (licence for use outside Frequentis: c
 | `keyvisual-public-transport.jpg` | Public Transport, full size (owner skill v1.0) | 1563 × 1536 |
 | `keyvisual-atm-aircraft-clouds-wide.jpg` | ATM aircraft above the clouds, wide mood image (owner skill v1.0; rights to confirm with GCM before external use) | 1920 × 1251 |
 
-**ATM is the default business unit** (C14): use the ATM key visual and wording unless the person names another unit. Prefer the smaller files; take a full-size one only where a large picture is needed.
+**ATM is the default business unit** (C14): use the ATM key visual and wording unless the person names another unit. `frq_pptx.py build` and `new_deck.py` put it on the *Standard TITLE* slide by themselves (`--business-unit` for another unit). Prefer the smaller files; take a full-size one only where a large picture is needed.
 
 ## Backgrounds (`../assets/background/`; the JPEGs in `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/background/`)
 

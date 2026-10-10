@@ -2,7 +2,7 @@
 """Build Frequentis decks from a JSON spec on the company templates.
 
     python3 frq_pptx.py layouts [--template slim|full]
-    python3 frq_pptx.py build SPEC.json OUT.pptx --classification "<the class the person gave>" [--template slim|full] [--year 2026]
+    python3 frq_pptx.py build SPEC.json OUT.pptx --classification "<the class the person gave>" [--template slim|full] [--year 2026] [--business-unit ATM|DEF|PS|PT|MAR|CORP]
     python3 frq_pptx.py footer IN.pptx OUT.pptx --classification "<class>" [--title …] [--presenter …] [--year …]
     python3 frq_pptx.py audit DECK.pptx [--json]        # runs check_brand.py, the one brand check
     python3 frq_pptx.py render DECK.pptx [OUTDIR]       # PNGs under .ai-sdlc/tmp/<name>/ only
@@ -18,6 +18,9 @@ under the kit's rules:
 - Template: the slim template (25 layouts, about 1.2 MB per deck) by default; the full
   master (44 layouts, about 9 MB per deck) only when a slide needs a layout the slim one
   lacks, and it says so. --template slim|full forces one.
+- The title slide (Standard TITLE) shows the ATM key visual in its big square by default
+  (C14); another business unit's with "business_unit" in the spec or --business-unit, the
+  template's globe with "CORP" or "key_visual": false. Only the built deck changes.
 - render writes only under .ai-sdlc/tmp/ (the LibreOffice profile too), never to /tmp.
 - The palette comes from ../brand-tokens.json; the templates and pictures are found through
   brand_assets.py (the placed skill first, then .ai-sdlc/kit), so this works from the placed
@@ -488,6 +491,49 @@ def place_block(slide, box, block, notes):
     return block
 
 
+# --- the title slide's key visual (ATM by default, C14) -------------------------------------
+TITLE_LAYOUT = "standard title"
+UNITS = {b["id"]: b for b in TOKENS["business_units"]}
+DEFAULT_UNIT = next(b["id"] for b in TOKENS["business_units"] if b.get("default"))
+A_BLIP = "{http://schemas.openxmlformats.org/drawingml/2006/main}blip"
+R_EMBED = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed"
+
+
+def key_visual_shape(layout):
+    """The biggest picture-filled shape of a title layout: the key visual square."""
+    pics = [s for s in layout.shapes if s._element.find(".//" + A_BLIP) is not None]
+    return max(pics, key=lambda s: (s.width or 0) * (s.height or 0)) if pics else None
+
+
+def set_title_key_visual(prs, unit=None, enabled=True):
+    """Put the business unit's key visual (ATM unless asked) into the Standard TITLE square of
+    this deck's layout; the five unit tiles stay on top. CORP or enabled=False: the template's
+    globe as it is. Returns the unit used, or None."""
+    unit = (unit or DEFAULT_UNIT).upper()
+    if unit not in UNITS:
+        raise ValueError(f"business unit {unit!r} is not one of: {', '.join(UNITS)}")
+    if not enabled or unit == "CORP":
+        return None
+    layout = next((l for l in prs.slide_layouts if l.name.strip().lower() == TITLE_LAYOUT), None)
+    shape = key_visual_shape(layout) if layout is not None else None
+    if shape is None:
+        return None
+    path = brand_assets.find(UNITS[unit]["key_visual"])
+    _, rid = layout.part.get_or_add_image_part(str(path))
+    fill = shape._element.find(".//" + qn("a:blipFill"))
+    blip = fill.find(qn("a:blip"))
+    old = blip.get(R_EMBED)
+    blip.set(R_EMBED, rid)
+    if old != rid and f'"{old}"' not in etree.tostring(layout._element).decode():
+        layout.part.drop_rel(old)                      # the globe is no longer used there
+    rect = fill.find(qn("a:stretch") + "/" + qn("a:fillRect"))
+    if rect is not None:                               # the square image fills the square box
+        for side in ("l", "t", "r", "b"):
+            rect.attrib.pop(side, None)
+    shape._element.find(".//" + qn("p:cNvPr")).set("descr", f"{UNITS[unit]['name']} key visual")
+    return unit
+
+
 # --- build ---------------------------------------------------------------------------------
 # Boxes (inches: left, top, width, height) for layouts without a content placeholder.
 FREE_BOXES = {
@@ -562,7 +608,7 @@ def build_slide(prs, sl):
     return slide
 
 
-def build(spec, out, *, classification, year=None, template=None) -> dict:
+def build(spec, out, *, classification, year=None, template=None, business_unit=None) -> dict:
     """Build a deck from `spec` into the new file `out`. Returns {"out", "template", "full_only"}."""
     classification = checked_classification(classification)  # before anything is read or written
     out = Path(out)
@@ -571,9 +617,13 @@ def build(spec, out, *, classification, year=None, template=None) -> dict:
     given = spec.get("classification")
     if given not in (None, classification):
         raise ValueError(f"the spec says classification {given!r} but the person gave {classification!r}")
+    unit = (business_unit or spec.get("business_unit") or DEFAULT_UNIT).upper()
+    if unit not in UNITS:
+        raise ValueError(f"business unit {unit!r} is not one of: {', '.join(UNITS)}")
     need_pptx()
     path, which, full_only = choose_template(spec, template)
     prs = Presentation(str(path))
+    set_title_key_visual(prs, unit, enabled=spec.get("key_visual", True) is not False)
     for sl in spec["slides"]:
         build_slide(prs, sl)
     first_title = next((s.get("title") for s in spec["slides"] if s.get("title")), "")
@@ -586,7 +636,7 @@ def build(spec, out, *, classification, year=None, template=None) -> dict:
 def cmd_build(args):
     spec = json.loads(Path(args.spec).read_text(encoding="utf-8"))
     result = build(spec, args.out, classification=args.classification, year=args.year,
-                   template=args.template)
+                   template=args.template, business_unit=args.business_unit)
     print(f"wrote {result['out']} on the {result['template']} template")
     if result["full_only"]:
         print("used the full master for: " + ", ".join(result["full_only"]))
@@ -720,6 +770,8 @@ def main(argv=None) -> int:
                    help="ask the person; never guess it. If you cannot ask: " + repr(PLACEHOLDER))
     a.add_argument("--template", choices=["slim", "full"], help="default: slim, full only when a layout needs it")
     a.add_argument("--year", type=int)
+    a.add_argument("--business-unit", choices=sorted(UNITS),
+                   help=f"the title slide's key visual (default {DEFAULT_UNIT}; CORP keeps the globe)")
     a.set_defaults(fn=cmd_build)
     a = sub.add_parser("footer", help="set the master footer, into a new file")
     a.add_argument("inp")

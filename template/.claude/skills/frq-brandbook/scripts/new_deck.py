@@ -127,7 +127,7 @@ def set_footer(prs, *, classification, year, title, author=None):
                                presenter=f"by {author}" if author else "")
 
 
-def build(outline, out, *, classification, year=None, author=None, template=TEMPLATE):
+def build(outline, out, *, classification, year=None, author=None, template=TEMPLATE, business_unit=None):
     classification = checked_classification(classification)   # before anything is read or written
     year = year or datetime.date.today().year
     title, subtitle, slides, ignored = parse(Path(outline).read_text(encoding="utf-8"))
@@ -142,7 +142,7 @@ def build(outline, out, *, classification, year=None, author=None, template=TEMP
         raise ValueError("nothing of these slides could be placed, so no deck was written: "
                          + ", ".join(empty))
     return frq_pptx.build(to_spec(title, subtitle, slides, author), out, classification=classification,
-                          year=year, template=template)
+                          year=year, template=template, business_unit=business_unit)
 
 
 def main(argv=None) -> int:
@@ -153,13 +153,15 @@ def main(argv=None) -> int:
                     help="ask the person; never guess it. If you cannot ask: " + repr(PLACEHOLDER))
     ap.add_argument("--year", type=int, default=datetime.date.today().year)
     ap.add_argument("--author")
+    ap.add_argument("--business-unit", choices=sorted(frq_pptx.UNITS),
+                    help=f"the title slide's key visual (default {frq_pptx.DEFAULT_UNIT}; CORP keeps the globe)")
     args = ap.parse_args(argv)
     if Path(args.out).exists():
         print(f"new_deck: {args.out} exists; choose another name (it is never overwritten)", file=sys.stderr)
         return 2
     try:
         build(args.outline, args.out, classification=args.classification, year=args.year,
-              author=args.author)
+              author=args.author, business_unit=args.business_unit)
     except ImportError:
         print("new_deck: python-pptx is missing; with the person's yes, install it into ~/.ai-sdlc/venv as ai-sdlc-doc-powerpoint (section 1) describes", file=sys.stderr)
         return 2

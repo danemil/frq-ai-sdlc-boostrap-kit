@@ -1551,6 +1551,64 @@ class TestBuilder(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("Brand check:", r.stdout)
 
+    # --- re-test round 2 (2026-10-10): the ATM key visual on the title slide by default --
+
+    def title_picture(self, deck):
+        """The bytes of the big picture on the title slide's layout (the key visual square)."""
+        from pptx import Presentation
+        prs = Presentation(str(deck))
+        lay = prs.slides[0].slide_layout
+        shape = load_frq_pptx().key_visual_shape(lay)
+        rid = shape._element.find(".//" + "{http://schemas.openxmlformats.org/drawingml/2006/main}blip").get(
+            "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}embed")
+        return lay.part.related_part(rid).blob
+
+    def kv(self, bu):
+        tokens = json.loads((SKILL / "brand-tokens.json").read_text(encoding="utf-8"))
+        rel = next(b["key_visual"] for b in tokens["business_units"] if b["id"] == bu)
+        return (SKILL / rel).read_bytes()
+
+    def test_the_title_slide_shows_the_atm_key_visual_by_default(self):
+        fp = load_frq_pptx()
+        template = SKILL / "assets/templates/frq-template-slim-core.pptx"
+        before = hashlib.sha256(template.read_bytes()).hexdigest()
+        out = self.dir / "atm.pptx"
+        fp.build(SLIM_ONLY, out, classification="Frequentis General", year=2026)
+        self.assertEqual(self.title_picture(out), self.kv("ATM"))
+        self.assertEqual(hashlib.sha256(template.read_bytes()).hexdigest(), before, "template untouched")
+        code, found = findings(out, "--year", "2026")
+        self.assertEqual(code, 0, [f for f in found if f["severity"] == "FAIL"])
+
+    def test_another_business_unit_or_none_on_request(self):
+        fp = load_frq_pptx()
+        mar = self.dir / "mar.pptx"
+        fp.build(dict(SLIM_ONLY, business_unit="MAR"), mar, classification="Frequentis General", year=2026)
+        self.assertEqual(self.title_picture(mar), self.kv("MAR"))
+        plain = self.dir / "plain.pptx"
+        fp.build(dict(SLIM_ONLY, key_visual=False), plain, classification="Frequentis General", year=2026)
+        globe = self.dir / "globe.pptx"
+        fp.build(dict(SLIM_ONLY, business_unit="CORP"), globe, classification="Frequentis General", year=2026)
+        self.assertEqual(self.title_picture(plain), self.title_picture(globe))
+        self.assertNotEqual(self.title_picture(plain), self.kv("ATM"))
+        r = run_frq_pptx("build", self.spec(SLIM_ONLY), self.dir / "def.pptx", "--classification",
+                         "Frequentis General", "--business-unit", "DEF")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.title_picture(self.dir / "def.pptx"), self.kv("DEF"))
+        with self.assertRaises(ValueError):
+            fp.build(dict(SLIM_ONLY, business_unit="XYZ"), self.dir / "x.pptx",
+                     classification="Frequentis General", year=2026)
+
+    def test_new_deck_uses_the_atm_key_visual_too(self):
+        outline = self.dir / "o.md"
+        outline.write_text("# Remote towers\n\n## The pilot works\n- One tower\n", encoding="utf-8")
+        for args, bu in (([], "ATM"), (["--business-unit", "PS"], "PS")):
+            out = self.dir / f"nd-{bu}.pptx"
+            r = subprocess.run([sys.executable, str(NEW_DECK), str(outline), str(out),
+                                "--classification", "Frequentis General", *args],
+                               capture_output=True, text=True, check=False)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(self.title_picture(out), self.kv(bu))
+
     def test_build_and_footer_need_a_checked_classification_by_keyword(self):
         fp = load_frq_pptx()
         out = self.dir / "p.pptx"
@@ -1638,6 +1696,18 @@ class TestSkillText(unittest.TestCase):
                        "Build nothing until the person agrees", "all fixes, only the Must fixes, or pick by slide number",
                        "German decks", "frq_pptx.py build", "new_deck.py"):
             self.assertIn(needed, self.skill)
+
+    def test_retest_round_2_one_question_atm_title_and_decks_folder(self):
+        create = self.skill.split("## Create", 1)[1].split("## Check", 1)[0]
+        apply_ = self.skill.split("## Apply an existing file", 1)[1].split("## Per deliverable", 1)[0]
+        for part in (create, apply_):
+            self.assertIn("Ask the classification alone first", part)
+            self.assertIn("then the rest one at a time", part)
+        self.assertNotIn("keep `Standard TITLE` as it is", self.skill)
+        self.assertIn("the ATM key visual on the title slide", create)
+        self.assertIn("--business-unit", create)
+        self.assertIn("`docs/decks/`", create)
+        self.assertIn("never assume", create.split("`docs/decks/`", 1)[1][:200])
 
     def test_layouts_reference_names_all_44_and_links_each_preview(self):
         text = (SKILL / "references/layouts.md").read_text(encoding="utf-8")

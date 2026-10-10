@@ -36,7 +36,7 @@ The spec is a JSON file:
 }
 ```
 
-`title` and `presenter` fill the footer (the presenter may be empty); `year` defaults to `--year`, then the current year.
+`title` and `presenter` fill the footer (the presenter may be empty); `year` defaults to `--year`, then the current year. `business_unit` (`ATM` by default; `DEF`, `PS`, `PT`, `MAR`, or `CORP` for the template's globe; `--business-unit` on the command line wins) puts that unit's key visual in the big square of the *Standard TITLE* slide; `"key_visual": false` keeps the template's globe.
 
 ### Slide fields
 
