@@ -68,11 +68,11 @@ python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,qa --lang en
 ```text
 The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
-Set up AI-SDLC 0.9.0 for Ana: Product Owner, QA · English.
+Set up AI-SDLC 0.10.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 91 file(s): .agents/skills/ (86 in 16 skills), .ai-sdlc/ (1), .github/hooks/ (1), .github/instructions/ (3)
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
 Check: all good.
 ```
@@ -144,13 +144,13 @@ Example output, with one edited file:
 
 ```text
 $ python3 ai-sdlc-kit-new/setup.py update
-Updated to AI-SDLC 0.9.1 for Ana: Product Owner, QA · English.
-- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.9.0).
+Updated to AI-SDLC 0.10.1 for Ana: Product Owner, QA · English.
+- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.10.0).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 1 file(s): .github/instructions/ (1)
 - Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's newer copy is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare.
 - Skills: … · git: hidden · session summary: on
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 Check: all good.
 $ git status --short
 $
@@ -270,11 +270,14 @@ $ python3 .ai-sdlc/kit/setup.py connect jira --test
 Jira: OK: signed in to jira.example.com as Ana Pop.
 $ python3 .ai-sdlc/kit/setup.py connections
 Connectors (saved in /home/ana/.config/ai-sdlc/connectors):
+- artifactory: not connected (python3 .ai-sdlc/kit/setup.py connect artifactory)
 - bitbucket: not connected (python3 .ai-sdlc/kit/setup.py connect bitbucket)
+- blackduck: not connected (python3 .ai-sdlc/kit/setup.py connect blackduck)
 - confluence: not connected (python3 .ai-sdlc/kit/setup.py connect confluence)
 - jama: not connected (python3 .ai-sdlc/kit/setup.py connect jama)
 - jenkins: not connected (python3 .ai-sdlc/kit/setup.py connect jenkins)
 - jira: https://jira.example.com · Data Center · user ana · last test OK 2026-10-08T12:30:26Z · from file
+- sonarqube: not connected (python3 .ai-sdlc/kit/setup.py connect sonarqube)
 $ python3 .ai-sdlc/kit/setup.py disconnect jira --yes
 Removed the saved Jira connection.
 ```
@@ -443,12 +446,12 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py change --lang de --git-comfort guided --rituals none --add-skill skill-creator --drop-skill drawio
-Updated AI-SDLC 0.9.0 for Ana: Product Owner, QA · German (Deutsch).
+Updated AI-SDLC 0.10.0 for Ana: Product Owner, QA · German (Deutsch).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 3 file(s): .agents/skills/ (1 in 1 skill), .ai-sdlc/ (1), .github/instructions/ (1)
 - Removed 6 file(s) no longer needed: .agents/skills/ (6 in 1 skill)
 - Skills: … · git: guided · session summary: off
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 Check: all good.
 ```
 
@@ -477,6 +480,14 @@ To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <skill 
 
 **Tools to connect for this repo.** When the repo's files show a tool your roles do not already suggest (SonarQube, Black Duck, or Artifactory for a repo with code), `recommend` adds a part "Tools to connect for this repo", each with its reason; you connect one yourself, in your own terminal (`connect <name>` or `connect --suggested`). `--decline <tool>` (or `connect:<tool>`) says no to one, `--decline all-tools` to all of them; `--decline all` stays skills only. `--json` adds `"connectors": [...]`. Setup, update and a change of roles add one line: `- Tools to connect for this repo: sonarqube (say 'connect sonarqube')`.
 
+```text
+$ python3 .ai-sdlc/kit/setup.py recommend          # a Product Owner, in a Maven repo
+Tools to connect for this repo (from its files; you type the login yourself, in your own terminal):
+1. connect:artifactory — Artifactory: this repo downloads packages; the connector checks which versions the company mirror has (pom.xml).
+To connect one: python3 .ai-sdlc/kit/setup.py connect <name>   (in your own terminal), or all of them with connect --suggested
+To say no: python3 .ai-sdlc/kit/setup.py recommend --decline connect:artifactory   (or the tool name)
+```
+
 Skill suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Tool suggestions also leave out a tool you have already connected (only whether a login is saved is read, never its values). Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.
 
 Your current choices are in `.ai-sdlc/USER.md`. Read it, but do not edit it by hand: use `change`. `change` with no options repairs the setup: it puts back missing files and hides them again.
@@ -497,13 +508,13 @@ python3 .ai-sdlc/kit/setup.py check --quiet --hook   # the same line as JSON, fo
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py check --quiet
-AI-SDLC 0.9.0 · roles: PO, QA · en · ok
+AI-SDLC 0.10.0 · roles: PO, QA · en · ok
 $ python3 .ai-sdlc/kit/setup.py check
 Check: 3 to look at:
 - [missing:.github/instructions/ai-sdlc-qa.instructions.md] .github/instructions/ai-sdlc-qa.instructions.md is missing.
 - [unknown:.github/instructions/ai-sdlc-extra.instructions.md] .github/instructions/ai-sdlc-extra.instructions.md looks like a kit file, but the kit did not write it.
 - [team-agents-md] The team has its own AGENTS.md. Copilot reads it together with the kit's instructions.
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 ```
 
 `check` also names the tools your roles usually connect to, marking the ones connected or skipped.
