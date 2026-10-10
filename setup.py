@@ -6,7 +6,7 @@
   python3 .ai-sdlc/kit/setup.py change --lang en --add-skill skill-creator
   python3 <newer kit>/setup.py update
   python3 .ai-sdlc/kit/setup.py check [--quiet] [--hook]
-  python3 .ai-sdlc/kit/setup.py recommend [--all] [--json] [--decline <ids>|all]
+  python3 .ai-sdlc/kit/setup.py recommend [--all] [--json] [--decline <skill names or ids>|all]
   python3 .ai-sdlc/kit/setup.py ack <warning-id> [<warning-id> ...]
   python3 .ai-sdlc/kit/setup.py remove [--yes]          (--yes only after the person said yes)
   python3 .ai-sdlc/kit/setup.py connect <connector> [--test]   (in your own terminal)
@@ -76,8 +76,8 @@ def parser() -> argparse.ArgumentParser:
                                          "every other skill; changes nothing")
     m.add_argument("--all", action="store_true", help="also list the other skills you can add")
     m.add_argument("--json", action="store_true", help="print the result as JSON")
-    m.add_argument("--decline", metavar="IDS",
-                   help="comma-separated suggestion ids (or all) the person said no to; "
+    m.add_argument("--decline", metavar="NAMES",
+                   help="comma-separated skill names or suggestion ids (or all) the person said no to; "
                         "only state.json changes")
     a = sub.add_parser("ack", help="note that you have seen a warning")
     a.add_argument("ids", nargs="+", metavar="warning-id")

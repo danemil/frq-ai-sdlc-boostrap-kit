@@ -440,11 +440,11 @@ Skill suggestions for this repo (from its files; nothing is changed yet):
 5. add:maven-via-artifactory — add ai-sdlc-maven-via-artifactory: this repo downloads packages; they come only through the company mirror (pom.xml).
 To take them all: python3 .ai-sdlc/kit/setup.py change --add-skill 110-java-maven-best-practices --add-skill java-code-review --add-skill java-junit --add-skill javafx --add-skill maven-via-artifactory
 To take some: the same command with only those skills.
-To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <ids, comma-separated>  (or --decline all)
+To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <skill names or ids, comma-separated>  (or --decline all)
 ```
 
 - `recommend --all` adds "Other skills you can add": every skill you do not have, grouped (Java, Go, React and web, Quality and security, Ways of working, Role playbooks, Other), one line each, and the `change --add-skill` command.
-- `recommend --decline add:javafx` (or `--decline all`) remembers a no in `.ai-sdlc/state.json`; that suggestion is not offered again by setup or update, and `recommend` lists it under "Declined earlier". Taking it later with `change --add-skill javafx` clears the no.
+- `recommend --decline javafx` (a skill name, or the id `add:javafx`; or `--decline all`) remembers a no in `.ai-sdlc/state.json`; that suggestion is not offered again by setup or update, and `recommend` lists it under "Declined earlier". Taking it later with `change --add-skill javafx` clears the no.
 - `recommend --json` prints `{"suggestions": [...], "others": [...]}`.
 
 Suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.

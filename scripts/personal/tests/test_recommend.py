@@ -238,7 +238,7 @@ class TestCommand(Base):
                       + " ".join(f"--add-skill {s}" for s in skills), lines)
         self.assertIn("To take some: the same command with only those skills.", lines)
         self.assertIn("To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline "
-                      "<ids, comma-separated>  (or --decline all)", lines)
+                      "<skill names or ids, comma-separated>  (or --decline all)", lines)
         self.assertEqual(helpers.snapshot(root), before)
 
     def test_no_suggestions_says_so(self):
@@ -280,13 +280,26 @@ class TestCommand(Base):
         out = self.run_cli(root)
         self.assertTrue(out.startswith("No new skill suggestions for this repo."), out)
 
+    def test_decline_takes_skill_names_as_well_as_ids(self):
+        """Copilot passes the skill names the person said no to (re-test round 2, M2)."""
+        root = self.set_up({"pom.xml": JAVAFX_POM})
+        out = self.run_cli(root, "--decline", "javafx, ai-sdlc-java-junit,add:sonarqube-findings")
+        self.assertIn("Noted: add:javafx, add:java-junit, add:sonarqube-findings.", out)
+        self.assertEqual(state.load(root)["declined_recommendations"],
+                         ["add:java-junit", "add:javafx", "add:sonarqube-findings"])
+        before = helpers.snapshot(root)
+        out = self.run_cli(root, "--decline", "drawio", code=2)
+        self.assertIn("Not a current suggestion: drawio.", out)
+        self.assertIn("Use the skill names or ids it lists.", out)
+        self.assertEqual(helpers.snapshot(root), before)
+
     def test_an_unknown_id_is_refused(self):
         root = self.set_up({"pom.xml": JAVAFX_POM})
         before = helpers.snapshot(root)
         out = self.run_cli(root, "--decline", "add:nothing", code=2)
         self.assertIn("Not a current suggestion: add:nothing.", out)
         out = self.run_cli(root, "--decline", "add:javafx", "--all", code=2)
-        self.assertIn("--decline takes suggestion ids only", out)
+        self.assertIn("--decline takes suggestion ids or skill names only", out)
         self.assertEqual(helpers.snapshot(root), before)
 
     def test_change_clears_a_declined_id(self):

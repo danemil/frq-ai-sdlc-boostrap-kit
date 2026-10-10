@@ -394,16 +394,19 @@ def cmd_recommend(args, cwd, kit):
     open_ = recommend.open_items(items)
     if args.decline is not None:
         if args.all:
-            raise SetupError("--decline takes suggestion ids only; use it without --all. "
+            raise SetupError("--decline takes suggestion ids or skill names only; use it without --all. "
                              "Nothing was changed.")
-        wanted = [x.strip() for x in args.decline.split(",") if x.strip()]
+        given = [x.strip() for x in args.decline.split(",") if x.strip()]
         ids = [i["id"] for i in open_]
-        if wanted == ["all"]:
-            wanted = ids
-        unknown = [x for x in wanted if x not in ids]
+        by_name = {i["skill"]: i["id"] for i in open_}   # a skill name, ai-sdlc- or not, works too
+        if given == ["all"]:
+            given = ids
+        wanted = [x if x in ids else by_name.get(_skill_id(x), x) for x in given]
+        unknown = [g for g, w in zip(given, wanted) if w not in ids]
         if unknown:
             raise SetupError(f"Not a current suggestion: {', '.join(unknown)}. Run {CMD} recommend "
-                             "to see the ids. Nothing was changed.")
+                             "to see them. Use the skill names or ids it lists. Nothing was changed.")
+        wanted = list(dict.fromkeys(wanted))
         if not wanted:
             return 0, ["Nothing to decline: there are no open skill suggestions."]
         st["declined_recommendations"] = sorted(set(st["declined_recommendations"]) | set(wanted))
@@ -419,8 +422,8 @@ def cmd_recommend(args, cwd, kit):
         lines += [f"{n}. {_item_line(i)}" for n, i in enumerate(open_, 1)]
         lines.append(f"To take them all: {_change_command(open_)}")
         lines.append("To take some: the same command with only those skills.")
-        lines.append(f"To say no to the rest: {CMD} recommend --decline <ids, comma-separated>  "
-                     "(or --decline all)")
+        lines.append(f"To say no to the rest: {CMD} recommend --decline <skill names or ids, "
+                     "comma-separated>  (or --decline all)")
     elif items:
         lines.append("No new skill suggestions for this repo.")
     else:
