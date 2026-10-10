@@ -184,6 +184,23 @@ class TestRoles(unittest.TestCase):
                     bad.setdefault(pb, set()).add(skill)
         self.assertEqual({pb: sorted(names) for pb, names in bad.items()}, {})
 
+    def test_role_hints_name_stack_skills_only_if_you_have_them(self):
+        """The stack skills are library skills (design §4.2): a role hint may name one, but
+        only on a line that says "if you have" it."""
+        from test_stack_skills import STACK
+        found = 0
+        for pid in self.packs:
+            text = (KIT / packs.ROLES_REL / pid / "instructions.md").read_text(encoding="utf-8")
+            for line in text.splitlines():
+                for skill in STACK:
+                    if f"`{packs.PREFIX}{skill}`" in line:
+                        found += 1
+                        self.assertIn("if you have", line.lower(), (pid, skill))
+        self.assertTrue(found, "no role hint names a stack skill")
+        for pid in ("dev", "qa", "architect"):
+            lines = (KIT / packs.ROLES_REL / pid / "instructions.md").read_text(encoding="utf-8").splitlines()
+            self.assertLess(len(lines), 60, pid)
+
     def test_all_packs_validate(self):
         self.assertEqual(packs.validate(KIT), [])
 

@@ -41,6 +41,13 @@ class TestCoreInstructions(unittest.TestCase):
     def test_ask_before_downloads(self):
         self.assertIn("Ask before anything that downloads or installs: `npx`", core())
 
+    def test_packages_only_through_the_mirror(self):
+        """One rule for every role, also without ai-sdlc-maven-via-artifactory (design §3.1)."""
+        text = core()
+        for needed in ("Packages come only through the company mirror", "never `@latest`", "`npx`",
+                       "`settings.xml`", "`.npmrc`", "`GOPROXY`"):
+            self.assertIn(needed, text)
+
     def test_a_pasted_token_is_never_quoted_back(self):
         for text in (core(), skill("connectors")):
             self.assertIn('"the token you pasted"', text)
