@@ -28,7 +28,7 @@ These are **Architect-owned baselines**; each seat holder may amend their own vi
 | **likec4-dsl** | LikeC4 architecture-as-code models (`.c4`/`.likec4`), saved locally; validation and export need the LikeC4 CLI or VS Code extension. Upstream MIT, see its `PROVENANCE.md`. |
 | **visual-explainers** | A self-contained HTML explainer for a concept, flow or tradeoff. |
 | **visual-issue** | An issue, ticket or PR description with a compiled Mermaid diagram, for GitHub, Bitbucket or Jira. |
-| **connectors** | Read-only facts from Jira, Confluence, Bitbucket Data Center, Jama and Jenkins through the kit's `connectors.py`, each with its link. The person connects in their own terminal (`setup.py connect <name>`); the AI never handles a secret. |
+| **connectors** | Read-only facts from Jira, Confluence, Bitbucket Data Center, Jama, Jenkins, SonarQube, Black Duck and Artifactory through the kit's `connectors.py`, each with its link. The person connects in their own terminal (`setup.py connect <name>`); the AI never handles a secret. |
 | **frq-brandbook** | The company brand: palette, fonts, logo and writing rules on one screen; new on-brand decks from the slim template (the full 44-layout master when a layout needs it), from an outline or a JSON spec; a stdlib-only brand check of `.pptx`/`.docx`/`.xlsx` files (FAIL/WARN/INFO, fixes only on approval). Its binary assets stay in the kit copy (`.kit-only`). Client-owned brand assets, see its `PROVENANCE.md`. |
 | **deceneus** | What to remember from a chat: proposes preferences, notes or a skill, and writes only what is approved. MIT, see its `PROVENANCE.md`. |
 
@@ -55,15 +55,15 @@ From obra/superpowers v6.4.2, with the kit's changes listed in each `PROVENANCE.
 | **java-junit** | JUnit tests; JUnit version, AssertJ and Mockito read from the POM first. | github/awesome-copilot, MIT |
 | **110-java-maven-best-practices** | Improve a `pom.xml`; repositories only through the `settings.xml` mirror. | jabrena/plinth, Apache-2.0 |
 | **javafx** | JavaFX desktop UI: FX thread, FXML, bindings, TestFX (headless), packaging. | Written for this kit, MIT |
-| **maven-via-artifactory** | Maven, npm and Go mirrors: packages only through the company mirror; the versions this repo uses (`scripts/detect_stack.py`). | Written for this kit, MIT |
+| **maven-via-artifactory** | Maven, npm and Go mirrors: packages only through the company mirror; the versions this repo uses (`scripts/detect_stack.py`); checks the mirror's versions, reading through the connector when connected. | Written for this kit, MIT |
 | **golang-testing** | Go tests for the repo's Go version (read from `go.mod`). | samber/cc-skills-golang, MIT |
 | **golang-code-style** | Go code style and clarity. | samber/cc-skills-golang, MIT |
 | **golang-lint** | golangci-lint: run, configure, read findings; fixes only after a yes. | samber/cc-skills-golang, MIT |
 | **javascript-typescript-jest** | Jest tests for JavaScript and TypeScript. | github/awesome-copilot, MIT |
 | **react-testing-library** | React component tests with Testing Library and Jest (Vitest parts removed). | itechmeat/llm-code, MIT |
 | **accessibility** | Web accessibility (WCAG 2.2) checks and fixes; no MCP, no downloads. | addyosmani/web-quality-skills, MIT |
-| **sonarqube-findings** | Understand and fix SonarQube findings from a report the person pastes; read-only. | Written for this kit, MIT |
-| **blackduck-findings** | Understand and fix Black Duck findings from a report the person pastes; read-only. | Written for this kit, MIT |
+| **sonarqube-findings** | Understand and fix SonarQube findings; reads through the connector when connected, else from a report the person pastes; read-only. | Written for this kit, MIT |
+| **blackduck-findings** | Understand and fix Black Duck findings; reads through the connector when connected, else from a report the person pastes; read-only. | Written for this kit, MIT |
 
 These are **library skills**: no role pack lists them. Personal setup suggests them from the repo's files and the person's roles (`setup.py recommend`, rules in `roles/recommend.json`), or the person picks them ("show me the other skills"). Each `PROVENANCE.md` lists the upstream commit and every local change.
 

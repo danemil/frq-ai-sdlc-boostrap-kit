@@ -91,7 +91,7 @@ The kit never creates or edits `AGENTS.md`, `.github/copilot-instructions.md` or
 | Architect | `architect` | `ai-sdlc-playbook-architect`, `ai-sdlc-brainstorming`, `ai-sdlc-receiving-code-review`, `ai-sdlc-writing-plans` | you drive git |
 | Engineering Manager | `em` | `ai-sdlc-playbook-em`, `ai-sdlc-writing-plans` | you drive git |
 
-**Every role also gets eleven skills** (the `core` pack, so a future role gets them too): `ai-sdlc-connectors` (read-only facts from Jira, Confluence, Bitbucket, Jama and Jenkins, each with its link; see below), `ai-sdlc-doc-word`, `ai-sdlc-doc-excel`, `ai-sdlc-doc-powerpoint` and `ai-sdlc-doc-pdf` (Word, Excel, PowerPoint and PDF files, written for this kit; libraries are installed only with your consent into `~/.ai-sdlc/venv`), `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-likec4-dsl` (LikeC4 architecture-as-code models in `.c4` files, saved in `docs/architecture/`; the `likec4` CLI is optional and Copilot asks before downloading it), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira), `ai-sdlc-frq-brandbook` (the company brand: on-brand decks, documents and diagrams from the bundled template, logos and key visuals, and a brand check of a `.pptx`, `.docx` or `.xlsx` that needs no install) and `ai-sdlc-deceneus` (what to remember from a chat, saved only to your own hidden files after you approve). Leave one out with "change my preferences". Each skill's folder has a `PROVENANCE.md`.
+**Every role also gets eleven skills** (the `core` pack, so a future role gets them too): `ai-sdlc-connectors` (read-only facts from Jira, Confluence, Bitbucket, Jama, Jenkins, SonarQube, Black Duck and Artifactory, each with its link; see below), `ai-sdlc-doc-word`, `ai-sdlc-doc-excel`, `ai-sdlc-doc-powerpoint` and `ai-sdlc-doc-pdf` (Word, Excel, PowerPoint and PDF files, written for this kit; libraries are installed only with your consent into `~/.ai-sdlc/venv`), `ai-sdlc-drawio` (draw.io diagrams, saved in `docs/diagrams/`), `ai-sdlc-likec4-dsl` (LikeC4 architecture-as-code models in `.c4` files, saved in `docs/architecture/`; the `likec4` CLI is optional and Copilot asks before downloading it), `ai-sdlc-visual-explainers` (a self-contained HTML explainer, saved in `docs/explainers/`), `ai-sdlc-visual-issue` (an issue or PR with a Mermaid diagram, for GitHub, Bitbucket or Jira), `ai-sdlc-frq-brandbook` (the company brand: on-brand decks, documents and diagrams from the bundled template, logos and key visuals, and a brand check of a `.pptx`, `.docx` or `.xlsx` that needs no install) and `ai-sdlc-deceneus` (what to remember from a chat, saved only to your own hidden files after you approve). Leave one out with "change my preferences". Each skill's folder has a `PROVENANCE.md`.
 
 **The company brand, by default.** New decks, documents, spreadsheets, PDFs, explainers and diagrams use the brand unless you ask for a plain file. Copilot asks for the classification (it never guesses one); where it cannot ask, the footer says `Frequentis [classification to be set]` for you to replace, and the brand check warns about it. Copilot shows an outline before it builds a deck. Decks are built on the slim template by default; the full official master (44 layouts) is used only when a slide needs a layout the slim one lacks (the maps, for example), and the builder says so. The skill holds layout previews, example slides, key visuals and both logo sets, builds a deck from a JSON spec (`scripts/frq_pptx.py`), and has one brand check. ATM is the default business unit unless you name another. The skill's scripts (`scripts/new_deck.py`, `scripts/check_brand.py`) are run as commands, never imported. The brand check prints a table with a running `#` column, so you can say which findings to fix by number ("fix 2 and 5"); changes are made only after you confirm them.
 
@@ -109,9 +109,9 @@ Role packs live in [`roles/`](./roles/), one folder per role (`role.json` + `ins
 
 ## Connect your tools
 
-Copilot can read **Jira**, **Confluence**, **Bitbucket Data Center**, **Jama** and **Jenkins** for you: issues and sprints, pages, pull requests and branches, requirements and test runs, builds and test reports. Every item it uses comes with its link.
+Copilot can read **Jira**, **Confluence**, **Bitbucket Data Center**, **Jama**, **Jenkins**, **SonarQube**, **Black Duck** and **Artifactory** for you: issues and sprints, pages, pull requests and branches, requirements and test runs, builds and test reports, quality gates and code findings, vulnerable components and policy status, and which versions the company mirror has. Every item it uses comes with its link. The SonarQube and Black Duck findings skills read through their connector when it is connected (else from a report you paste), and the mirror skill proposes only versions the mirror lists.
 
-**Read-only.** The connectors only read (HTTP GET; the one POST is Jama's OAuth token request). Nothing is created, changed, commented on or posted in those tools.
+**Read-only.** The connectors only read (HTTP GET; the only POSTs are the token requests of Jama's OAuth and of Black Duck, made by the kit's auth code, never by a connector command; a test proves no connector module can send one). Nothing is created, changed, commented on or posted in those tools. Artifactory's AQL search is a POST, so it is not used.
 
 Say **"connect Jira"** (or another tool). Copilot tells you the command, and **you run it yourself, in your own terminal**, because it asks for your login; secrets are typed hidden:
 
@@ -123,7 +123,7 @@ python3 .ai-sdlc/kit/setup.py connections           # what is connected: URL, us
 python3 .ai-sdlc/kit/setup.py disconnect jira --yes # deletes the saved login (without --yes it only asks)
 ```
 
-The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot then reads with `python3 .ai-sdlc/kit/connectors.py <name> <command> --json`; run `python3 .ai-sdlc/kit/connectors.py` to see every command.
+The names are `jira`, `confluence`, `bitbucket`, `jama`, `jenkins`, `sonarqube`, `blackduck` and `artifactory`. Copilot then reads with `python3 .ai-sdlc/kit/connectors.py <name> <command> --json`; run `python3 .ai-sdlc/kit/connectors.py` to see every command.
 
 | Tool | Your login |
 |---|---|
@@ -131,6 +131,9 @@ The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot t
 | Bitbucket Data Center | an HTTP access token (personal, project or repository). Bitbucket Cloud is not supported |
 | Jama Connect | an API client ID and client secret (OAuth client credentials) |
 | Jenkins | your user name and an API token |
+| SonarQube | a user token (sent as the Basic user name; SonarQube 9.9 LTS to 2025.x) |
+| Black Duck | an API token (exchanged once per run for a short-lived bearer token) |
+| Artifactory | an access or identity token; the URL with `/artifactory`; optionally your default Maven, npm and Go repository keys |
 
 **Where your login lives.** On your computer only, outside every repo, shared by all your repos: `~/.config/ai-sdlc/connectors/<name>.json` (`$XDG_CONFIG_HOME/ai-sdlc/…` when set; `AI_SDLC_CONFIG_DIR` overrides both), folder 0700, file 0600. `remove` never touches it. Copilot never asks for, sees or stores a secret, and `connect` refuses to ask for one without a terminal. For scripts and CI, `AI_SDLC_<NAME>_<FIELD>` variables (for example `AI_SDLC_JIRA_URL` and `AI_SDLC_JIRA_TOKEN`) work without a file and win over it.
 
@@ -142,10 +145,12 @@ The names are `jira`, `confluence`, `bitbucket`, `jama` and `jenkins`. Copilot t
 |---|---|
 | Product Owner, Product Manager | jira, confluence, jama |
 | Scrum Master / Team Coach (SAFe) | jira, confluence |
-| Developer | bitbucket, jira, jenkins |
-| QA | jira, jama, jenkins |
-| Architect | confluence, bitbucket, jira |
+| Developer | bitbucket, jira, jenkins, sonarqube, blackduck, artifactory |
+| QA | jira, jama, jenkins, sonarqube |
+| Architect | confluence, bitbucket, jira, sonarqube, blackduck |
 | Engineering Manager | jenkins, bitbucket, jira |
+
+**Tools to connect for this repo.** `setup.py recommend` (and one line in the setup summary) also suggests a tool from the repo's files, for anyone whose roles do not already suggest it: SonarQube when the repo is analysed by SonarQube, Black Duck when it is scanned by Black Duck, Artifactory when it has code that downloads packages. A no is remembered (`recommend --decline <tool>`, or `s` in `connect --suggested`); saying "not now" records nothing.
 
 ## Versions and upgrading
 

@@ -185,7 +185,7 @@ Then choose:
 
 ## 3. Connect a tool
 
-Copilot can **read** Jira, Confluence, Bitbucket (Data Center), Jama and Jenkins for you. The connectors only read: nothing is created, changed or posted in those tools.
+Copilot can **read** Jira, Confluence, Bitbucket (Data Center), Jama, Jenkins, SonarQube, Black Duck and Artifactory for you. The connectors only read: nothing is created, changed or posted in those tools.
 
 > **Never paste a token or password into the chat.** Copilot never needs one. If one ends up in a chat anyway, revoke it in the tool, create a new one, and save it with `connect` yourself.
 
@@ -216,13 +216,13 @@ Run it again at any time to change something. Press Enter to keep a saved value.
 
 ### Connect your role's tools in one go
 
-At the end of the onboarding Copilot offers this; say "not now" and it does not ask again. You can run it at any time, **in your own terminal**:
+At the end of the onboarding Copilot offers this; say "not now" and it records nothing (it offers again next time). You can run it at any time, **in your own terminal**:
 
 ```bash
 python3 .ai-sdlc/kit/setup.py connect --suggested
 ```
 
-It goes through the tools your roles usually use (the "Connectors for your roles" line of the setup summary), **one at a time**, leaving out the ones already connected. For each it asks `y` (connect it now, with exactly the questions of `connect <name>`), `s` (skip this one) or `a` (skip all the rest). **Pressing Enter skips.** Then it offers the other tools: type a name to connect it, or press Enter to finish.
+It goes through the tools your roles usually use (the "Connectors for your roles" line of the setup summary), **one at a time**, leaving out the ones already connected, then the tools suggested for this repo ("Tools to connect for this repo"), each with its reason; a repo tool you skip is declined, like `recommend --decline <tool>`. For each it asks `y` (connect it now, with exactly the questions of `connect <name>`), `s` (skip this one) or `a` (skip all the rest). **Pressing Enter skips.** Then it offers the other tools: type a name to connect it, or press Enter to finish.
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py connect --suggested
@@ -232,7 +232,7 @@ Connect Jira. Secrets are typed hidden and saved only on this computer, in /home
 …
 Test: OK: signed in to jira.example.com as Ana Pop.
 Connect Confluence now? [y = yes, s = skip, a = skip all the rest; Enter = skip]: s
-Connect another tool? Available: bitbucket, jama, jenkins (type its name; Enter = done):
+Connect another tool? Available: artifactory, bitbucket, blackduck, jama, jenkins, sonarqube (type its name; Enter = done):
 Connected: jira.
 Skipped: confluence. They are no longer suggested; connect one any time with python3 .ai-sdlc/kit/setup.py connect <name>
 ```
@@ -248,6 +248,9 @@ Skipped: confluence. They are no longer suggested; connect one any time with pyt
 | **Bitbucket** (Data Center) | URL, an HTTP access token | Your profile picture → **Manage account** → **HTTP access tokens** → Create token. *Read* permission is enough. A project or repository token also works. Bitbucket Cloud (`bitbucket.org`) is not supported. |
 | **Jama** | URL, API client ID, API client secret | An **OAuth API client**: in Jama, your profile → **Set API credentials** (or ask your Jama admin). Copy the secret when it is shown; you cannot see it again. |
 | **Jenkins** | URL, your Jenkins user name, an API token | Your name (top right) → **Security** (older Jenkins: **Configure**) → **API Token** → Add new token. |
+| **SonarQube** | URL, a user token | Your avatar → **My Account** → **Security** → Generate Tokens, type **User**. |
+| **Black Duck** | URL, an API token | Your name (top right) → **My Access Tokens** → Create New Token, **read** access. The connector exchanges it once per run for a short-lived token. |
+| **Artifactory** | URL **with `/artifactory`** (e.g. `https://artifactory.example.com/artifactory`), an access or identity token, and optionally your default Maven, npm and Go repository keys (e.g. `maven-virtual`; Enter skips) | Your profile (top right) → **Edit Profile** → **Generate an Identity Token**, or an access token from your admin. |
 
 Every tool also asks for an optional **CA bundle**. Press Enter to skip it, unless you are on a company network that needs one (see below).
 
@@ -305,10 +308,11 @@ Once a tool is connected, ask Copilot in plain words. It reads the data, gives a
 
 | Role | Ask Copilot |
 |---|---|
-| Developer | "Which Jira issues are assigned to me and not done?" · "Show the open pull requests in PRJ/app and summarise PR 42 with its comments." · "Why did the last build of team/app/main fail? Show the failing tests." |
+| Developer | "Which Jira issues are assigned to me and not done?" · "Show the open pull requests in PRJ/app and summarise PR 42 with its comments." · "Why did the last build of team/app/main fail? Show the failing tests." · "Why did the quality gate fail?" · "Which versions of commons-text does the mirror have?" |
 | QA | "List the bugs in project ABC updated this week." · "Show Jama item 1001 and what it is traced to." · "Which test runs failed in test cycle 77?" · "Show the failed tests of the last build of team/app/main." |
 | Product Owner / Product Manager | "Summarise ABC-123 with its linked issues." · "Find the Confluence pages about 'release plan' in space ENG." · "Find Jama requirements that mention 'export'." |
 | Scrum Master | "Which sprints are active on board 42?" · "List the open issues of the current sprint by status." · "Summarise the retrospective page 123456." |
+| Architect | "Open Black Duck policy violations for My App 2.3." |
 
 ### The same in the terminal
 
@@ -360,6 +364,30 @@ python3 $K/connectors.py jama testruns --cycle 77 --json                # or --p
 python3 $K/connectors.py jenkins job team/app/main
 python3 $K/connectors.py jenkins build team/app/main last --json        # or a number, lastSuccessful, lastFailed
 python3 $K/connectors.py jenkins tests team/app/main lastFailed         # --all: every test case
+```
+
+**SonarQube** (`<project>` is the project key)
+
+```bash
+python3 $K/connectors.py sonarqube gate my-project
+python3 $K/connectors.py sonarqube issues my-project --new-code --severity high --json
+python3 $K/connectors.py sonarqube rule java:S2095
+```
+
+**Black Duck** (project and version by name)
+
+```bash
+python3 $K/connectors.py blackduck vulns "My App" 2.3 --json     # with fixed_in from upgrade guidance
+python3 $K/connectors.py blackduck components "My App" 2.3 --violations
+python3 $K/connectors.py blackduck policy "My App" 2.3
+```
+
+**Artifactory** (`--repo` or your saved default repository)
+
+```bash
+python3 $K/connectors.py artifactory versions org.apache.commons:commons-text --json
+python3 $K/connectors.py artifactory npm @scope/pkg
+python3 $K/connectors.py artifactory go github.com/example/mod
 ```
 
 Real output (plain text, then `--json`):
@@ -447,7 +475,9 @@ To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <skill 
 - `recommend --decline javafx` (a skill name, or the id `add:javafx`; or `--decline all`) remembers a no in `.ai-sdlc/state.json`; that suggestion is not offered again by setup or update, and `recommend` lists it under "Declined earlier". Taking it later with `change --add-skill javafx` clears the no.
 - `recommend --json` prints `{"suggestions": [...], "others": [...]}`.
 
-Suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.
+**Tools to connect for this repo.** When the repo's files show a tool your roles do not already suggest (SonarQube, Black Duck, or Artifactory for a repo with code), `recommend` adds a part "Tools to connect for this repo", each with its reason; you connect one yourself, in your own terminal (`connect <name>` or `connect --suggested`). `--decline <tool>` (or `connect:<tool>`) says no to one, `--decline all-tools` to all of them; `--decline all` stays skills only. `--json` adds `"connectors": [...]`. Setup, update and a change of roles add one line: `- Tools to connect for this repo: sonarqube (say 'connect sonarqube')`.
+
+Skill suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Tool suggestions also leave out a tool you have already connected (only whether a login is saved is read, never its values). Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.
 
 Your current choices are in `.ai-sdlc/USER.md`. Read it, but do not edit it by hand: use `change`. `change` with no options repairs the setup: it puts back missing files and hides them again.
 

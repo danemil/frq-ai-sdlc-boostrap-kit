@@ -251,7 +251,7 @@ setup.py recommend / setup / update / connect --suggested ──► recommend.py
 
 ## 9. Needs live confirmation (like 0.5.0 §5.1)
 
-Built and tested against canned answers in each vendor's documented shape. These points cannot be checked without a live server. Until confirmed, treat a surprise here as a likely cause before suspecting the person's setup. Each B task notes them in its test file; the Copilot re-test (plan Task D) checks the ones it can.
+Built and tested against canned answers in each vendor's documented shape. These points cannot be checked without a live server. Until confirmed, treat a surprise here as a likely cause before suspecting the person's setup. Each B task notes them in its test file; the Copilot re-test (plan Task D) checks the ones it can. Points marked *(added in B)* came from the B tasks' test-file notes, merged here in Task C.
 
 - **SonarQube:**
   - `GET /api/users/current` returns `isLoggedIn: false` (not a 401) for a bad token on the client's version.
@@ -260,6 +260,8 @@ Built and tested against canned answers in each vendor's documented shape. These
   - `components` versus `componentKeys` at the client's version; `issueStatus` from 10.4.
   - The 10,000-issue cap answer (a 400 past it, or an empty page).
   - The default metric keys of `measures` on 10.x and 2025.x (some were renamed `software_quality_*`).
+  - *(added in B)* Community Build version numbers (`24.12`, `25.1`, …) read as the 2024.12 / 2025.1 feature level, so `BLOCKER` and `INFO` impact severities are sent from Community Build 25.1.
+  - *(added in B)* `GET /api/server/version` answers in plain text and is readable with the user token (it is public on a default server).
 - **Black Duck:**
   - The **media types** per endpoint (§4.2), especially `bill-of-materials-6` and `component-detail-5`; an older server may want lower numbers.
   - The token-exchange answer field names `bearerToken` and `expiresInMilliseconds`.
@@ -267,6 +269,9 @@ Built and tested against canned answers in each vendor's documented shape. These
   - The **upgrade guidance** path and its fields (`shortTerm.versionName`, `longTerm.versionName`) used for `fixed_in`.
   - That the web UI uses the same `/api/projects/<id>/versions/<id>/…` paths as the API, so `_meta.href` (+ `/vulnerability-bom` or `/components`) is a working browser link.
   - `filter=bomPolicy:in_violation` on the components endpoint.
+  - *(added in B)* `relatedVulnerability` read as a link whose last part is the id, or an object with a name; `componentVersion` is the href used for the upgrade guidance, and what that `/api/components/…` link opens in a browser (it is a component's `url`).
+  - *(added in B)* `sort=updatedAt desc` on the versions endpoint.
+  - *(added in B)* The hrefs in `_meta` carry the same host as the saved URL (the client refuses a link to another host, e.g. behind a reverse proxy with another name).
 - **Artifactory:**
   - The **JWT `sub` format** (`jfrt@…/users/<name>` or `jfac@…/users/<name>`) for the client's token type (access token, identity token); reference tokens (not a JWT) give no user.
   - The **identity endpoint**: that `GET /api/system/version` answers 401 for a bad token when anonymous access is on. If not, a better read-only call that needs a login.
@@ -274,6 +279,8 @@ Built and tested against canned answers in each vendor's documented shape. These
   - `GET /api/search/latestVersion` on the client's edition (it may need a Pro licence; `versions` then gives `release` from `maven-metadata.xml`).
   - For a **remote or virtual** repository, which versions `maven-metadata.xml` lists (cached only, or the upstream's too).
   - The web UI link form `<host>/ui/repos/tree/General/<repo>/<path>`.
+  - *(added in B)* The npm metadata endpoint `/api/npm/<repo>/<package>` with a scoped name sent as `@scope%2fname` (some reverse proxies decode `%2f`; then the request answers 404).
+  - *(added in B)* The `GET /api/repositories` field names (`key`, `type`, `packageType`, `description`).
 
 ## 10. Testing
 
