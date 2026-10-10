@@ -27,6 +27,9 @@ def new(kit_version: str) -> dict:
         "created_dirs": [],   # folders setup made, removed again when empty
         "acks": {},           # {warning id: fingerprint of the team file when acknowledged}
         "skipped_connectors": [],  # role connectors the person skipped in connect --suggested
+        "kit_only": [],       # kit-copy paths of the placed skills' .kit-only files (check)
+        "declined_recommendations": [],  # skill suggestions the person said no to (recommend)
+        "kept_edits": {},     # {path: its last files entry}: edited files no choice needs (check)
     }
 
 
@@ -48,7 +51,23 @@ def load(root) -> dict | None:
     skipped = st.get("skipped_connectors")       # older state files have no such field
     st["skipped_connectors"] = sorted({n for n in skipped if isinstance(n, str)}) \
         if isinstance(skipped, list) else []
+    st["kit_only"] = _strings(st.get("kit_only"))
+    st["declined_recommendations"] = _strings(st.get("declined_recommendations"))
+    st["kept_edits"] = _entries(st.get("kept_edits"))
     return st
+
+
+def _entries(value) -> dict:
+    """{path: {"class", "sha256"}} entries only; anything else (an older or edited file) goes."""
+    if not isinstance(value, dict):
+        return {}
+    return {k: v for k, v in value.items() if isinstance(k, str) and isinstance(v, dict)
+            and isinstance(v.get("class"), str) and isinstance(v.get("sha256"), str)}
+
+
+def _strings(value) -> list:
+    """A sorted list of unique strings; anything else (an older or edited file) gives []."""
+    return sorted({v for v in value if isinstance(v, str)}) if isinstance(value, list) else []
 
 
 def save(root, st: dict) -> Path:

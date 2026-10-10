@@ -8,7 +8,7 @@ import json
 import shutil
 from pathlib import Path
 
-from . import checks, conflicts, exclude, packs, paths, place, reuse, state
+from . import checks, conflicts, exclude, packs, paths, place, recommend, reuse, state
 from .connectors import manage, registry
 from .paths import SetupError  # noqa: F401  setup.py catches commands.SetupError
 
@@ -213,8 +213,10 @@ def cmd_setup(args, cwd, kit):
     st["choices"].update(choices)
     report = place.apply(root, st, place.wanted_files(kit, all_packs, st["choices"]))
     st["kit_version"] = paths.kit_version(kit)
+    st["kit_only"] = place.kit_only_wanted(kit, all_packs, st["choices"])
     state.save(root, st)                            # last
     lines = _summary("Set up", root, is_git, kit, all_packs, st, report, args.verbose)
+    lines += _suggestions_line(kit, root, st, all_packs)
     lines.append('Say "change my preferences", "update the kit" or "remove the kit" at any time.')
     return 0, lines + _check_lines(root)[1]
 
@@ -294,11 +296,16 @@ def cmd_change(args, cwd, kit):
     for s in drops:
         c["drop_skills"] = sorted(set(c["drop_skills"]) | {s})
         c["add_skills"] = [x for x in c["add_skills"] if x != s]
+    changed_mind = {f"add:{s}" for s in adds} | {f"drop:{s}" for s in drops}
+    st["declined_recommendations"] = [d for d in st["declined_recommendations"]
+                                      if d not in changed_mind]
     if is_git:
         exclude.protect(root)
     report = place.apply(root, st, place.wanted_files(kit, all_packs, c))
+    st["kit_only"] = place.kit_only_wanted(kit, all_packs, c)
     state.save(root, st)
     return 0, (_summary("Updated", root, is_git, kit, all_packs, st, report, args.verbose)
+               + (_suggestions_line(kit, root, st, all_packs) if args.roles is not None else [])
                + repaired
                + _check_lines(root)[1])
 
@@ -336,11 +343,16 @@ def cmd_update(args, cwd, kit):
         moved = (f"- Moved {kit.relative_to(root).as_posix()} into {paths.KIT_REL}"
                  + (f" (replaced {old_version})." if old_version else "."))
     report = place.apply(root, st, wanted)
+    have = set(packs.available_skills(dest))     # a decline for a skill the kit lost goes
+    st["declined_recommendations"] = [d for d in st["declined_recommendations"]
+                                      if d.partition(":")[2] in have]
     known = set(registry.names())                 # a skip for a connector the kit lost goes
     st["skipped_connectors"] = [n for n in st["skipped_connectors"] if n in known]
     st["kit_version"] = paths.kit_version(dest)
+    st["kit_only"] = place.kit_only_wanted(dest, all_packs, c)
     state.save(root, st)
     lines = _summary("Updated to", root, is_git, dest, all_packs, st, report, args.verbose)
+    lines += _suggestions_line(dest, root, st, all_packs)
     if moved:
         lines.insert(1, moved)
     if gone:
@@ -348,6 +360,92 @@ def cmd_update(args, cwd, kit):
     if lost:
         lines.append(f"- The newer kit has no {', '.join(lost)} skill any more; it was dropped.")
     return 0, lines + repaired + _check_lines(root)[1]
+
+
+def _suggestions_line(kit, root, st, all_packs) -> list[str]:
+    """One summary line when the repo has open skill suggestions; never fails a command."""
+    try:
+        n = len(recommend.open_items(recommend.compute(kit, root, st, all_packs)))
+    except Exception:  # noqa: BLE001  a detection problem must not break setup or update
+        return []
+    return [f'- Skill suggestions for this repo: {n} (say "recommend skills")'] if n else []
+
+
+CMD = "python3 .ai-sdlc/kit/setup.py"
+
+
+def _item_line(i) -> str:
+    verb = "add" if i["action"] == "add" else "leave out"
+    where = f" ({', '.join(i['evidence'])})" if i["evidence"] else ""
+    return f"{i['id']} — {verb} {packs.PREFIX}{i['skill']}: {i['reason']}{where}."
+
+
+def _change_command(items) -> str:
+    flags = " ".join(f"--{'add' if i['action'] == 'add' else 'drop'}-skill {i['skill']}" for i in items)
+    return f"{CMD} change {flags}"
+
+
+def cmd_recommend(args, cwd, kit):
+    root, _ = paths.repo_root(cwd)
+    st = _need_state(root)
+    kit = root / paths.KIT_REL
+    all_packs = packs.load(kit)
+    items = recommend.compute(kit, root, st, all_packs)
+    open_ = recommend.open_items(items)
+    if args.decline is not None:
+        if args.all:
+            raise SetupError("--decline takes suggestion ids or skill names only; use it without --all. "
+                             "Nothing was changed.")
+        given = [x.strip() for x in args.decline.split(",") if x.strip()]
+        ids = [i["id"] for i in open_]
+        by_name = {i["skill"]: i["id"] for i in open_}   # a skill name, ai-sdlc- or not, works too
+        if given == ["all"]:
+            given = ids
+        wanted = [x if x in ids else by_name.get(_skill_id(x), x) for x in given]
+        unknown = [g for g, w in zip(given, wanted) if w not in ids]
+        if unknown:
+            raise SetupError(f"Not a current suggestion: {', '.join(unknown)}. Run {CMD} recommend "
+                             "to see them. Use the skill names or ids it lists. Nothing was changed.")
+        wanted = list(dict.fromkeys(wanted))
+        if not wanted:
+            return 0, ["Nothing to decline: there are no open skill suggestions."]
+        st["declined_recommendations"] = sorted(set(st["declined_recommendations"]) | set(wanted))
+        state.save(root, st)
+        return 0, [f"Noted: {', '.join(wanted)}. You can still take "
+                   f"{'it' if len(wanted) == 1 else 'them'} with the change command."]
+    rest = recommend.others(kit, st, all_packs, items) if args.all else []
+    if args.json:
+        return 0, [json.dumps({"suggestions": items, "others": rest}, indent=2, ensure_ascii=False)]
+    lines = []
+    if open_:
+        lines.append("Skill suggestions for this repo (from its files; nothing is changed yet):")
+        lines += [f"{n}. {_item_line(i)}" for n, i in enumerate(open_, 1)]
+        lines.append(f"To take them all: {_change_command(open_)}")
+        lines.append("To take some: the same command with only those skills.")
+        lines.append(f"To say no to the rest: {CMD} recommend --decline <skill names or ids, "
+                     "comma-separated>  (or --decline all)")
+    elif items:
+        lines.append("No new skill suggestions for this repo.")
+    else:
+        lines.append("No skill suggestions for this repo.")
+    declined = [i for i in items if i["declined"]]
+    if declined:
+        lines.append("Declined earlier (to take one, use the change command above):" if open_ else
+                     f"Declined earlier (to take one: {CMD} change --add-skill <name>):")
+        lines += [f"- {_item_line(i)}" for i in declined]
+    if args.all:
+        if not rest:
+            lines.append("Other skills you can add: none, you have every skill the kit offers.")
+        else:
+            lines.append("Other skills you can add (nothing is changed yet):")
+            group = None
+            for o in rest:
+                if o["group"] != group:
+                    group = o["group"]
+                    lines.append(f"{group}:")
+                lines.append(f"- {packs.PREFIX}{o['skill']} — {o['summary']}")
+            lines.append(f"To add any of them: {CMD} change --add-skill <name> [--add-skill <name> …]")
+    return 0, lines
 
 
 def _remove_plan(root, st) -> tuple[int, list[str]]:
@@ -362,7 +460,13 @@ def _remove_plan(root, st) -> tuple[int, list[str]]:
             gone += 1
         elif fs == reuse.MODIFIED:
             kept.append(rel)
-    return gone, kept
+    return gone, sorted(kept + _earlier_kept(root, st))
+
+
+def _earlier_kept(root, st) -> list[str]:
+    """Edited files an earlier change or update kept (state.json kept_edits) still on disk."""
+    return [rel for rel in sorted(st.get("kept_edits", {}))
+            if rel not in st["files"] and (Path(root) / rel).is_file()]
 
 
 def cmd_remove(args, cwd, kit):
@@ -381,7 +485,9 @@ def cmd_remove(args, cwd, kit):
         lines.append("Remove the kit from this repo? Only after a yes: "
                      "python3 .ai-sdlc/kit/setup.py remove --yes")
         return 2, lines
+    earlier = _earlier_kept(root, st)
     report = place.apply(root, st, {})            # deletes unedited files, keeps edited ones
+    report["kept"] = sorted(set(report["kept"]) | set(earlier))
     kit_dir = root / paths.KIT_REL
     if place.is_kit(kit_dir):
         shutil.rmtree(kit_dir)
@@ -463,6 +569,7 @@ HANDLERS = {
     "change": cmd_change,
     "update": cmd_update,
     "check": cmd_check,
+    "recommend": cmd_recommend,
     "ack": cmd_ack,
     "remove": cmd_remove,
     "connect": cmd_connect,

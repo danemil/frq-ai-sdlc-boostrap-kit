@@ -88,6 +88,25 @@ class TestRemove(unittest.TestCase):
                       f"don't need them): {CORE}", out)
         self.assertFalse((root / paths.HOME_REL).exists())
 
+    def test_an_edit_kept_by_an_earlier_change_is_listed_as_kept(self):
+        root = helpers.make_repo(self.base / "repo", TEAM)
+        sm = ".github/instructions/ai-sdlc-sm.instructions.md"
+
+        def edit_then_drop_sm(r):
+            (r / sm).write_text("mine\n")
+            self.assertEqual(helpers.cli(r, r / paths.KIT_REL, "change", "--roles", "po,dev")[0], 0)
+
+        root_kit = root / paths.KIT_REL
+        copy = helpers.copy_kit(root / "ai-sdlc-kit")
+        self.assertEqual(helpers.cli(root, copy, *ARGS)[0], 0)
+        edit_then_drop_sm(root)
+        code, out = helpers.cli(root, root_kit, "remove")
+        self.assertIn(f"Kept, because you edited them: {sm}", out)
+        code, out = helpers.cli(root, root_kit, "remove", "--yes")
+        self.assertEqual(code, 0, out)
+        self.assertEqual((root / sm).read_text(), "mine\n")
+        self.assertIn(f"(git now shows them; delete them if you don't need them): {sm}", out)
+
     def test_a_multi_file_skill_is_placed_hidden_and_removed_byte_for_byte(self):
         src = helpers.copy_kit(self.base / "src-kit")
         skill = src / "template/.claude/skills/notes"

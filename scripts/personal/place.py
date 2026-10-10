@@ -12,7 +12,10 @@ is on disk, and what the kit would write now:
     FOREIGN        not ours: leave it alone and report it
 
 A placed file that is no longer wanted is deleted while unedited, and kept (and
-reported) once edited. A path git tracks is never written or deleted.
+reported) once edited. A kept edit is remembered in state.json `kept_edits` (its last
+`files` entry), so check names it as a notice instead of an unknown file, and a later
+choice that needs the file again treats it as the person's edit (MODIFIED) once more.
+A path git tracks is never written or deleted.
 
 A placed skill is its whole folder (SKILL.md plus references/, assets/, …), each
 file recorded in state.json like any other. Text files are handled as str; a file
@@ -20,9 +23,16 @@ that is not UTF-8 (a .pptx template, a .png logo) is carried as bytes and writte
 byte for byte. Its SKILL.md's relative links that
 leave its folder are pointed at the same file inside .ai-sdlc/kit/
 (rewrite_links), so they still resolve after the move.
+
+A skill may keep files in the kit copy only: its `.kit-only` file lists globs
+(one per line, relative to the skill folder, `#` comments; `*` stays inside one
+folder). Matching files are never placed; a Markdown link to one, in any of the
+skill's .md files, is pointed at the same file in .ai-sdlc/kit/ (design
+2026-10-09 §8.7). The brand skill keeps its big binaries there this way.
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import posixpath
 import re
@@ -33,39 +43,91 @@ from . import packs, paths, reuse
 
 KIT_CLASS = "kit"
 SIDECAR = ".kit-new"
+KIT_ONLY_FILE = ".kit-only"
 _LINK = re.compile(r"\]\(([^)\s]+)\)")              # ](target) of a Markdown link
 _SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")  # http:, https:, mailto:, …
 
 
-def rewrite_links(text, skill_dir, placed_dir, exists) -> tuple[str, list[str]]:
-    """Point relative links that leave the skill's folder at the same file in .ai-sdlc/kit/.
+def rewrite_links(text, skill_dir, placed_dir, exists, kit_only=frozenset(), sub="",
+                  outside=True) -> tuple[str, list[str]]:
+    """Point relative links that leave the skill's folder, or that name a kit-only file,
+    at the same file in .ai-sdlc/kit/.
 
     skill_dir is the skill's folder in the kit (template/.claude/skills/<skill>),
     placed_dir its folder in the repo (.agents/skills/ai-sdlc-<skill>), and
-    exists(kit_rel) says whether a kit path exists. Links inside the skill's
-    folder, URLs, root-absolute paths and #anchors are left alone. Returns the new
-    text and the links whose target is not in the kit, which are left as they are.
+    exists(kit_rel) says whether a kit path exists. kit_only holds the kit paths
+    of the files that stay in the kit copy; sub is the folder of this Markdown file
+    inside the skill ("" for SKILL.md); outside=False leaves links that leave the
+    folder alone. Other links inside the skill's folder, URLs, root-absolute paths
+    and #anchors are left alone. Returns the new text and the links whose target is
+    not in the kit, which are left as they are.
     Pure and deterministic: the same input always renders the same bytes.
     """
     missing = []
+    base = posixpath.join(skill_dir, sub) if sub else skill_dir
+    placed_base = posixpath.join(placed_dir, sub) if sub else placed_dir
 
     def fix(m):
         target = m.group(1)
         if _SCHEME.match(target) or target.startswith(("#", "/")):
             return m.group(0)
         path, hash_, anchor = target.partition("#")
-        kit_rel = posixpath.normpath(posixpath.join(skill_dir, path))
+        kit_rel = posixpath.normpath(posixpath.join(base, path))
         if kit_rel == skill_dir or kit_rel.startswith(skill_dir + "/"):
+            if kit_rel not in kit_only:
+                return m.group(0)
+        elif not outside:
             return m.group(0)
-        if kit_rel == ".." or kit_rel.startswith("../") or not exists(kit_rel):
+        elif kit_rel == ".." or kit_rel.startswith("../") or not exists(kit_rel):
             missing.append(target)
             return m.group(0)
-        new = posixpath.relpath(posixpath.join(paths.KIT_REL, kit_rel), placed_dir)
+        new = posixpath.relpath(posixpath.join(paths.KIT_REL, kit_rel), placed_base)
         if path.endswith("/"):
             new += "/"
         return f"]({new}{hash_}{anchor})"
 
     return _LINK.sub(fix, text), missing
+
+
+def kit_only_patterns(kit, skill) -> list[str]:
+    """The globs in a skill's .kit-only file ([] when it has none)."""
+    f = Path(kit) / packs.SKILLS_REL / skill / KIT_ONLY_FILE
+    if not f.is_file():
+        return []
+    return [line.strip() for line in f.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
+
+
+def _glob_match(rel, pattern) -> bool:
+    """One pattern segment per path segment, so `*` never crosses a `/`."""
+    a, b = rel.split("/"), pattern.split("/")
+    return len(a) == len(b) and all(fnmatch.fnmatchcase(x, y) for x, y in zip(a, b))
+
+
+def _skill_files(src: Path) -> list[str]:
+    """A skill folder's files that setup may place: no dotfiles, caches or symlinks."""
+    out = []
+    for p in sorted(src.rglob("*")):
+        sub = p.relative_to(src)
+        if (p.is_symlink() or not p.is_file()
+                or any(part.startswith(".") or part == "__pycache__" for part in sub.parts)):
+            continue
+        out.append(sub.as_posix())
+    return out
+
+
+def kit_only(kit, skill) -> list[str]:
+    """Skill-relative paths its .kit-only keeps in the kit copy, sorted; [] when none."""
+    patterns = kit_only_patterns(kit, skill)
+    if not patterns:
+        return []
+    src = Path(kit) / packs.SKILLS_REL / skill
+    return [rel for rel in _skill_files(src) if any(_glob_match(rel, p) for p in patterns)]
+
+
+def kit_asset_rel(skill, rel) -> str:
+    """Repo path of a skill's file inside the kit copy (where a kit-only file lives)."""
+    return f"{paths.KIT_REL}/{packs.SKILLS_REL}/{skill}/{rel}"
 
 
 def user_md(all_packs, choices, combined) -> str:
@@ -84,7 +146,7 @@ def user_md(all_packs, choices, combined) -> str:
     )
 
 
-def placed_skill(kit, skill, missing=None) -> tuple[str, str]:
+def placed_skill(kit, skill, missing=None, kit_only_set=None) -> tuple[str, str]:
     """(repo path, text) of a library skill as setup places it: prefixed name, links into the kit.
 
     Links with no target in the kit are appended to `missing` when a list is given
@@ -92,8 +154,11 @@ def placed_skill(kit, skill, missing=None) -> tuple[str, str]:
     """
     src_dir = f"{packs.SKILLS_REL}/{skill}"
     dest_dir = f".agents/skills/{packs.PREFIX}{skill}"
+    if kit_only_set is None:
+        kit_only_set = {f"{src_dir}/{rel}" for rel in kit_only(kit, skill)}
     text = packs.prefixed_skill((Path(kit) / src_dir / "SKILL.md").read_text(encoding="utf-8"), skill)
-    text, lost = rewrite_links(text, src_dir, dest_dir, lambda rel: (Path(kit) / rel).exists())
+    text, lost = rewrite_links(text, src_dir, dest_dir, lambda rel: (Path(kit) / rel).exists(),
+                               kit_only_set)
     if missing is not None:
         missing += lost
     return f"{dest_dir}/SKILL.md", text
@@ -105,22 +170,29 @@ def placed_skill_files(kit, skill, missing=None) -> dict[str, str | bytes]:
     SKILL.md goes through placed_skill; the skill's other files (references/,
     assets/, LICENSE, …) are copied byte for byte, at the same relative path:
     UTF-8 files as str, any other file (a template, an image) as bytes.
-    Dotfiles, caches and symlinks are skipped.
+    Dotfiles, caches, symlinks and the files its .kit-only keeps in the kit copy are
+    skipped; in its other .md files, links to those files point into .ai-sdlc/kit/.
     """
     src = Path(kit) / packs.SKILLS_REL / skill
-    rel, text = placed_skill(kit, skill, missing)
+    src_dir = f"{packs.SKILLS_REL}/{skill}"
+    held = kit_only(kit, skill)
+    held_set = {f"{src_dir}/{rel}" for rel in held}
+    rel, text = placed_skill(kit, skill, missing, held_set)
     files = {rel: text}
     dest_dir = posixpath.dirname(rel)
-    for p in sorted(src.rglob("*")):
-        sub = p.relative_to(src)
-        if (p.is_symlink() or not p.is_file() or sub.as_posix() == "SKILL.md"
-                or any(part.startswith(".") or part == "__pycache__" for part in sub.parts)):
+    for sub in _skill_files(src):
+        if sub == "SKILL.md" or sub in held:
             continue
-        data = p.read_bytes()
+        data = (src / sub).read_bytes()
         try:
-            files[f"{dest_dir}/{sub.as_posix()}"] = data.decode("utf-8")
+            text = data.decode("utf-8")
         except UnicodeDecodeError:
-            files[f"{dest_dir}/{sub.as_posix()}"] = data       # binary: placed as is
+            files[f"{dest_dir}/{sub}"] = data       # binary: placed as is
+            continue
+        if held_set and sub.endswith(".md"):
+            text, _ = rewrite_links(text, src_dir, dest_dir, lambda r: (Path(kit) / r).exists(),
+                                    held_set, sub=posixpath.dirname(sub), outside=False)
+        files[f"{dest_dir}/{sub}"] = text
     return files
 
 
@@ -135,6 +207,13 @@ def wanted_files(kit, all_packs, choices) -> dict[str, str | bytes]:
     files[paths.SESSION_HOOK_REL] = session_hook()
     files[paths.USER_REL] = user_md(all_packs, choices, combined)
     return files
+
+
+def kit_only_wanted(kit, all_packs, choices) -> list[str]:
+    """Repo paths (under .ai-sdlc/kit) of the files these choices' skills keep in the kit
+    copy only; state.json records them so check can report one that went missing."""
+    return sorted(kit_asset_rel(skill, rel) for skill in packs.combine(all_packs, choices)["skills"]
+                  for rel in kit_only(kit, skill))
 
 
 HOOK_COMMAND = "python3 .ai-sdlc/kit/setup.py check --quiet --hook"
@@ -185,6 +264,12 @@ def apply(root, st, wanted: dict[str, str | bytes]) -> dict[str, list[str]]:
     root = Path(root)
     report = {"written": [], "kept": [], "skipped": [], "removed": []}
     tracked = paths.tracked(root, set(wanted) | set(st["files"]))
+    kept_edits = st.setdefault("kept_edits", {})
+    for rel in sorted(kept_edits):
+        if not (root / rel).is_file():
+            del kept_edits[rel]                      # the person deleted it: forgotten
+        elif rel in wanted and rel not in st["files"]:
+            st["files"][rel] = kept_edits.pop(rel)   # needed again: their edit, as before
     keep = set(wanted)
     for rel, text in sorted(wanted.items()):
         data = text if isinstance(text, bytes) else text.encode("utf-8")
@@ -211,6 +296,7 @@ def apply(root, st, wanted: dict[str, str | bytes]) -> dict[str, list[str]]:
             report["removed"].append(rel)
         elif reuse.file_state(root, st, rel) == reuse.MODIFIED:
             report["kept"].append(rel)
+            kept_edits[rel] = dict(st["files"][rel])
         reuse.forget(st, rel)
     prune_dirs(root, st)
     return report
@@ -222,7 +308,8 @@ def is_kit(path) -> bool:
 
 
 REQUIRED = ("setup.py", "VERSION", "ONBOARDING.md", "connectors.py",
-            f"{packs.ROLES_REL}/{packs.CORE}/role.json")
+            f"{packs.ROLES_REL}/{packs.CORE}/role.json", f"{packs.ROLES_REL}/recommend.json",
+            f"{packs.SKILLS_REL}/maven-via-artifactory/scripts/detect_stack.py")
 
 
 def _link_problems(kit, skill) -> list[str]:
@@ -238,6 +325,16 @@ def _link_problems(kit, skill) -> list[str]:
         if rel != ".." and not rel.startswith("../") and not (Path(kit) / rel).exists():
             out.append(f"missing {rel} (linked from {skill}/SKILL.md)")
     return out
+
+
+def _kit_only_problems(kit, skill) -> list[str]:
+    """A .kit-only pattern that matches no file is a mistake (a renamed folder, a typo)."""
+    patterns = kit_only_patterns(kit, skill)
+    if not patterns:
+        return []
+    files = _skill_files(Path(kit) / packs.SKILLS_REL / skill)
+    return [f".kit-only pattern matches nothing: {packs.SKILLS_REL}/{skill}: {p}"
+            for p in patterns if not any(_glob_match(rel, p) for rel in files)]
 
 
 def validate_kit(kit) -> list[str]:
@@ -284,6 +381,7 @@ def validate_kit(kit) -> list[str]:
         else:
             try:
                 problems += _link_problems(kit, skill)
+                problems += _kit_only_problems(kit, skill)
             except (OSError, ValueError) as exc:
                 problems.append(f"{packs.SKILLS_REL}/{skill}/SKILL.md is not readable ({exc})")
     if problems:

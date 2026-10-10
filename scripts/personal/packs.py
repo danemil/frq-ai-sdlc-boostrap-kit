@@ -145,6 +145,10 @@ def validate(kit) -> list[str]:
             continue
         errors += [f"{where}: {e}" for e in _pack_errors(kit, f.parent, pack, known,
                                                          known_connectors)]
+    rules = kit / ROLES_REL / "recommend.json"     # place.REQUIRED makes it required for setup
+    if rules.is_file():
+        from . import recommend
+        errors += [f"{ROLES_REL}/recommend.json: {e}" for e in recommend.validate(kit)]
     return errors
 
 

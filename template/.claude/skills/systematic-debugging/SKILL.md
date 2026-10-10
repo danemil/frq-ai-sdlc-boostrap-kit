@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes, and when someone says "bug", "freezes", "error", "fails", "could not", "crash" or "exception"
 ---
 
 # Systematic Debugging

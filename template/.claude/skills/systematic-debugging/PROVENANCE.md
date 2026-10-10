@@ -31,7 +31,9 @@ Not bundled: upstream `find-polluter.sh` (an npm-specific bisection script), `co
 
 Reviewed and left as is: the "recent commits" mention in Phase 1 (it asks the AI to look at recent changes, not to commit anything).
 
-The frontmatter (`name`, `description`) is unchanged; setup prefixes the name to `ai-sdlc-systematic-debugging` when it places the skill.
+- **Description: trigger phrases added** (Copilot re-test 2026-10-10: a bug report did not load the skill). Upstream's sentence is kept and followed by: and when someone says "bug", "freezes", "error", "fails", "could not", "crash" or "exception".
+
+The frontmatter `name` is unchanged; setup prefixes the name to `ai-sdlc-systematic-debugging` when it places the skill.
 
 ## Updating
 

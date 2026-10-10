@@ -175,15 +175,19 @@ jobs:
           # Core skills are placed as whole folders (references included).
           test -f .agents/skills/ai-sdlc-drawio/references/xml-reference.md
           test -f .agents/skills/ai-sdlc-likec4-dsl/references/cli.md
-          # Binary skill files (a template, images) are placed byte for byte, and the checker runs there.
+          # The brand skill's binaries stay in the kit copy only (.kit-only); the placed checker finds them.
           B=.agents/skills/ai-sdlc-frq-brandbook
           K=.ai-sdlc/kit/template/.claude/skills/frq-brandbook
-          test -n "$(ls "$B"/assets/templates/*.pptx)"
-          (cd "$K" && find assets -type f) | while read -r f; do cmp "$K/$f" "$B/$f" || exit 1; done
+          test -f "$K/assets/templates/frq-master.pptx" && test -f "$K/assets/templates/frq-template-slim-core.pptx"
+          test ! -e "$B/assets/templates" && test ! -e "$B/.kit-only"
+          test -f "$B/SKILL.md" && test -f "$B/brand-tokens.json"
           rc=0; python3 "$B/scripts/check_brand.py" --json \
             "$GITHUB_WORKSPACE/scripts/personal/tests/fixtures/frq-brandbook/offbrand-test.pptx" > /dev/null || rc=$?
           test "$rc" -eq 1                               # the off-brand deck fails the brand check
           test ! -e .agents/skills/ai-sdlc-brainstorming       # process skills are by role: PO and SM do not get them
+          test ! -e .agents/skills/ai-sdlc-java-junit          # stack skills are library skills: setup places none
+          python3 .ai-sdlc/kit/setup.py recommend | grep -q "No skill suggestions for this repo."   # the team repo has no code
+          python3 .ai-sdlc/kit/setup.py recommend --all | grep -q "Other skills you can add"
           printf '%s\n' "$out" | grep -qF -- "- Connectors for your roles: jira, confluence, jama (say 'connect jira')"
           test ! -e "$AI_SDLC_CONFIG_DIR"                # setup writes no login anywhere
 

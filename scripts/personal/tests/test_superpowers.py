@@ -45,7 +45,11 @@ TRIGGERS = {   # E2E 2026-10-09: these never triggered on plain phrasings
     "test-driven-development": ["write tests first", "test-first", "TDD", "red-green", "failing test",
                                 "tests for this function"],
     "verification-before-completion": ['"fixed"', '"done"', '"tests pass"', '"ready to merge"'],
+    # Copilot re-test 2026-10-10: a bug report or a request for tests did not load them
+    "systematic-debugging": ['"bug"', '"freezes"', '"error"', '"fails"', '"could not"', '"crash"',
+                             '"exception"'],
 }
+TRIGGERS["test-driven-development"] += ['"write a test"', '"tests for"', '"add tests"']
 BRAINSTORMING_DESCRIPTION = (     # decision 2: upstream "You MUST use this before …", softened
     'description: "Use before any creative work - creating features, building components, '
     'adding functionality, or modifying behavior. Explores user intent, requirements and '
@@ -211,6 +215,20 @@ class TestSystematicDebugging(Checks, unittest.TestCase):
         text = self.text("SKILL.md")
         self.assertIn("`ai-sdlc-test-driven-development` skill (if you have it)", text)
         self.assertIn("`ai-sdlc-verification-before-completion` skill (if you have it)", text)
+
+
+class TestStackSkillWithTdd(unittest.TestCase):
+    """Copilot re-test 2026-10-10: "Write tests for ParseWind" loaded TDD but not the Go test skill."""
+
+    def test_tdd_loads_the_language_test_skill_too(self):
+        text = (LIB / "test-driven-development/SKILL.md").read_text(encoding="utf-8")
+        kit = text.split("## This kit's copy", 1)[1].split("\n## ", 1)[0]
+        self.assertIn("**Stack test skill:**", kit)
+        for name in ("ai-sdlc-golang-testing", "ai-sdlc-java-junit", "ai-sdlc-javascript-typescript-jest",
+                     "ai-sdlc-react-testing-library"):
+            self.assertIn(f"`{name}`", kit)
+        self.assertIn("if you have it", kit)
+        self.assertIn("Stack test skill", (LIB / "test-driven-development/PROVENANCE.md").read_text(encoding="utf-8"))
 
 
 class TestVerificationBeforeCompletion(Checks, unittest.TestCase):

@@ -211,5 +211,42 @@ class TestUpdate(unittest.TestCase):
         self.assertEqual(helpers.git(root, "status", "--porcelain").stdout, "")
 
 
+    def test_an_update_from_0_8_0_removes_the_placed_brand_binaries(self):
+        """0.8.0 placed the brand skill's binaries; 0.9.0 keeps them in .ai-sdlc/kit only
+        (.kit-only). An update removes the unedited ones and keeps an edited one."""
+        root = helpers.make_repo(Path(self.tmp.name).resolve() / "repo-0.8", {"README.md": "x\n"})
+        old = helpers.copy_kit(root / "kit-old")
+        (old / "template/.claude/skills/frq-brandbook/.kit-only").unlink()   # places binaries, like 0.8.0
+        code, out = helpers.cli(root, old, "setup", "--name", "Ana", "--roles", "po", "--lang", "en")
+        self.assertEqual(code, 0, out)
+        brand = root / ".agents/skills/ai-sdlc-frq-brandbook"
+        slim = brand / "assets/templates/frq-template-slim-core.pptx"
+        edited = brand / "assets/logo/logo-frequentis-wordmark-blue.png"
+        self.assertTrue(slim.is_file())
+        edited.write_bytes(edited.read_bytes() + b"\x00my edit")
+        newer = helpers.copy_kit(root / "kit-newer")
+        (newer / "VERSION").write_text("9.9.9\n")
+        code, out = helpers.cli(root, newer, "update")
+        self.assertEqual(code, 0, out)
+        self.assertFalse(slim.exists())
+        self.assertFalse((brand / "assets/layouts").exists())
+        self.assertTrue((brand / "SKILL.md").is_file())
+        self.assertTrue((brand / "scripts/check_brand.py").is_file())
+        self.assertTrue((brand / "assets/logo/logo-frequentis-wordmark-blue.svg").is_file())
+        self.assertTrue((root / paths.KIT_REL / "template/.claude/skills/frq-brandbook/assets/templates/"
+                         "frq-template-slim-core.pptx").is_file())
+        rel = edited.relative_to(root).as_posix()
+        self.assertIn(f"- Kept your edit in {rel}.", out)
+        self.assertTrue(edited.is_file())
+        self.assertIn("Removed", out)
+        # The kept edit is a notice, not an unknown file: check exits 0 (re-test round 2, S6).
+        self.assertNotIn(f"unknown:{rel}", out)
+        self.assertIn(f"[kept-edit:{rel}]", out)
+        code, out = helpers.cli(root, root / paths.KIT_REL, "check")
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"[kept-edit:{rel}]", out)
+        self.assertIn("delete it if you don't need it", out)
+
+
 if __name__ == "__main__":
     unittest.main()

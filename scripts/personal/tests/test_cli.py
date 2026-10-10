@@ -12,7 +12,7 @@ import helpers
 from personal import paths, reuse
 
 SETUP = helpers.KIT / "setup.py"
-COMMANDS = ["setup", "change", "update", "check", "ack", "remove"]
+COMMANDS = ["setup", "change", "update", "check", "recommend", "ack", "remove"]
 
 
 def run(setup_py, *args, cwd=None):
@@ -40,6 +40,14 @@ class TestCli(unittest.TestCase):
              "--git-comfort", "guided", "--rituals", "default"])
         self.assertEqual((args.add_skill, args.drop_skill), (["a", "b"], ["c"]))
         self.assertEqual((args.git_comfort, args.rituals), ("guided", "default"))
+
+    def test_recommend_flags_parse(self):
+        sys.path.insert(0, str(helpers.KIT))
+        import setup  # the kit-root setup.py
+        args = setup.parser().parse_args(["recommend", "--all", "--json"])
+        self.assertEqual((args.all, args.json, args.decline), (True, True, None))
+        args = setup.parser().parse_args(["recommend", "--decline", "add:javafx,add:java-junit"])
+        self.assertEqual(args.decline, "add:javafx,add:java-junit")
 
     def test_runs_from_a_moved_copy_with_another_working_directory(self):
         with tempfile.TemporaryDirectory() as tmp:

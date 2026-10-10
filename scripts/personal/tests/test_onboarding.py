@@ -27,6 +27,10 @@ def section(title: str) -> str:
     return DOC.split(f"\n## {title}\n", 1)[1].split("\n## ", 1)[0]
 
 
+def core_text():
+    return (helpers.KIT / "roles/core/instructions.md").read_text(encoding="utf-8")
+
+
 class TestOnboarding(unittest.TestCase):
     def test_every_command_named_is_real_and_its_flags_belong_to_it(self):
         real = subcommands()
@@ -50,7 +54,7 @@ class TestOnboarding(unittest.TestCase):
 
     def test_every_spoken_request_has_a_section(self):
         for title in ("Do the onboarding", "Change my preferences", "Update the kit",
-                      "Check the kit", "Remove the kit", "Connect a tool"):
+                      "Check the kit", "Remove the kit", "Connect a tool", "Recommend skills"):
             self.assertIn(f"\n## {title}\n", DOC)
 
     def test_connecting_is_left_to_the_person(self):
@@ -111,9 +115,78 @@ class TestOnboarding(unittest.TestCase):
                       onboarding)
 
     def test_connect_suggested_is_given_only_after_a_yes(self):
-        step9 = section("Do the onboarding").split("\n9. ", 1)[1]
-        self.assertLess(step9.index("Wait for the answer."), step9.index("connect --suggested"))
-        self.assertIn("Only if they say yes", step9)
+        step11 = section("Do the onboarding").split("\n11. ", 1)[1]
+        self.assertLess(step11.index("Wait for the answer."), step11.index("connect --suggested"))
+        self.assertIn("Only if they say yes", step11)
+
+    def step(self, n):
+        return section("Do the onboarding").split(f"\n{n}. ", 1)[1].split(f"\n{n + 1}. ", 1)[0]
+
+    def test_the_onboarding_offers_skill_suggestions_once(self):
+        onboarding = section("Do the onboarding")
+        step8 = self.step(8)
+        for needed in ("`python3 .ai-sdlc/kit/setup.py recommend`", "This is an offer, not a fourth question.",
+                       "You can take all, some or none.", "recommend --decline all",
+                       "Never apply a suggestion they did not choose.", "Wait for the answer."):
+            self.assertIn(needed, step8)
+        self.assertLess(onboarding.index("Mark them as seen"), onboarding.index("Suggest skills for this repo"))
+        self.assertLess(onboarding.index("Suggest skills for this repo"), onboarding.index("**Close.**"))
+
+    def test_the_onboarding_offers_the_other_skills_once(self):
+        step9 = self.step(9)
+        for needed in ("`python3 .ai-sdlc/kit/setup.py recommend --all`", "'None' is fine.", "--add-skill",
+                       "Never add a skill they did not pick.", "nothing is stored", "wait for the answer"):
+            self.assertIn(needed, step9)
+        self.assertLess(section("Do the onboarding").index("Other skills (optional)"),
+                        section("Do the onboarding").index("**Close.**"))
+
+    # --- Copilot re-test round 2 (2026-10-10) ------------------------------------------
+
+    COPY = "copy each line exactly as printed: the skill name and its summary"
+
+    def test_declines_go_by_skill_name(self):
+        step8 = self.step(8)
+        self.assertIn("recommend --decline <the skill names they did not take", step8)
+        self.assertIn("--decline javafx,java-junit", step8)
+
+    def test_suggestions_and_other_skills_are_copied_line_by_line(self):
+        for text in (self.step(8), self.step(9), section("Recommend skills")):
+            self.assertIn(self.COPY, text.replace("Copy each line", "copy each line"))
+
+    def test_step_9_stops_before_the_close(self):
+        self.assertIn("Stop and wait for the answer before step 10.", self.step(9))
+
+    def test_the_seen_question_is_asked_even_without_a_contradiction(self):
+        step7 = self.step(7)
+        self.assertIn("even when there was no contradiction", step7)
+        self.assertIn('"Shall I mark these as seen?', step7)
+
+    def test_one_question_even_when_no_answer_can_come(self):
+        """Re-test round 2: in a one-shot run Copilot listed every later question in one message."""
+        head = DOC.split("## Do the onboarding", 1)[0]
+        self.assertIn("Also when nobody can answer in this session, ask only the next question and stop", head)
+        self.assertIn("never list the later questions or offers", head)
+
+    def test_check_explains_a_kept_edit(self):
+        self.assertIn("`kept-edit:`", section("Check the kit"))
+
+    def test_an_update_reads_the_onboarding_of_the_new_copy(self):
+        update = section("Update the kit")
+        self.assertIn("read the `ONBOARDING.md` in that folder", update)
+        self.assertIn("not the one in `.ai-sdlc/kit`", update)
+        self.assertIn("read the `ONBOARDING.md` in the newer copy", core_text())
+
+    def test_recommend_skills_covers_the_other_skills(self):
+        text = section("Recommend skills")
+        for needed in ('"recommend skills"', '"show me the other skills"', "recommend --all",
+                       "Declined earlier", "one question", "Never apply a suggestion they did not choose."):
+            self.assertIn(needed, text)
+
+    def test_update_offers_new_suggestions(self):
+        self.assertIn("Skill suggestions for this repo", section("Update the kit"))
+
+    def test_check_names_a_missing_kit_copy_file(self):
+        self.assertIn("under `.ai-sdlc/kit`", section("Check the kit"))
 
     def test_update_names_where_to_get_the_kit(self):
         # The address itself names the client, so it stays in README.md (the client-name rule

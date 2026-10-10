@@ -96,6 +96,18 @@ class TestChange(unittest.TestCase):
                       (self.root / paths.USER_REL).read_text(encoding="utf-8"))
         self.assertFalse((self.root / ".agents/skills/ai-sdlc-test-driven-development").exists())
 
+    def test_a_library_stack_skill_can_be_added_and_dropped(self):
+        from test_stack_skills import FILES as STACK_FILES
+        self.change("--add-skill", "javafx")
+        placed = self.root / ".agents/skills/ai-sdlc-javafx"
+        got = sorted(p.relative_to(placed).as_posix() for p in placed.rglob("*") if p.is_file())
+        self.assertEqual(got, sorted(STACK_FILES["javafx"]))
+        self.assertIn("- **Extra skills:** javafx", (self.root / paths.USER_REL).read_text())
+        self.change("--drop-skill", "javafx")
+        self.assertFalse(placed.exists())
+        self.assertNotIn("javafx", (self.root / paths.USER_REL).read_text().split("**Extra skills:**")[1]
+                         .splitlines()[0])
+
     def test_unknown_or_unsupported_skills_are_refused(self):
         code, out = helpers.cli(self.root, self.kit, "change", "--add-skill", "nope")
         self.assertEqual(code, 2)

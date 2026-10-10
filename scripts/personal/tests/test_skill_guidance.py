@@ -41,6 +41,13 @@ class TestCoreInstructions(unittest.TestCase):
     def test_ask_before_downloads(self):
         self.assertIn("Ask before anything that downloads or installs: `npx`", core())
 
+    def test_packages_only_through_the_mirror(self):
+        """One rule for every role, also without ai-sdlc-maven-via-artifactory (design §3.1)."""
+        text = core()
+        for needed in ("Packages come only through the company mirror", "never `@latest`", "`npx`",
+                       "`settings.xml`", "`.npmrc`", "`GOPROXY`"):
+            self.assertIn(needed, text)
+
     def test_a_pasted_token_is_never_quoted_back(self):
         for text in (core(), skill("connectors")):
             self.assertIn('"the token you pasted"', text)
@@ -63,6 +70,8 @@ class TestCoreInstructions(unittest.TestCase):
         line = [l for l in core().splitlines() if l.startswith("**Changing the setup.**")][0]
         self.assertIn('"do the onboarding" (also when the kit is already set up', line)
         self.assertIn("`.ai-sdlc/kit/ONBOARDING.md`", line)
+        self.assertIn('"recommend skills"', line)
+        self.assertIn('"show me the other skills"', line)
 
     def test_german_uses_one_form_of_address(self):
         self.assertIn('In German, address $name as "Sie" throughout', core())
@@ -141,6 +150,65 @@ class TestRoleInstructions(unittest.TestCase):
         for name in ("test-driven-development", "systematic-debugging", "receiving-code-review"):
             self.assertIn("before editing or creating any file (a new test file too), show the "
                           "proposed diff or content and wait for a yes", skill(name), name)
+
+
+def role(pid):
+    return (KIT / packs.ROLES_REL / pid / "instructions.md").read_text(encoding="utf-8")
+
+
+class TestRetestRound2(unittest.TestCase):
+    """Copilot re-test of the 0.9.0 candidate (2026-10-10): the stack skills did not load on
+    their trigger phrases, Copilot said "no mirror" after looking only in the home folder,
+    and printed credential files raw. These check the routing lines and rules it added."""
+
+    DETECT = "`.agents/skills/ai-sdlc-maven-via-artifactory/scripts/detect_stack.py`"
+
+    def test_core_finds_the_mirror_with_the_detector_never_from_the_home_folder_alone(self):
+        text = core()
+        self.assertIn(f"To find the mirror, run {self.DETECT}", text)
+        self.assertIn("`--home` for the home folder", text)
+        self.assertIn("Never say there is no mirror after looking only in the home folder", text)
+        self.assertIn("if the skill isn't installed, look in the repo's `.mvn/settings.xml`/`.npmrc` "
+                      "without printing secrets", text)
+
+    def test_credential_files_are_never_printed(self):
+        rule = "never `cat`, `grep` or print `settings.xml`, `.npmrc`, `.netrc`"
+        self.assertIn(rule, core().replace("Never `cat`", "never `cat`"))
+        for name in ("maven-via-artifactory", "blackduck-findings"):
+            self.assertIn(rule, skill(name).replace("Never `cat`", "never `cat`"), name)
+            self.assertIn("detect_stack.py", skill(name), name)
+
+    def test_dev_qa_and_architect_route_stack_triggers_to_the_skills(self):
+        want = {
+            "dev": ["ai-sdlc-javafx", "ai-sdlc-maven-via-artifactory", "ai-sdlc-golang-lint",
+                    "ai-sdlc-golang-testing", "ai-sdlc-java-junit", "ai-sdlc-javascript-typescript-jest",
+                    "ai-sdlc-react-testing-library"],
+            "qa": ["ai-sdlc-javafx", "ai-sdlc-maven-via-artifactory", "ai-sdlc-golang-testing",
+                   "ai-sdlc-java-junit", "ai-sdlc-javascript-typescript-jest",
+                   "ai-sdlc-react-testing-library"],
+            "architect": ["ai-sdlc-javafx", "ai-sdlc-maven-via-artifactory"],
+        }
+        for pid, skills in want.items():
+            text = role(pid)
+            for name in skills:
+                self.assertIn(f"`{name}`", text, (pid, name))
+            for phrase in ("frozen or unresponsive UI", '"could not resolve"', "any build that downloads",
+                           "run its `detect_stack.py`"):
+                self.assertIn(phrase, text, (pid, phrase))
+        for pid in ("dev", "qa"):
+            self.assertIn("also when the TDD skill is loaded", role(pid), pid)
+        self.assertIn("Lint in a Go repo", role("dev"))
+
+    def test_bug_and_test_words_load_the_process_skills(self):
+        for pid in ("dev", "qa"):
+            text = role(pid)
+            for word in ('"bug"', '"freezes"', '"error"', '"fails"', '"could not"', '"crash"',
+                         '"exception"', '"write a test"', '"tests for"', '"add tests"'):
+                self.assertIn(word, text, (pid, word))
+
+    def test_a_freeze_fix_comes_with_a_testfx_test(self):
+        self.assertIn("also propose a TestFX test", skill("javafx"))
+        self.assertIn("Monocle", skill("javafx").split("also propose a TestFX test", 1)[1][:300])
 
 
 if __name__ == "__main__":

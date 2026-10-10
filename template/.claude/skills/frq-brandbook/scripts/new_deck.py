@@ -31,6 +31,8 @@ Outline format:
 A "Closing Slide" is added at the end (never a "Thank you" slide). Slides are filled by
 layout name and placeholder index only: no font, size or colour is set, so the template's
 theme applies. The master footer gets the classification, the year and the deck title.
+The Markdown front end of frq_pptx.py: it turns the outline into a spec and calls
+frq_pptx.build() on the slim template (found in the placed skill or in .ai-sdlc/kit).
 """
 from __future__ import annotations
 
@@ -40,22 +42,30 @@ sys.dont_write_bytecode = True                         # no __pycache__ in the p
 
 import argparse
 import datetime
+import importlib.util
 import re
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-TEMPLATE = HERE.parent / "assets/templates/frq-template-slim-core.pptx"
-CLASSES = ("Frequentis Public", "Frequentis General", "Frequentis Confidential")
-PLACEHOLDER = "Frequentis [classification to be set]"  # when the person could not be asked
-ALLOWED = CLASSES + (PLACEHOLDER,)
+
+
+def _sibling(name):
+    spec = importlib.util.spec_from_file_location(f"frq_{name}", HERE / f"{name}.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+frq_pptx = _sibling("frq_pptx")                        # the one builder (python-pptx loaded lazily)
+CLASSES = frq_pptx.CLASSES
+PLACEHOLDER = frq_pptx.PLACEHOLDER                     # when the person could not be asked
+ALLOWED = frq_pptx.ALLOWED
+TEMPLATE = "slim"                                      # outlines always build on the slim template
 
 
 def checked_classification(value):
     """The class the person gave, or the placeholder; anything else is refused."""
-    if value not in ALLOWED:
-        raise ValueError(f"classification {value!r} is not one of: " + ", ".join(ALLOWED)
-                         + ". Ask the person; never guess it.")
-    return value
+    return frq_pptx.checked_classification(value)
 
 
 def plain(text):
@@ -94,53 +104,32 @@ def parse(text):
     return title, subtitle, [tuple(s) for s in slides], ignored
 
 
-def placeholder(slide, idx):
-    for ph in slide.placeholders:
-        if ph.placeholder_format.idx == idx:
-            return ph
-    raise KeyError(f"placeholder idx {idx} not on layout '{slide.slide_layout.name}'")
-
-
-def fill(frame, bullets):
-    frame.text = bullets[0][0] if bullets else ""
-    if bullets:
-        frame.paragraphs[0].level = bullets[0][1]
-    for text, level in bullets[1:]:
-        p = frame.add_paragraph()
-        p.text, p.level = text, level
-
-
-def master_runs(shapes):
-    for shape in shapes:
-        if shape.shape_type == 6:                      # a group: look inside
-            yield from master_runs(shape.shapes)
-        elif shape.has_text_frame:
-            for p in shape.text_frame.paragraphs:
-                yield from p.runs
+def to_spec(title, subtitle, slides, author=None) -> dict:
+    """The outline as a frq_pptx.py spec (layouts by name, placeholders filled by the builder)."""
+    out = [{"layout": "Standard TITLE", "title": title, "subtitle": subtitle or (author or "")}]
+    for headline, sub, bullets, _ in slides:
+        items = [{"text": t, "level": lvl} for t, lvl in bullets]
+        if not sub and not bullets:
+            out.append({"layout": "Headline (standard)", "title": headline})
+        elif sub:
+            out.append({"layout": "Sub-headline + field", "title": headline, "subtitle": sub,
+                        "content": [items]})
+        else:
+            out.append({"layout": "Headline + field", "title": headline, "content": [items]})
+    out.append({"layout": "Closing Slide"})
+    return {"title": title, "presenter": f"by {author}" if author else "", "slides": out}
 
 
 def set_footer(prs, *, classification, year, title, author=None):
     """The master footer, text only (its formatting stays): class, year, title, presenter."""
     classification = checked_classification(classification)
-    placed = False
-    for run in master_runs(prs.slide_masters[0].shapes):
-        if run.text in ALLOWED:
-            run.text, placed = classification, True
-        elif re.fullmatch(r"© Frequentis AG \d{4}", run.text):
-            run.text = f"© Frequentis AG {year}"
-        elif run.text == "Presentation title":
-            run.text = title
-        elif run.text == "<by Presenter>":
-            run.text = f"by {author}" if author else ""
-    if not placed:
-        raise ValueError("the slide master has no classification text to set")
+    return frq_pptx.set_footer(prs, classification=classification, year=year, title=title,
+                               presenter=f"by {author}" if author else "")
 
 
-def build(outline, out, *, classification, year=None, author=None, template=TEMPLATE):
+def build(outline, out, *, classification, year=None, author=None, template=TEMPLATE, business_unit=None):
     classification = checked_classification(classification)   # before anything is read or written
     year = year or datetime.date.today().year
-    from pptx import Presentation                       # python-pptx, from the consented venv
-
     title, subtitle, slides, ignored = parse(Path(outline).read_text(encoding="utf-8"))
     if not title:
         raise ValueError("the outline needs a '# Deck title' line")
@@ -152,28 +141,8 @@ def build(outline, out, *, classification, year=None, author=None, template=TEMP
     if empty:
         raise ValueError("nothing of these slides could be placed, so no deck was written: "
                          + ", ".join(empty))
-    prs = Presentation(str(template))
-    layouts = {l.name: l for l in prs.slide_layouts}
-    s = prs.slides.add_slide(layouts["Standard TITLE"])
-    s.shapes.title.text = title
-    placeholder(s, 2).text = subtitle or (author or "")
-    for headline, sub, bullets, _ in slides:
-        if not sub and not bullets:
-            s = prs.slides.add_slide(layouts["Headline (standard)"])
-            s.shapes.title.text = headline
-            continue
-        if sub:
-            s = prs.slides.add_slide(layouts["Sub-headline + field"])
-            placeholder(s, 14).text = sub
-            body = placeholder(s, 16)
-        else:
-            s = prs.slides.add_slide(layouts["Headline + field"])
-            body = placeholder(s, 15)
-        s.shapes.title.text = headline
-        fill(body.text_frame, bullets)
-    prs.slides.add_slide(layouts["Closing Slide"])
-    set_footer(prs, classification=classification, year=year, title=title, author=author)
-    prs.save(str(out))
+    return frq_pptx.build(to_spec(title, subtitle, slides, author), out, classification=classification,
+                          year=year, template=template, business_unit=business_unit)
 
 
 def main(argv=None) -> int:
@@ -184,17 +153,19 @@ def main(argv=None) -> int:
                     help="ask the person; never guess it. If you cannot ask: " + repr(PLACEHOLDER))
     ap.add_argument("--year", type=int, default=datetime.date.today().year)
     ap.add_argument("--author")
+    ap.add_argument("--business-unit", choices=sorted(frq_pptx.UNITS),
+                    help=f"the title slide's key visual (default {frq_pptx.DEFAULT_UNIT}; CORP keeps the globe)")
     args = ap.parse_args(argv)
     if Path(args.out).exists():
         print(f"new_deck: {args.out} exists; choose another name (it is never overwritten)", file=sys.stderr)
         return 2
     try:
         build(args.outline, args.out, classification=args.classification, year=args.year,
-              author=args.author)
+              author=args.author, business_unit=args.business_unit)
     except ImportError:
-        print("new_deck: python-pptx is missing; see ai-sdlc-doc-powerpoint, section 1", file=sys.stderr)
+        print("new_deck: python-pptx is missing; with the person's yes, install it into ~/.ai-sdlc/venv as ai-sdlc-doc-powerpoint (section 1) describes", file=sys.stderr)
         return 2
-    except (ValueError, KeyError, OSError) as exc:
+    except (ValueError, KeyError, OSError, frq_pptx.brand_assets.AssetMissing) as exc:
         print(f"new_deck: {exc}", file=sys.stderr)
         return 2
     print(f"wrote {args.out}")

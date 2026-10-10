@@ -121,8 +121,13 @@ class TestRoles(unittest.TestCase):
             wanted = place.wanted_files(kit, all_packs, c)
             for skill in CORE_SKILLS:
                 src = kit / packs.SKILLS_REL / skill
-                files = sorted(p.relative_to(src).as_posix() for p in src.rglob("*") if p.is_file())
-                for rel in files:
+                held = set(place.kit_only(kit, skill))     # kept in the kit copy (design §8.7)
+                files = sorted(p.relative_to(src).as_posix() for p in src.rglob("*") if p.is_file()
+                               and not any(part.startswith(".") for part in p.relative_to(src).parts))
+                for rel in files:                  # dotfiles (a skill's .kit-only) are never placed
+                    if rel in held:
+                        self.assertNotIn(f".agents/skills/{packs.PREFIX}{skill}/{rel}", wanted)
+                        continue
                     self.assertIn(f".agents/skills/{packs.PREFIX}{skill}/{rel}", wanted)
 
     def test_several_roles_get_the_union_once(self):
@@ -178,6 +183,23 @@ class TestRoles(unittest.TestCase):
                 if re.search(rf"(?<![\w/.-]){skill}(?![\w/-])", text):
                     bad.setdefault(pb, set()).add(skill)
         self.assertEqual({pb: sorted(names) for pb, names in bad.items()}, {})
+
+    def test_role_hints_name_stack_skills_only_if_you_have_them(self):
+        """The stack skills are library skills (design §4.2): a role hint may name one, but
+        only on a line that says "if you have" it."""
+        from test_stack_skills import STACK
+        found = 0
+        for pid in self.packs:
+            text = (KIT / packs.ROLES_REL / pid / "instructions.md").read_text(encoding="utf-8")
+            for line in text.splitlines():
+                for skill in STACK:
+                    if f"`{packs.PREFIX}{skill}`" in line:
+                        found += 1
+                        self.assertIn("if you have", line.lower(), (pid, skill))
+        self.assertTrue(found, "no role hint names a stack skill")
+        for pid in ("dev", "qa", "architect"):
+            lines = (KIT / packs.ROLES_REL / pid / "instructions.md").read_text(encoding="utf-8").splitlines()
+            self.assertLess(len(lines), 60, pid)
 
     def test_all_packs_validate(self):
         self.assertEqual(packs.validate(KIT), [])
