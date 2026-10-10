@@ -326,9 +326,15 @@ def connections(connectors=None, skipped=()):
         values = registry.load_values(c) or {}
         doc = store.read_file(name) or {}
         last = doc.get("last_test") or {}
-        user = c.identity(values) or last.get("user") or "?"
+        user = c.identity(values) or last.get("user")
         kind = _kind_label(c, values)
-        parts = [values.get("url", "?")] + ([kind] if kind else []) + [f"user {user}"]
+        parts = [values.get("url", "?")] + ([kind] if kind else [])
+        if src == "env" and not user and not last:
+            # Only environment variables: no saved test, no known user (Copilot re-test N3).
+            parts.append(f"from environment (run {SETUP} connect {name} --test to check)")
+            lines.append(f"- {name}: " + " · ".join(parts))
+            continue
+        parts.append(f"user {user or '?'}")
         if last:
             parts.append(f"last test {'OK' if last.get('ok') else 'FAILED'} {last.get('at', '')}")
         else:

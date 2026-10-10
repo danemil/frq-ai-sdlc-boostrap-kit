@@ -450,9 +450,17 @@ def _decline(st, root, given, open_, open_tools):
         line += (f" You can still take {'it' if len(skills) == 1 else 'them'} with the change "
                  "command.")
     if tools:
+        names = [t.split(":", 1)[1] for t in tools]
         line += (f" You can still connect {'it' if len(tools) == 1 else 'them'} yourself: "
-                 f"{CMD} connect <name>, in your own terminal.")
+                 f"{_connect_cmd(names)}, in your own terminal.")
     return 0, [line]
+
+
+def _connect_cmd(names) -> str:
+    """The connect command for these tools: the real name for one, the choices for several."""
+    if len(names) == 1:
+        return f"{CMD} connect {names[0]}"
+    return f"{CMD} connect <name> (one of: {', '.join(names)})"
 
 
 def _tools_part(tools) -> list[str]:
@@ -471,8 +479,9 @@ def _tools_part(tools) -> list[str]:
                         "(or the tool names, or all-tools)"))
     declined = [i for i in tools if i["declined"] and not i["connected"]]
     if declined:
-        lines.append(f"Declined earlier (to connect one after all: {CMD} connect <name>, in "
-                     "your own terminal):")
+        names = [i["connector"] for i in declined]
+        lines.append(f"Declined earlier (to connect {'it' if len(names) == 1 else 'one'} after "
+                     f"all: {_connect_cmd(names)}, in your own terminal):")
         lines += [f"- {_tool_line(i)}" for i in declined]
     return lines
 

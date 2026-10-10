@@ -502,6 +502,16 @@ class TestManage(Base):
         self.assertIn("from file", text)
         self.assertNotIn(SECRET, text)
 
+    def test_connections_for_an_env_login_points_at_the_test(self):
+        """Copilot re-test 2026-10-10 (N3): an env login has no known user; say how to check."""
+        os.environ["AI_SDLC_STUB_CONNECTOR_URL"] = "https://env.example"
+        os.environ["AI_SDLC_STUB_CONNECTOR_TOKEN"] = SECRET
+        text = "\n".join(manage.connections(self.connectors)[1])
+        self.assertIn(f"- {NAME}: https://env.example · Data Center · from environment (run python3 "
+                      f".ai-sdlc/kit/setup.py connect {NAME} --test to check)", text)
+        self.assertNotIn("user ?", text)
+        self.assertNotIn(SECRET, text)
+
     def test_connections_shows_not_connected_and_loose_files(self):
         self.assertIn("not connected", "\n".join(manage.connections(self.connectors)[1]))
         path = self.save_stub("https://x.example")

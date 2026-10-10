@@ -396,8 +396,9 @@ TOOLS_HEAD = ("Tools to connect for this repo (from its files; you type the logi
               "in your own terminal):")
 STUB_LINE = ("1. connect:stubtool — Stub Tool: this repo is analysed by the stub tool "
              "(sonar-project.properties).")
-DECLINED_TOOLS = ("Declined earlier (to connect one after all: python3 .ai-sdlc/kit/setup.py "
-                  "connect <name>, in your own terminal):")
+# Copilot re-test 2026-10-10 (N1): the real tool name, not a <name> placeholder, for one tool.
+DECLINED_TOOLS = ("Declined earlier (to connect it after all: python3 .ai-sdlc/kit/setup.py "
+                  "connect stubtool, in your own terminal):")
 
 
 class TestConnectorItems(Base):
@@ -533,6 +534,14 @@ class TestRecommendTools(unittest.TestCase):
         self.assertGreater(lines.index(TOOLS_HEAD), lines.index(
             "To take some: the same command with only those skills."))
 
+    def test_the_connect_command_names_the_tools(self):
+        from personal import commands
+        self.assertEqual(commands._connect_cmd(["sonarqube"]),
+                         "python3 .ai-sdlc/kit/setup.py connect sonarqube")
+        self.assertEqual(commands._connect_cmd(["blackduck", "sonarqube"]),
+                         "python3 .ai-sdlc/kit/setup.py connect <name> (one of: blackduck, "
+                         "sonarqube)")
+
     def test_no_suggestions_line_unchanged(self):
         root = self.set_up({"README.md": "x\n"})
         self.assertEqual(self.run_cli(root).strip(), "No skill suggestions for this repo.")
@@ -542,7 +551,9 @@ class TestRecommendTools(unittest.TestCase):
             with self.subTest(value):
                 root = self.set_up(SONAR, name=f"repo{n}")
                 out = self.run_cli(root, "--decline", value)
-                self.assertIn("Noted: connect:stubtool.", out)
+                self.assertIn("Noted: connect:stubtool. You can still connect it yourself: "
+                              "python3 .ai-sdlc/kit/setup.py connect stubtool, in your own "
+                              "terminal.", out)
                 self.assertEqual(self.declined(root), ["connect:stubtool"])
                 lines = self.run_cli(root).splitlines()
                 self.assertNotIn(TOOLS_HEAD, lines)
