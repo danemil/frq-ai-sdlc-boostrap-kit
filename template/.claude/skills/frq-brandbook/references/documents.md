@@ -40,7 +40,7 @@ for name in ("Normal", "Heading 1", "Heading 2", "Heading 3", "Title"):
 Use the mapping below only for internal notes, or when the person cannot get the template (say so in the hand-over):
 
 - Styles, not direct formatting: `Normal` Arial 10.5 pt, #333333 (the letter body size, PDF p.44); `Heading 1–3` Arial, #004182, sentence case (the snippet above sets the fonts).
-- Footer on every page: `Frequentis <class> | © Frequentis AG <year>` and the page number. Logo top right in the header, at least 5 mm high: `header.paragraphs[0].add_run().add_picture("../assets/logo/logo-frequentis-wordmark-blue.png", height=Mm(6))` (python-docx cannot place the SVG).
+- Footer on every page: `Frequentis <class> | © Frequentis AG <year>` and the page number. Logo top right in the header, at least 5 mm high: `header.paragraphs[0].add_run().add_picture(".ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/logo/logo-frequentis-wordmark-blue.png", height=Mm(6))` (python-docx cannot place the SVG).
 - Tables: header row fill #004182 with white text, white body, thin #9FA0A3 rules, no zebra colours. Set the fill per header cell (`w:shd w:fill="004182"`) instead of a built-in table style, which brings its own colours.
 - Run `../scripts/check_brand.py file.docx`: it checks colours, fonts (including theme fonts), italics, the internal abbreviation and the classification, for styles the document uses.
 

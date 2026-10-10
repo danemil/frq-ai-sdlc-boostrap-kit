@@ -20,10 +20,11 @@ import sys
 import tempfile
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import helpers
-from personal import packs, paths
+from personal import packs, paths, place
 
 sys.dont_write_bytecode = True     # the tests import the skill's scripts: no __pycache__ in the skill
 
@@ -121,7 +122,7 @@ def layout_file(template, name):
     with zipfile.ZipFile(template) as z:
         for n in z.namelist():
             if re.fullmatch(r"ppt/slideLayouts/slideLayout\d+\.xml", n):
-                if f'<p:cSld name="{name}"' in z.read(n).decode("utf-8"):
+                if f'<p:cSld name="{name.replace("&", "&amp;")}"' in z.read(n).decode("utf-8"):
                     return n
     raise KeyError(name)
 
@@ -257,7 +258,8 @@ class TestSkillFiles(unittest.TestCase):
         text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
         self.assertTrue(text.startswith("---\nname: frq-brandbook\n"))
         desc = re.search(r"(?m)^description: (.+)$", text).group(1)
-        for word in ("Frequentis", "on-brand", "slides", "logo", "colours", "template", "check"):
+        for word in ("Frequentis", "on-brand", "slides", "logo", "colours", "template", "check", "44", "spec",
+                     "existing deck"):
             self.assertIn(word, desc)
         self.assertLessEqual(len(desc), 1024)
         self.assertLess(len(text.splitlines()), 220, "keep SKILL.md lean; move depth to references/")
@@ -1014,8 +1016,8 @@ def template_layout_names(template):
             if m:
                 targets[re.search(r'Id="(\w+)"', rel).group(1)] = m.group(1)
         order = re.findall(r'<p:sldLayoutId [^>]*r:id="(\w+)"', master)
-        return [re.search(r'<p:cSld name="([^"]*)"', z.read("ppt/slideLayouts/" + targets[r]).decode("utf-8"))
-                .group(1).strip() for r in order]
+        return [ET.fromstring(z.read("ppt/slideLayouts/" + targets[r])).find(f"{{{NS_P}}}cSld").get("name").strip()
+                for r in order]
 
 
 def renamed_layout(src, dest, old, new):
@@ -1144,7 +1146,8 @@ class TestPortedAuditRules(unittest.TestCase):
             ("Divider blue world", sp("title", None, "Why remote towers now"), None),
             ("Sub-headline + 50:50", sp("title", None, "Two options lead to one decision")
              + sp("body", 14, "Both meet the safety case") + sp(None, 15, "Option A") + sp(None, 16, "Option B"), None),
-            ("World Map | EMEA", sp("title", None, "We serve air navigation in most of EMEA"), None)), base=FULL)
+            ("World Map | EMEA", sp("title", None, "We serve air navigation in most of EMEA"), None),
+            ("Q&A", sp("title", None, "Your turn to ask"), None)), base=FULL)   # names with "&" too
         code, found = findings(deck, "--year", "2024")
         self.assertEqual(code, 0, [f for f in found if f["severity"] == "FAIL"])
         self.assertFalse(rules(found) & PORTED, [f for f in found if f["rule"] in PORTED])
@@ -1610,6 +1613,119 @@ class TestBuilder(unittest.TestCase):
                             "--classification", "Frequentis General"], capture_output=True, text=True, check=False)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(count_layouts(self.dir / "n.pptx"), 25)
+
+
+KIT_PREFIX = ".ai-sdlc/kit/template/.claude/skills/frq-brandbook/"
+KIT_ONLY_MENTION = re.compile(r"[\w./-]*assets/(?:(?:templates|layouts|examples|keyvisual)/[\w./-]*"
+                              r"|background/[\w.-]*\.jpg|logo/[\w.-]*\.png)")
+
+
+def placed_text():
+    """{rel: text} of SKILL.md and the references as setup places them."""
+    files = place.placed_skill_files(KIT, "frq-brandbook")
+    out = {}
+    for path, data in files.items():
+        rel = path.split("/ai-sdlc-frq-brandbook/", 1)[1]
+        if rel == "SKILL.md" or (rel.startswith("references/") and rel.endswith(".md")):
+            out[rel] = data
+    return out
+
+
+class TestSkillText(unittest.TestCase):
+    """The merged skill text (design §8.6), references and PROVENANCE (Task B4)."""
+
+    def setUp(self):
+        self.skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+
+    def test_the_create_and_apply_workflows(self):
+        for needed in ("message pyramid", "Executive", "Self-explanatory", "Apply", "Must", "Should",
+                       "into a new file", "one question at a time", "Outline first, then stop",
+                       "Build nothing until the person agrees", "all fixes, only the Must fixes, or pick by slide number",
+                       "German decks", "frq_pptx.py build", "new_deck.py"):
+            self.assertIn(needed, self.skill)
+
+    def test_layouts_reference_names_all_44_and_links_each_preview(self):
+        text = (SKILL / "references/layouts.md").read_text(encoding="utf-8")
+        heads = re.findall(r"(?m)^## (\d+)\. (.+)$", text)
+        full, slim = template_layout_names(FULL), set(template_layout_names(TEMPLATE))
+        self.assertEqual([int(n) for n, _ in heads], list(range(1, 45)))
+        self.assertEqual([name.strip() for _, name in heads], full)
+        for section, (_, name) in zip(re.split(r"(?m)^## \d+\. ", text)[1:], heads):
+            with self.subTest(layout=name):
+                where = "slim and full" if name.strip() in slim else "full only"
+                self.assertIn(f"Templates: **{where}**", section)
+                link = re.search(r"\]\(\.\./(assets/layouts/[\w.-]+\.jpg)\)", section)
+                self.assertTrue(link and (SKILL / link.group(1)).is_file(), name)
+                self.assertIn(KIT_PREFIX + link.group(1), section)
+
+    def test_kit_only_files_are_named_by_exact_kit_path(self):
+        """Copilot's search skips .ai-sdlc/: every kit-only file is named by its full kit path.
+        Link targets are left to placement, which rewrites them into .ai-sdlc/kit (Task K1); they
+        must point at a real file so the rewrite has something to point to."""
+        for rel, text in placed_text().items():
+            targets = re.findall(r"\]\(([^)\s]+)\)", text)
+            for target in targets:
+                if KIT_ONLY_MENTION.search(target):
+                    resolved = (SKILL / Path(rel).parent / target).resolve()
+                    self.assertTrue(resolved.is_file(), (rel, target))
+                    self.assertTrue(is_kit_only(resolved.relative_to(SKILL.resolve()).as_posix()), (rel, target))
+            bare = re.sub(r"\]\([^)\s]+\)", "]()", text)
+            for m in KIT_ONLY_MENTION.finditer(bare):
+                with self.subTest(file=rel, mention=m.group(0)):
+                    self.assertTrue(m.group(0).startswith(KIT_PREFIX + "assets/"), m.group(0))
+
+    def test_atm_is_the_default_business_unit(self):
+        for rel in ("SKILL.md", "references/brand-rules.md"):
+            text = (SKILL / rel).read_text(encoding="utf-8")
+            self.assertRegex(text, r"ATM[^.\n]{0,40}by default|Default BU: ATM", rel)
+            self.assertIn("names another", text, rel)
+        self.assertEqual(json.loads(TOKENS.read_text(encoding="utf-8"))["default_business_unit"], "atm")
+
+    def test_build_spec_reference_paths_exist(self):
+        text = (SKILL / "references/build-spec.md").read_text(encoding="utf-8")
+        found = set(re.findall(r"(?<![\w-])((?:assets|scripts)/[\w./-]*[\w])", text))
+        self.assertTrue({"scripts/frq_pptx.py", "scripts/check_brand.py"} <= found)
+        for rel in sorted(found):
+            self.assertTrue((SKILL / rel).exists(), rel)
+
+    def test_the_owner_skill_headings_are_all_mapped(self):
+        prov = (SKILL / "PROVENANCE.md").read_text(encoding="utf-8")
+        table = prov.split("### Where each heading went", 1)[1].split("\n### ", 1)[0]
+        rows = {r.split("|")[1].strip() for r in table.splitlines() if r.startswith("| ") and "---" not in r}
+        for file, heads in inventory()["headings"].items():
+            for h in heads:
+                self.assertIn(h, rows, (file, h))
+
+    def test_every_source_text_file_is_mapped(self):
+        for owner, here in MAPPED_TEXT.items():
+            self.assertIn(owner, [f["path"] for f in inventory()["files"]])
+            self.assertTrue((SKILL / here).is_file(), here)
+            self.assertIn(f"`{owner}`", (SKILL / "PROVENANCE.md").read_text(encoding="utf-8")
+                          .replace("`references/brand-rules.md`, `SKILL.md`", "`references/brand-rules.md` `SKILL.md`"))
+
+    def test_provenance_records_the_merge(self):
+        prov = (SKILL / "PROVENANCE.md").read_text(encoding="utf-8")
+        for needed in ("frq-4-pptx-agent v1.0, 2026-10-09", "kit owner", "commentAuthors", "MSIP",
+                       "layouts whose rights are unclear" if False else "rights are unclear",
+                       "wide ATM aircraft photo", "strip_pptx_metadata.py"):
+            self.assertIn(needed, prov)
+        for n in range(11, 19):
+            self.assertIn(f"C{n}", prov)
+        rules_ = (SKILL / "references/brand-rules.md").read_text(encoding="utf-8")
+        for n in range(11, 19):
+            self.assertRegex(rules_, rf"\| C{n} \|")
+        self.assertEqual(rules_.count("**to confirm with GCM**"), 3)    # C11, C12, C13
+        self.assertNotRegex(prov + rules_ + self.skill, r"[\w.+-]+@[\w-]+\.\w+", "no e-mail addresses")
+
+    def test_no_new_frq_skill_name(self):
+        self.assertEqual([s for s in packs.available_skills(KIT) if s.startswith("frq-")], ["frq-brandbook"])
+        for p in (KIT / packs.SKILLS_REL).rglob("*"):
+            if p.is_file() and "frq-brandbook" not in p.parts:
+                try:
+                    text = p.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    continue
+                self.assertNotIn("frq-4-pptx", text, p)
 
 
 class TestPlacement(unittest.TestCase):

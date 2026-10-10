@@ -1,20 +1,38 @@
-# Building decks from the slim template
+# Building decks
 
-`../assets/templates/frq-template-slim-core.pptx` is the official Frequentis PowerPoint template with its 66 sample slides removed, the map and event layouts dropped, and personal and SharePoint metadata stripped. It keeps the one slide master, the "FRQ_CORP 2024" theme (palette and Arial) and **25 layouts**. Slide size 16:9, 10 × 5.625 in.
+## Two templates, two front ends
+
+Both templates stay in the kit copy, not in the placed skill (`.kit-only`); the scripts find them, and you name them by exact path:
+
+| Template | Path | Layouts | A deck on it |
+|---|---|---|---|
+| **Slim (the default)** | `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/templates/frq-template-slim-core.pptx` | 25: the official template without its 66 sample slides and without the map and event layouts | about 1.2 MB |
+| **Full master** | `.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/templates/frq-master.pptx` | all 44, including the seven map layouts, the event layouts and *Video Background* | about 9 MB, even with three slides |
+
+Both carry the one slide master and the "FRQ_CORP 2024" theme (palette and Arial), 16:9, 10 × 5.625 in, with personal and tenant metadata stripped. **Use the slim template unless a slide needs a layout only the full master has** (`layouts.md` marks each layout *slim and full* or *full only*); the builder decides this itself and says so ("used the full master for: World Map | EMEA"). The person can ask for either (`--template slim|full`). When fixing an existing deck, keep its own master if it is the Frequentis one.
+
+| Front end | Input | Use it when |
+|---|---|---|
+| `scripts/new_deck.py` | a Markdown outline | a text deck: title, headline-and-bullet slides, closing. Always the slim template. |
+| `scripts/frq_pptx.py build` | a JSON spec (`build-spec.md`) | any layout of the 44, tables, charts, KPI donuts, key visuals, photo and icon placeholders, side-bar text. |
+
+Both need python-pptx (ask first; venv `~/.ai-sdlc/venv`), take the classification the person gave, never overwrite a file, and set the master footer. `new_deck.py` turns the outline into a spec and calls `frq_pptx.build()`, so there is one builder.
 
 ## Rules
 
-1. **Start from the template**, never from a blank `Presentation()` and never from an old deck: `Presentation(".../frq-template-slim-core.pptx")`. Read it, never save over it.
+1. **Start from a template** (the builder does), never from a blank `Presentation()` and never from an old deck. Read it, never save over it.
 2. **Pick layouts by name**, not by position: `layouts = {l.name: l for l in prs.slide_layouts}`.
 3. **Fill placeholders by index** (table below). Do not move or resize them; keep content inside the content area (x 0.47 in, y 0.83 in, 9.06 × 4.25 in). If it does not fit, split the slide.
 4. **Set no font, size or colour** on placeholder text (text you add outside placeholders is different: see "Shapes, free text, tables and charts"). The theme gives Arial, #333333 body text and the title style. Setting a title colour fights the master (conflict C2).
 5. **Never copy a slide** from the full template or another deck: the samples carry stray Nirmala UI, Calibri and Nokia Pure overrides (C9) that the checker fails.
 6. **Leave the footer shapes alone** (`FRQ_Classification`, `FRQ_Copyright`, `FRQ_Filename`, `FRQ_Pagenumber`), except their text in the master: class, current year, title, presenter (C4). `scripts/new_deck.py` does this.
 7. **Close with "Closing Slide"**, never a "Thank you" slide.
-8. Pictures go into shapes as fills, cropped to the shape; 1920 × 1080 is plenty. Only Frequentis key visuals (`../assets/keyvisual/`) or photos the person supplies from the Frequentis Photo stock.
+8. Pictures go into shapes as fills, cropped to the shape; 1920 × 1080 is plenty. Only Frequentis key visuals (`.ai-sdlc/kit/template/.claude/skills/frq-brandbook/assets/keyvisual/`; ATM by default, C14) or photos the person supplies from the Frequentis Photo stock.
 9. Run `../scripts/check_brand.py` on the result, then look at it ("Look at the result" below). Report what the checker found as evidence found or not found; never call the deck "on-brand" or "compliant". A person reviews it before it is shared.
 
-## The 25 layouts
+## The 25 layouts of the slim template
+
+All 44 layouts, with previews and geometry: `layouts.md`.
 
 `title` is the title placeholder; `#n` is a body placeholder with `placeholder_format.idx == n`. `#14` is the sub-headline, `#15`/`#16`/`#17` content columns, `#2` the title-slide sub-title.
 
@@ -46,7 +64,7 @@
 
 The PDF's layout families map to these names (C5): *Headline only* → `Headline (standard)`; *Sub-headline* → `Sub-headline (alternative)` and the `Sub-headline + …` family; *Divider/agenda* → `Divider`, `Divider blue world`, `1_Agenda`, `2_Agenda`; *Small blue side bar* → `Small Side Bar 1/2`; *Wide blue side bar* → `Wide Side Bar`; *Reference/video overview* → `Reference` (the video layout is not in the slim template).
 
-Not in the slim template (in the full template only): `Map` and the world/region map layouts (0.8–3.3 MB each), `Reference-DESIGN only`, `Video Background`, the event layouts (R&D, Teams, Break, Q&A, next presentation), the 2021 developer-days banner layout. Ask for the full template if a deck needs a map.
+Only in the full master: `Map` and the world and region map layouts (0.8–3.3 MB of XML each), `Reference-DESIGN only`, `1_Blanc`, `Video Background`, `1_Headline (standard)`, `4_Headline` and the event layouts (Agenda point, R&D, Teams, Next presentation, Break, Q&A). The builder takes the full master for them.
 
 ## Recipe (python-pptx)
 
@@ -144,7 +162,7 @@ def brand_chart(chart, highlight=None):
 
 The checker reads XML; it does not see layout, overlaps, logo use or what PowerPoint draws from theme styles. Look at the slides before you hand over:
 
-1. If LibreOffice is available (`soffice --version`): `soffice --headless --convert-to pdf --outdir <tmp> deck.pptx`, then `pdftoppm -r 50 -png <tmp>/deck.pdf <tmp>/slide`, and view the PNGs (one per slide). Work in a temporary folder, not the repo.
+1. If LibreOffice and poppler are available: `frq_pptx.py render deck.pptx` writes one PNG per slide under `.ai-sdlc/tmp/deck/` (hidden from git; never `/tmp`), or use the two commands in `../SKILL.md` (Check, step 3). View the PNGs.
 2. Otherwise ask the person to open it in PowerPoint and look, slide by slide.
 3. Check: one message per slide, nothing outside the content area, no overlaps, the logo untouched, key visual and closing slide in place, text readable.
 

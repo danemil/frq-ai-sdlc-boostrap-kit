@@ -395,11 +395,15 @@ def add_chart(slide, box, spec):
 
 # --- pictures and placeholders for humans ---------------------------------------------------
 def image_path(path):
-    """A key visual by its skill path ('assets/keyvisual/…', found in the kit copy), or a file."""
-    p = Path(path).expanduser()
-    if not p.is_absolute() and str(path).replace("\\", "/").startswith("assets/"):
-        return brand_assets.find(str(path))
-    return p
+    """A key visual by its kit path ('.ai-sdlc/kit/…/frq-brandbook/assets/keyvisual/…') or skill
+    path ('assets/keyvisual/…'), found in the placed skill or the kit copy; else a file."""
+    rel = str(path).replace("\\", "/")
+    prefix = brand_assets.KIT_SKILL_REL + "/"
+    if rel.startswith(prefix):
+        rel = rel[len(prefix):]
+    if rel.startswith("assets/"):
+        return brand_assets.find(rel)
+    return Path(path).expanduser()
 
 
 def add_image(slide, box, spec):
