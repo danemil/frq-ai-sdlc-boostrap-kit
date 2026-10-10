@@ -234,6 +234,95 @@ class TestSkipsAreRespected(Base):
         self.assertEqual(state.new("0.5.0")["skipped_connectors"], [])
 
 
+STUB_PROMPT = ("Connect Stub Tool now? It fits this repo: this repo is analysed by the stub tool. "
+               "[y = yes, s = skip, a = skip all the rest; Enter = skip]: ")
+
+
+class TestRepoTools(Base):
+    """0.10.0: the repo's tool suggestions come after the role tools, each with its reason;
+    a skipped one is declined (connect:<name>), not put in skipped_connectors."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        base = Path(self.tmp.name).resolve()
+        env = mock.patch.dict(os.environ, {"AI_SDLC_CONFIG_DIR": str(base / "cfg")})
+        env.start()
+        self.addCleanup(env.stop)
+        self.root = helpers.make_repo(base / "repo", {"sonar-project.properties": "x=1\n"})
+        self.kit = self.root / paths.KIT_REL
+        copy = helpers.kit_with_connector_rule(self.root / "kit-copy")
+        with helpers.stubtool_registered(self.kit):
+            code, out = helpers.cli(self.root, copy, "setup", "--name", "Ana", "--roles", "dev",
+                                    "--lang", "en")    # dev: bitbucket, jira, jenkins
+        self.assertEqual(code, 0, out)
+        self.connected = []
+
+    def suggested(self, answers, tty=True, *argv):
+        with helpers.stubtool_registered(self.kit):
+            return super().suggested(answers, tty, *argv)
+
+    def declined(self):
+        return json.loads((self.root / paths.STATE_REL).read_text())["declined_recommendations"]
+
+    def test_repo_tools_come_after_role_tools_with_their_reason(self):
+        code, out = self.suggested("s\ns\ns\ny\n\n")
+        self.assertEqual(code, 0, out)
+        self.assertIn(STUB_PROMPT, out)
+        self.assertGreater(out.index(STUB_PROMPT), out.index("Connect Jenkins now?"))
+        self.assertEqual(self.connected, ["stubtool"])
+        self.assertEqual(self.declined(), [])
+        self.assertEqual(self.skipped(), ["bitbucket", "jenkins", "jira"])
+
+    def test_a_skipped_repo_tool_is_declined(self):
+        code, out = self.suggested("s\ns\ns\ns\n\n")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.declined(), ["connect:stubtool"])
+        self.assertNotIn("stubtool", self.skipped())
+        self.assertEqual(self.skipped(), ["bitbucket", "jenkins", "jira"])
+        self.assertIn('Not now for this repo: stubtool. Say "recommend skills" to see them again.',
+                      out)
+
+    def test_a_skips_the_rest_of_both_lists(self):
+        code, out = self.suggested("a\n")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn(STUB_PROMPT, out)
+        self.assertEqual(self.skipped(), ["bitbucket", "jenkins", "jira"])
+        self.assertEqual(self.declined(), ["connect:stubtool"])
+
+    def test_a_at_a_repo_tool(self):
+        code, out = self.suggested("s\ns\ns\na\n")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.declined(), ["connect:stubtool"])
+        self.assertNotIn("Connect another tool?", out)
+
+    def test_the_other_tools_step_leaves_out_the_repo_tools(self):
+        code, out = self.suggested("s\ns\ns\ns\n\n")
+        self.assertIn("Connect another tool? Available: confluence, jama (type its name", out)
+
+    def test_end_of_input_records_only_answers(self):
+        code, out = self.suggested("s\ns\ns\n")             # EOF at the repo tool
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.declined(), [])
+
+    def test_no_terminal_changes_nothing(self):
+        before = (self.root / paths.STATE_REL).read_bytes()
+        code, out = self.suggested("y\ny\n", False)
+        self.assertEqual(code, 2, out)
+        self.assertIn("runs only in your own terminal", out)
+        self.assertEqual((self.root / paths.STATE_REL).read_bytes(), before)
+
+    def test_a_declined_one_is_not_offered_and_connect_clears_it(self):
+        self.suggested("s\ns\ns\ns\n\n")
+        code, out = self.suggested("s\ns\ns\n\n")
+        self.assertNotIn(STUB_PROMPT, out)
+        with helpers.stubtool_registered(self.kit), \
+                mock.patch.object(manage, "connect", side_effect=self.fake_connect):
+            code, out = helpers.cli(self.root, self.kit, "connect", "stubtool")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.declined(), [])
+
+
 class TestRealConnectFlow(ConnectorTestCase):
     """The walk hands `y` to the very same connect flow: prompts, hidden secret, save, test."""
 
@@ -280,7 +369,7 @@ class TestRealConnectFlow(ConnectorTestCase):
         code, lines, result = manage.suggest(["stub_connector"], connectors=connectors,
                                              isatty=True, ask=ask, ask_secret=ask,
                                              say=shown.append)
-        self.assertEqual((code, result), (0, {"connected": [], "skipped": []}))
+        self.assertEqual((code, result), (0, {"connected": [], "skipped": [], "declined": []}))
         self.assertIn("Stopped connecting Stub. Nothing more was saved.", shown)
         self.assertFalse(store.file_for("stub_connector").exists())
 

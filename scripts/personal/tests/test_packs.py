@@ -175,6 +175,62 @@ class TestValidate(unittest.TestCase):
         self.assertIn("roles/core/role.json is missing: the core pack is required",
                       packs.validate(kit))
 
+    # -- connect rules (0.10.0), on a kit copy with a stub connector module --
+    def connector_kit(self):
+        if not hasattr(self, "_ckit"):
+            self._ckit = helpers.kit_with_connector_rule(Path(self.tmp.name) / "ckit", light=True)
+        return self._ckit
+
+    def connector_rule_errors(self, change):
+        from personal import recommend
+        kit = self.connector_kit()
+        f = kit / recommend.RULES_REL
+        good = f.read_text(encoding="utf-8")
+        data = json.loads(good)
+        change(data, data["rules"][-1])
+        f.write_text(json.dumps(data), encoding="utf-8")
+        try:
+            return recommend.validate(kit)
+        finally:
+            f.write_text(good, encoding="utf-8")
+            (kit / helpers.CONNECTORS_REL / "drawio.py").unlink(missing_ok=True)
+
+    def test_a_good_connector_rule_validates(self):
+        from personal import recommend
+        self.assertEqual(recommend.validate(self.connector_kit()), [])
+
+    def test_bad_connector_rules(self):
+        def set_(**kw):
+            def change(d, r):
+                r.update(kw)
+                for k, v in list(r.items()):
+                    if v is None:
+                        del r[k]
+            return change
+
+        def drawio_module(d, r):
+            stub = self.connector_kit() / helpers.CONNECTORS_REL / "stubtool.py"
+            (stub.parent / "drawio.py").write_text(stub.read_text())
+
+        cases = {
+            "unknown connector": (set_(connector="nosuchtool"), "nosuchtool"),
+            "connect without when": (set_(when=None), "when"),
+            "connect with unless": (set_(unless=["go"]), "unless"),
+            "connect with skill": (set_(skill="javafx"), "skill"),
+            "unknown signal": (set_(when=["cobol"]), "cobol"),
+            "unknown role": (set_(roles=["ceo"]), "ceo"),
+            "empty reason": (set_(reason=""), "reason"),
+            "long reason": (set_(reason="x" * 121), "reason"),
+            "two rules for one id": (lambda d, r: d["rules"].append(dict(r)), "connect:stubtool"),
+            "a connector named like a skill": (drawio_module,
+                                               "a connector and a skill share the name drawio"),
+        }
+        for label, (change, word) in cases.items():
+            with self.subTest(label):
+                errs = self.connector_rule_errors(change)
+                self.assertEqual(len(errs), 1, errs)
+                self.assertIn(word, errs[0])
+
 
 class TestRealKit(unittest.TestCase):
     def test_the_kit_packs_validate(self):
