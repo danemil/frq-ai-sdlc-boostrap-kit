@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.9+ standard library only (`urllib`, `json`, `ssl`, `base64`, `xml.etree.ElementTree`, `http.server`, `unittest`). Markdown skills.
 
-**Design source:** [`2026-10-10-connectors-0.10.0-design.md`](./2026-10-10-connectors-0.10.0-design.md) (approved 2026-10-10; its §12 lists the points the owner confirms before Task C). Framework: [`2026-10-08-connectors-design.md`](./2026-10-08-connectors-design.md) and its plan (the Foundation API and the module contract are unchanged and not repeated here).
+**Design source:** [`2026-10-10-connectors-0.10.0-design.md`](./2026-10-10-connectors-0.10.0-design.md) (approved 2026-10-10; its §12 lists the points the owner decided on 2026-10-10). Framework: [`2026-10-08-connectors-design.md`](./2026-10-08-connectors-design.md) and its plan (the Foundation API and the module contract are unchanged and not repeated here).
 
 ## Global constraints
 
@@ -71,7 +71,7 @@ main @36c5170 (v0.9.0)
 
 - [x] `git switch -c feat/connectors-0.10.0` from `main` at `36c5170`.
 - [x] Commit the design and this plan: `docs(roadmap): connectors 0.10.0 design and plan (SonarQube, Black Duck, Artifactory)`.
-- [ ] **Owner:** confirm or change the points in design §12 before Task C1. Tasks A and B do not depend on them, except §12 items 4 to 6 (Task A2 builds them as written; a change there is a small edit to A2's tests and code).
+- [x] **Owner (2026-10-10):** design §12 items 1, 2, 4, 6, 7, 8, 9, 10 accepted as written; item 3 keeps `code` as the artifactory signal (Python repos included; a PyPI command may come later); item 5 changed: "not now" in onboarding step 11 records nothing (asked again next time; only an explicit decline stops the suggestion), as for the role tools today. Plan approved. Task A2 is unchanged by these answers (items 4 and 6 as written; `--decline all-tools` stays, for an explicit no).
 
 ---
 
@@ -339,7 +339,7 @@ Tests (minimum list): fields (three optional repo fields; `connect` from env wit
     - `test_architect_gets_artifactory` — roles `architect` → `["connect:artifactory"]`.
     - `test_an_empty_repo_gets_none`.
 - [ ] **Step 2: Run, expect FAIL.**
-- [ ] **Step 3: Implement.** Append the names to the three `role.json` files (order as above). Add the three rules to `roles/recommend.json` after the skill rules, exactly as design §6.2 (if the owner chose `["java", "go", "node"]` for artifactory in §12 item 3, use that, and change `test_the_three_rules`). Update `about`: "… connect: suggest a connector when a signal is found, for anyone, unless the person's roles already suggest it or it is connected."
+- [ ] **Step 3: Implement.** Append the names to the three `role.json` files (order as above). Add the three rules to `roles/recommend.json` after the skill rules, exactly as design §6.2 (owner decision 2026-10-10, §12 item 3: artifactory keeps `"when": ["code"]`, Python repos included). Update `about`: "… connect: suggest a connector when a signal is found, for anyone, unless the person's roles already suggest it or it is connected."
 - [ ] **Step 4: Green** (the full run; `validate_packs.py` ok).
 - [ ] **Step 5:** CHANGELOG Unreleased `### Changed`: "Role defaults: developers also get SonarQube, Black Duck and Artifactory suggested; QA SonarQube; architects SonarQube and Black Duck." **Name screen, Commit** (ask first): `feat(roles): connector defaults and repo rules for SonarQube, Black Duck and Artifactory`.
 
@@ -375,13 +375,13 @@ Tests (minimum list): fields (three optional repo fields; `connect` from env wit
 
 - [ ] **Step 1: Failing tests** in `test_onboarding.py`:
   - `test_close_names_tools_for_this_repo` — step 10 contains "Tools to connect for this repo" and "with its reason".
-  - `test_not_now_declines_the_repo_tools` — step 11 contains `` `python3 .ai-sdlc/kit/setup.py recommend --decline all-tools` `` and says role tools are left as they are (skip if the owner chose "records nothing" in design §12 item 5; then assert the opposite: no `--decline` in step 11).
+  - `test_not_now_records_nothing` — owner decision 2026-10-10 (design §12 item 5): step 11 has no `--decline` (in particular no `recommend --decline all-tools`), and says that "not now" records nothing: the tools are offered again next time.
   - `test_step_8_decline_all_is_skills_only` — step 8 still says `recommend --decline all` and adds "(this declines skills only; tools come later)".
   - `test_recommend_skills_relays_tools` — section "Recommend skills" mentions "Tools to connect for this repo", that the person connects in their own terminal, and `recommend --decline <tool>`.
   - `test_connect_a_tool_names_eight` — section "Connect a tool": the names `jira`, `confluence`, `bitbucket`, `jama`, `jenkins`, `sonarqube`, `blackduck`, `artifactory` (the existing test that compares with `registry.names()` then passes).
   - `test_every_command_named_is_real_and_its_flags_belong_to_it` (existing) passes with `--decline all-tools`.
-- [ ] **Step 2: Implement.** Step 10: after the role tools, "then each tool under 'Tools to connect for this repo', in one plain sentence with its reason". Step 11: the offer covers both lists; "not now" → run `recommend --decline all-tools` (only if that line had a tool), say "say *connect <tool>* at any time". Step 8: the parenthesis above. "Recommend skills": relay the tools part too; a tool is connected by the person in their own terminal (`setup.py connect <name>`), never by Copilot; a no → `recommend --decline <tool>`. "Connect a tool": eight names, and the three new token hints in one line each ("SonarQube: a user token; Black Duck: an API token; Artifactory: an access or identity token, plus your default repository keys if you know them").
-- [ ] **Step 3: Green** (the full run). **Name screen, Commit** (ask first): `feat(onboarding): tools suggested for the repo at the close; "not now" declines them; eight connectors`.
+- [ ] **Step 2: Implement.** Step 10: after the role tools, "then each tool under 'Tools to connect for this repo', in one plain sentence with its reason". Step 11: the offer covers both lists; "not now" → record nothing (no `--decline`; the tools are offered again next time), say "say *connect <tool>* at any time". Step 8: the parenthesis above. "Recommend skills": relay the tools part too; a tool is connected by the person in their own terminal (`setup.py connect <name>`), never by Copilot; a no → `recommend --decline <tool>`. "Connect a tool": eight names, and the three new token hints in one line each ("SonarQube: a user token; Black Duck: an API token; Artifactory: an access or identity token, plus your default repository keys if you know them").
+- [ ] **Step 3: Green** (the full run). **Name screen, Commit** (ask first): `feat(onboarding): tools suggested for the repo at the close; eight connectors`.
 
 ---
 
@@ -428,7 +428,7 @@ Tests (minimum list): fields (three optional repo fields; `connect` from env wit
 
 On the VM, with the Copilot CLI and a trusted folder, from the `release/0.10.0` copy. **Servers:** the live SonarQube, Black Duck and Artifactory if the owner has access (then also tick the design §9 points that the run shows); otherwise `python3 .ai-sdlc/kit/scripts/personal/tests/fake_tools.py` started in a second terminal, with the logins saved by `connect <name>` against its URL (the fake tokens are in `fake_tools.TOKENS`). Sample repos (synthetic, made by the coordinator): **A** a Maven repo with `sonar-project.properties` (`sonar.projectKey=demo`, plus a `sonar.token=` line to prove it is never printed) and a `Jenkinsfile` naming `blackduck`; **B** a Go module; **C** an npm repo. Note each result in the PR; fixes go on `release/0.10.0` first.
 
-1. **Onboarding as PO in repo A:** step 10 names the role tools (Jira, Confluence, Jama) and "Tools to connect for this repo": SonarQube, Black Duck, Artifactory, each with its reason; step 11 offers once; "not now" → the three are declined; `recommend` lists them under "Declined earlier"; `update` from a 9.9.9 copy does not mention them again.
+1. **Onboarding as PO in repo A:** step 10 names the role tools (Jira, Confluence, Jama) and "Tools to connect for this repo": SonarQube, Black Duck, Artifactory, each with its reason; step 11 offers once; "not now" → nothing recorded: `recommend` still lists the three as open; an explicit `recommend --decline all-tools` then moves them under "Declined earlier", and `update` from a 9.9.9 copy does not mention them again.
 2. **Onboarding as Developer in repo A:** no "Tools to connect for this repo" line (all three are role defaults); "Connectors for your roles" lists six tools.
 3. **`connect --suggested` as QA in repo A** (in the person's own terminal): role tools first, then Artifactory and Black Duck with their reasons; `s` on Black Duck → declined, not in `skipped_connectors`; Copilot never runs `connect` itself.
 4. **"Why did the quality gate fail?"** in A, SonarQube connected → Copilot runs `whoami`, finds `demo` by key only (the `sonar.token` line never appears in the chat or in a tool call's output), runs `gate demo`, lists the failed conditions with links.
@@ -447,7 +447,7 @@ Merge only after this and with the owner's yes.
 
 ## Self-review
 
-- Design §2 decisions 1–6: Tasks A1, B1–B3. §3 (auth; token as user; token exchange): A1, B1, B2, B3. §4 (commands): B1–B3. §5 (Sonar versions): B1. §6.1 (role defaults): C1. §6.2 (repo suggestions: rules, determinism, recommend, `--decline`, summary, `connect --suggested`, onboarding): A2, C1, C3. §7 (skills, routing, connectors skill): C2. §8 (architecture): A1, A2. §9 (live confirmation): B test-file notes, merge step, Task D. §10 (testing): every task. §11 (out of scope): CHANGELOG (C6). §12 (owner points): Task 0 owner step; C1 step 3 and C3 tests branch on the answers to items 3 and 5.
+- Design §2 decisions 1–6: Tasks A1, B1–B3. §3 (auth; token as user; token exchange): A1, B1, B2, B3. §4 (commands): B1–B3. §5 (Sonar versions): B1. §6.1 (role defaults): C1. §6.2 (repo suggestions: rules, determinism, recommend, `--decline`, summary, `connect --suggested`, onboarding): A2, C1, C3. §7 (skills, routing, connectors skill): C2. §8 (architecture): A1, A2. §9 (live confirmation): B test-file notes, merge step, Task D. §10 (testing): every task. §11 (out of scope): CHANGELOG (C6). §12 (owner points): Task 0 owner step; C1 step 3 and C3 tests follow the owner's answers to items 3 and 5 (2026-10-10).
 - Names used across tasks: `token_as_user`, `TokenExchange`, `blackduck_token`, `Client._exchange`, `TestPostGate`, `connector_items`, `open_connectors`, `_tools_line`, `_connected_names`, `PagePaging`, `_jwt_user`, `READ_ONLY_CONNECTOR_RULE`, `all-tools`, `connect:<name>` — consistent.
 
 ## Problems found while planning
@@ -463,6 +463,6 @@ Merge only after this and with the owner's yes.
 
 ## Still open (owner)
 
-- Design §12: items 3 (`code` or `java, go, node` for the artifactory rule) and 5 ("not now" declines the repo tools, or records nothing) change C1 and C3; the other items are built as written unless the owner says otherwise.
+- ~~Design §12~~ decided 2026-10-10: item 3 keeps `code`; item 5 "not now" records nothing (C1 and C3 updated); the other items as written.
 - The client's SonarQube, Black Duck and Artifactory **versions and URLs** (design §11); the live checks of design §9 (Task D, or later with live access).
 - SharePoint stays out of scope.
