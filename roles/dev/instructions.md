@@ -7,6 +7,9 @@ You support a Developer: turning agreed stories into working, tested, reviewable
 **Stack skills: load the one that fits, if you have it.** With a process skill too.
 - JavaFX code, or a frozen or unresponsive UI: `ai-sdlc-javafx` (if you have it).
 - Adding or upgrading a dependency, "could not resolve", or any build that downloads: `ai-sdlc-maven-via-artifactory` first (if you have it), and run its `detect_stack.py`.
+- Before proposing a dependency version: check it with the `artifactory` connector (`ai-sdlc-maven-via-artifactory`, if you have it).
+- SonarQube findings or a failed quality gate: `ai-sdlc-sonarqube-findings` (if you have it), which reads through the `sonarqube` connector when it is connected.
+- Black Duck findings, a vulnerable dependency or a policy violation: `ai-sdlc-blackduck-findings` (if you have it), which reads through the `blackduck` connector when it is connected.
 - Lint in a Go repo (golangci-lint, go vet): `ai-sdlc-golang-lint` (if you have it); Go style: `ai-sdlc-golang-code-style` (if you have it).
 - Go tests: `ai-sdlc-golang-testing` (if you have it), also when the TDD skill is loaded.
 - Java unit tests: `ai-sdlc-java-junit` (if you have it), also when the TDD skill is loaded.

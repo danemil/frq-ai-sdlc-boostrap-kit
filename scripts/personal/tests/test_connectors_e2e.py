@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""All five connectors end to end, as subprocesses: setup.py connect (without a terminal,
+"""Every connector end to end, as subprocesses: setup.py connect (without a terminal,
 from AI_SDLC_<NAME>_* variables), connect --test, connections, connectors.py --json and
 disconnect, against one fake server (tests/fake_tools.py; no network). No secret may
 appear in any output; credentials land only in the temporary AI_SDLC_CONFIG_DIR."""
@@ -26,6 +26,12 @@ READS = {
     "bitbucket": (["prs", "ABC/app"], lambda d: d["items"][0]["from_branch"] == "fix/safari"),
     "jama": (["item", "1001"], lambda d: d["item"]["key"] == "REQ-1"),
     "jenkins": (["job", "app/main"], lambda d: d["item"]["status"] == "success"),
+    # 0.10.0
+    "sonarqube": (["gate", "demo"], lambda d: d["item"]["status"] == "ERROR"
+                  and d["item"]["failed"][0]["metric"] == "new_coverage"),
+    "blackduck": (["policy", "App", "1.0"], lambda d: d["item"]["status"] == "IN_VIOLATION"),
+    "artifactory": (["versions", "org.example:lib"],
+                    lambda d: d["item"]["versions"] == ["1.2.0", "1.1.0", "1.0.0"]),
 }
 
 
@@ -63,10 +69,15 @@ class TestConnectorsEndToEnd(unittest.TestCase):
         for secret in fake_tools.SECRETS:
             self.assertNotIn(secret, everything)
 
+    def test_every_connector_has_an_end_to_end_read(self):
+        from personal.connectors import registry
+        self.assertEqual(sorted(READS), registry.names())
+
     def test_each_connector_connects_reads_and_disconnects(self):
         for name, (argv, check) in READS.items():
             with self.subTest(connector=name):
                 env = fake_tools.env_for(self.srv.url, name)
+                url = env[f"AI_SDLC_{name.upper()}_URL"]
                 code, out, _ = self.run_kit("setup.py", "connect", name, env=env)
                 self.assertEqual(code, 0, out)
                 self.assertIn("Test: OK: signed in to 127.0.0.1", out)
@@ -77,12 +88,12 @@ class TestConnectorsEndToEnd(unittest.TestCase):
                 self.assertEqual(code, 0, out)
                 self.assertIn("OK: signed in", out)
                 code, out, _ = self.run_kit("setup.py", "connections")
-                self.assertIn(f"- {name}: {self.srv.url}", out)
+                self.assertIn(f"- {name}: {url}", out)
                 self.assertIn("last test OK", out)
                 code, out, stdout = self.run_kit("connectors.py", name, *argv, "--json")
                 self.assertEqual(code, 0, out)
                 doc = json.loads(stdout)
-                self.assertEqual((doc["connector"], doc["source"]), (name, self.srv.url))
+                self.assertEqual((doc["connector"], doc["source"]), (name, url))
                 self.assertTrue(check(doc), doc)
                 for item in doc.get("items") or [doc.get("item")]:
                     self.assertTrue(item["url"], item)
@@ -94,6 +105,59 @@ class TestConnectorsEndToEnd(unittest.TestCase):
                 self.assertFalse(saved.exists())
                 code, out, _ = self.run_kit("connectors.py", name, "whoami")
                 self.assertEqual(code, 3, out)
+        self.assertNoSecretShown()
+
+    def read(self, name, *argv):
+        code, out, stdout = self.run_kit("connectors.py", name, *argv, "--json")
+        self.assertEqual(code, 0, out)
+        doc = json.loads(stdout)
+        for item in doc.get("items") or [doc.get("item")]:
+            self.assertTrue(item["url"], item)
+        return doc
+
+    def test_three_new_tools_end_to_end(self):
+        for name in ("sonarqube", "blackduck", "artifactory"):
+            code, out, _ = self.run_kit("setup.py", "connect", name,
+                                        env=fake_tools.env_for(self.srv.url, name))
+            self.assertEqual(code, 0, out)
+            self.assertIn("OK: signed in", out)
+            code, out, _ = self.run_kit("setup.py", "connect", name, "--test")
+            self.assertEqual(code, 0, out)
+            self.assertIn("OK: signed in", out)
+        gate = self.read("sonarqube", "gate", "demo")
+        self.assertEqual(gate["item"]["status"], "ERROR")
+        issues = self.read("sonarqube", "issues", "demo", "--severity", "high")
+        self.assertEqual(issues["filter_sent"]["impactSeverities"], "HIGH")
+        self.assertEqual(issues["items"][0]["impacts"],
+                         [{"quality": "RELIABILITY", "severity": "HIGH"}])
+        vulns = self.read("blackduck", "vulns", "App", "1.0")
+        self.assertEqual([v["id"] for v in vulns["items"]], ["CVE-2022-42889"])
+        self.assertEqual(vulns["items"][0]["fixed_in"],
+                         {"short_term": "1.10.0", "long_term": "1.12.0"})
+        versions = self.read("artifactory", "versions", "org.example:lib")
+        self.assertEqual(versions["item"]["release"], "1.2.0")
+        self.assertNotIn("/artifactory/", versions["item"]["url"])     # the UI is at the root
+        npm = self.read("artifactory", "npm", "@scope/pkg")
+        self.assertEqual(npm["item"]["dist_tags"], {"latest": "2.1.0"})
+        go = self.read("artifactory", "go", "github.com/Example/mod")
+        self.assertEqual(go["item"]["versions"], ["v1.4.0", "v1.3.1"])
+        code, out, _ = self.run_kit("connectors.py", "artifactory", "whoami")
+        self.assertIn("user: ana", out)
+        self.assertNoSecretShown()
+
+    def test_blackduck_posts_only_to_authenticate(self):
+        code, out, _ = self.run_kit("setup.py", "connect", "blackduck",
+                                    env=fake_tools.env_for(self.srv.url, "blackduck"))
+        self.assertEqual(code, 0, out)
+        self.read("blackduck", "vulns", "App", "1.0")
+        self.read("blackduck", "components", "App", "1.0", "--violations")
+        self.assertTrue(any(r.method == "POST" for r in self.srv.requests))
+        for r in self.srv.requests:
+            with self.subTest(request=f"{r.method} {r.path}"):
+                if r.method == "POST":
+                    self.assertEqual(r.path, "/api/tokens/authenticate")
+                else:
+                    self.assertEqual(r.method, "GET")
         self.assertNoSecretShown()
 
     def test_connect_without_a_terminal_or_values_points_at_the_terminal(self):
@@ -127,8 +191,11 @@ class TestConnectorsEndToEnd(unittest.TestCase):
                                stdin=subprocess.DEVNULL, capture_output=True, timeout=120)
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.shown.append(r.stdout + r.stderr)
-        self.assertIn("- Connectors for your roles: bitbucket, jira (connected), jenkins "
-                      "(say 'connect bitbucket')", "\n".join(self.shown))
+        dev = json.loads((helpers.KIT / "roles/dev/role.json").read_text())["connectors"]
+        listed = ", ".join(n + (" (connected)" if n == "jira" else "") for n in dev)
+        first = next(n for n in dev if n != "jira")
+        self.assertIn(f"- Connectors for your roles: {listed} (say 'connect {first}')",
+                      "\n".join(self.shown))
         self.assertEqual(helpers.snapshot(self.config), before)
         self.assertEqual(helpers.git(root, "status", "--porcelain").stdout, "")
         self.assertFalse((root / ".config").exists())

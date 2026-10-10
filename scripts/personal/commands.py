@@ -217,6 +217,7 @@ def cmd_setup(args, cwd, kit):
     state.save(root, st)                            # last
     lines = _summary("Set up", root, is_git, kit, all_packs, st, report, args.verbose)
     lines += _suggestions_line(kit, root, st, all_packs)
+    lines += _tools_line(kit, root, st, all_packs)
     lines.append('Say "change my preferences", "update the kit" or "remove the kit" at any time.')
     return 0, lines + _check_lines(root)[1]
 
@@ -305,7 +306,8 @@ def cmd_change(args, cwd, kit):
     st["kit_only"] = place.kit_only_wanted(kit, all_packs, c)
     state.save(root, st)
     return 0, (_summary("Updated", root, is_git, kit, all_packs, st, report, args.verbose)
-               + (_suggestions_line(kit, root, st, all_packs) if args.roles is not None else [])
+               + (_suggestions_line(kit, root, st, all_packs) + _tools_line(kit, root, st, all_packs)
+                  if args.roles is not None else [])
                + repaired
                + _check_lines(root)[1])
 
@@ -344,8 +346,10 @@ def cmd_update(args, cwd, kit):
                  + (f" (replaced {old_version})." if old_version else "."))
     report = place.apply(root, st, wanted)
     have = set(packs.available_skills(dest))     # a decline for a skill the kit lost goes
+    tools = set(packs.available_connectors(dest))   # ... and for a connector it lost
     st["declined_recommendations"] = [d for d in st["declined_recommendations"]
-                                      if d.partition(":")[2] in have]
+                                      if d.partition(":")[2] in
+                                      (tools if d.startswith("connect:") else have)]
     known = set(registry.names())                 # a skip for a connector the kit lost goes
     st["skipped_connectors"] = [n for n in st["skipped_connectors"] if n in known]
     st["kit_version"] = paths.kit_version(dest)
@@ -353,6 +357,7 @@ def cmd_update(args, cwd, kit):
     state.save(root, st)
     lines = _summary("Updated to", root, is_git, dest, all_packs, st, report, args.verbose)
     lines += _suggestions_line(dest, root, st, all_packs)
+    lines += _tools_line(dest, root, st, all_packs)
     if moved:
         lines.insert(1, moved)
     if gone:
@@ -371,6 +376,28 @@ def _suggestions_line(kit, root, st, all_packs) -> list[str]:
     return [f'- Skill suggestions for this repo: {n} (say "recommend skills")'] if n else []
 
 
+def _connected_names() -> set:
+    """The connectors with a saved login on this computer (names only); empty on any error."""
+    try:
+        return {n for n, c in registry.discover().items() if manage.is_connected(c)}
+    except Exception:  # noqa: BLE001  a broken module must not break a command
+        return set()
+
+
+def _tools(kit, root, st, all_packs) -> list[dict]:
+    return recommend.connector_items(kit, root, st, all_packs, _connected_names())
+
+
+def _tools_line(kit, root, st, all_packs) -> list[str]:
+    """One summary line when the repo suggests connectors to connect; never fails a command."""
+    try:
+        names = [i["connector"] for i in recommend.open_connectors(_tools(kit, root, st, all_packs))]
+    except Exception:  # noqa: BLE001  a detection problem must not break setup or update
+        return []
+    return ([f"- Tools to connect for this repo: {', '.join(names)} (say 'connect {names[0]}')"]
+            if names else [])
+
+
 CMD = "python3 .ai-sdlc/kit/setup.py"
 
 
@@ -378,6 +405,85 @@ def _item_line(i) -> str:
     verb = "add" if i["action"] == "add" else "leave out"
     where = f" ({', '.join(i['evidence'])})" if i["evidence"] else ""
     return f"{i['id']} — {verb} {packs.PREFIX}{i['skill']}: {i['reason']}{where}."
+
+
+def _tool_line(i) -> str:
+    where = f" ({', '.join(i['evidence'])})" if i["evidence"] else ""
+    return f"{i['id']} — {i['title']}: {i['reason']}{where}."
+
+
+def _decline(st, root, given, open_, open_tools):
+    """--decline: skill ids or names, `all` (the open skills), a connector name or
+    connect:<name>, `all-tools` (the open connectors). Returns (code, lines)."""
+    ids = [i["id"] for i in open_]
+    by_name = {i["skill"]: i["id"] for i in open_}   # a skill name, ai-sdlc- or not, works too
+    tool_ids = [i["id"] for i in open_tools]
+    by_tool = {i["connector"]: i["id"] for i in open_tools}
+    wanted, unknown = [], []
+    for x in given:
+        if x == "all":
+            wanted += ids
+        elif x == "all-tools":
+            wanted += tool_ids
+        elif x in ids or x in tool_ids:
+            wanted.append(x)
+        elif _skill_id(x) in by_name:
+            wanted.append(by_name[_skill_id(x)])
+        elif x in by_tool:
+            wanted.append(by_tool[x])
+        else:
+            unknown.append(x)
+    if unknown:
+        raise SetupError(f"Not a current suggestion: {', '.join(unknown)}. Run {CMD} recommend "
+                         "to see them. Use the skill names or ids it lists. For a tool: its name "
+                         "or connect:<tool>. Nothing was changed.")
+    wanted = list(dict.fromkeys(wanted))
+    if not wanted:
+        what = "tool" if given == ["all-tools"] else "skill"
+        return 0, [f"Nothing to decline: there are no open {what} suggestions."]
+    st["declined_recommendations"] = sorted(set(st["declined_recommendations"]) | set(wanted))
+    state.save(root, st)
+    skills = [w for w in wanted if not w.startswith("connect:")]
+    tools = [w for w in wanted if w.startswith("connect:")]
+    line = f"Noted: {', '.join(wanted)}."
+    if skills:
+        line += (f" You can still take {'it' if len(skills) == 1 else 'them'} with the change "
+                 "command.")
+    if tools:
+        names = [t.split(":", 1)[1] for t in tools]
+        line += (f" You can still connect {'it' if len(tools) == 1 else 'them'} yourself: "
+                 f"{_connect_cmd(names)}, in your own terminal.")
+    return 0, [line]
+
+
+def _connect_cmd(names) -> str:
+    """The connect command for these tools: the real name for one, the choices for several."""
+    if len(names) == 1:
+        return f"{CMD} connect {names[0]}"
+    return f"{CMD} connect <name> (one of: {', '.join(names)})"
+
+
+def _tools_part(tools) -> list[str]:
+    """The `recommend` text for connector suggestions: open ones, then declined ones."""
+    lines = []
+    open_tools = recommend.open_connectors(tools)
+    if open_tools:
+        lines.append("Tools to connect for this repo (from its files; you type the login "
+                     "yourself, in your own terminal):")
+        lines += [f"{n}. {_tool_line(i)}" for n, i in enumerate(open_tools, 1)]
+        lines.append(f"To connect one: {CMD} connect <name>   (in your own terminal), or all "
+                     "of them with connect --suggested")
+        ids = ",".join(i["id"] for i in open_tools)
+        lines.append(f"To say no: {CMD} recommend --decline {ids}   "
+                     + ("(or the tool name)" if len(open_tools) == 1 else
+                        "(or the tool names, or all-tools)"))
+    declined = [i for i in tools if i["declined"] and not i["connected"]]
+    if declined:
+        names = [i["connector"] for i in declined]
+        lines.append(f"Declined earlier (to connect {'it' if len(names) == 1 else 'one'} after "
+                     f"all: {_connect_cmd(names)}, in your own terminal):")
+        lines += [f"- {_tool_line(i)}" for i in declined]
+    return lines
 
 
 def _change_command(items) -> str:
@@ -392,30 +498,18 @@ def cmd_recommend(args, cwd, kit):
     all_packs = packs.load(kit)
     items = recommend.compute(kit, root, st, all_packs)
     open_ = recommend.open_items(items)
+    tools = _tools(kit, root, st, all_packs)
+    open_tools = recommend.open_connectors(tools)
     if args.decline is not None:
         if args.all:
             raise SetupError("--decline takes suggestion ids or skill names only; use it without --all. "
                              "Nothing was changed.")
         given = [x.strip() for x in args.decline.split(",") if x.strip()]
-        ids = [i["id"] for i in open_]
-        by_name = {i["skill"]: i["id"] for i in open_}   # a skill name, ai-sdlc- or not, works too
-        if given == ["all"]:
-            given = ids
-        wanted = [x if x in ids else by_name.get(_skill_id(x), x) for x in given]
-        unknown = [g for g, w in zip(given, wanted) if w not in ids]
-        if unknown:
-            raise SetupError(f"Not a current suggestion: {', '.join(unknown)}. Run {CMD} recommend "
-                             "to see them. Use the skill names or ids it lists. Nothing was changed.")
-        wanted = list(dict.fromkeys(wanted))
-        if not wanted:
-            return 0, ["Nothing to decline: there are no open skill suggestions."]
-        st["declined_recommendations"] = sorted(set(st["declined_recommendations"]) | set(wanted))
-        state.save(root, st)
-        return 0, [f"Noted: {', '.join(wanted)}. You can still take "
-                   f"{'it' if len(wanted) == 1 else 'them'} with the change command."]
+        return _decline(st, root, given, open_, open_tools)
     rest = recommend.others(kit, st, all_packs, items) if args.all else []
     if args.json:
-        return 0, [json.dumps({"suggestions": items, "others": rest}, indent=2, ensure_ascii=False)]
+        return 0, [json.dumps({"suggestions": items, "connectors": tools, "others": rest},
+                              indent=2, ensure_ascii=False)]
     lines = []
     if open_:
         lines.append("Skill suggestions for this repo (from its files; nothing is changed yet):")
@@ -426,13 +520,14 @@ def cmd_recommend(args, cwd, kit):
                      "comma-separated>  (or --decline all)")
     elif items:
         lines.append("No new skill suggestions for this repo.")
-    else:
+    elif not open_tools:
         lines.append("No skill suggestions for this repo.")
     declined = [i for i in items if i["declined"]]
     if declined:
         lines.append("Declined earlier (to take one, use the change command above):" if open_ else
                      f"Declined earlier (to take one: {CMD} change --add-skill <name>):")
         lines += [f"- {_item_line(i)}" for i in declined]
+    lines += _tools_part(tools)
     if args.all:
         if not rest:
             lines.append("Other skills you can add: none, you have every skill the kit offers.")
@@ -534,9 +629,12 @@ def cmd_connect(args, cwd, kit):
         return _connect_suggested(cwd)
     code, lines = manage.connect(args.name, test_only=args.test)
     root, st = _state_or_none(cwd)
-    if not args.test and code in (0, 1) and st and args.name in st["skipped_connectors"]:
-        st["skipped_connectors"].remove(args.name)  # saved now, so no longer skipped
-        state.save(root, st)
+    sid = f"connect:{args.name}"
+    if not args.test and code in (0, 1) and st and (args.name in st["skipped_connectors"]
+                                                    or sid in st["declined_recommendations"]):
+        st["skipped_connectors"] = [n for n in st["skipped_connectors"] if n != args.name]
+        st["declined_recommendations"] = [d for d in st["declined_recommendations"] if d != sid]
+        state.save(root, st)                        # saved now, so no longer skipped or declined
     return code, lines
 
 
@@ -546,11 +644,20 @@ def _connect_suggested(cwd):
     all_packs = packs.load(root / paths.KIT_REL)
     defaults = packs.role_connectors(all_packs, [r for r in st["choices"]["roles"]
                                                  if r in all_packs])
-    code, lines, result = manage.suggest(defaults)
-    skipped = sorted((set(st["skipped_connectors"]) | set(result["skipped"]))
-                     - set(result["connected"]))
-    if skipped != st["skipped_connectors"]:
+    try:                                            # the repo's tools, after the role tools
+        extra = [(i["connector"], i["reason"]) for i in
+                 recommend.open_connectors(_tools(root / paths.KIT_REL, root, st, all_packs))]
+    except Exception:  # noqa: BLE001  a detection problem must not stop connect --suggested
+        extra = []
+    code, lines, result = manage.suggest(defaults, extra=extra)
+    connected = set(result["connected"])
+    skipped = sorted((set(st["skipped_connectors"]) | set(result["skipped"])) - connected)
+    declined = sorted((set(st["declined_recommendations"])
+                       | {f"connect:{n}" for n in result["declined"]})
+                      - {f"connect:{n}" for n in connected})
+    if skipped != st["skipped_connectors"] or declined != st["declined_recommendations"]:
         st["skipped_connectors"] = skipped
+        st["declined_recommendations"] = declined
         state.save(root, st)
     return code, lines
 

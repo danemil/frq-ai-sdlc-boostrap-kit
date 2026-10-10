@@ -68,11 +68,11 @@ python3 .ai-sdlc/kit/setup.py setup --name "Ana" --roles po,qa --lang en
 ```text
 The kit is now in .ai-sdlc/kit and hidden from git.
 Next: python3 .ai-sdlc/kit/setup.py setup --name … --roles … --lang …
-Set up AI-SDLC 0.9.0 for Ana: Product Owner, QA · English.
+Set up AI-SDLC 0.10.0 for Ana: Product Owner, QA · English.
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 91 file(s): .agents/skills/ (86 in 16 skills), .ai-sdlc/ (1), .github/hooks/ (1), .github/instructions/ (3)
 - Skills: ai-sdlc-connectors, ai-sdlc-deceneus, …, ai-sdlc-playbook-product, ai-sdlc-playbook-qa, … · git: hidden · session summary: on
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 Say "change my preferences", "update the kit" or "remove the kit" at any time.
 Check: all good.
 ```
@@ -144,13 +144,13 @@ Example output, with one edited file:
 
 ```text
 $ python3 ai-sdlc-kit-new/setup.py update
-Updated to AI-SDLC 0.9.1 for Ana: Product Owner, QA · English.
-- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.9.0).
+Updated to AI-SDLC 0.10.1 for Ana: Product Owner, QA · English.
+- Moved ai-sdlc-kit-new into .ai-sdlc/kit (replaced 0.10.0).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 1 file(s): .github/instructions/ (1)
 - Kept your edit in .github/instructions/ai-sdlc-po.instructions.md. The kit's newer copy is next to it as .github/instructions/ai-sdlc-po.instructions.md.kit-new, for you to compare.
 - Skills: … · git: hidden · session summary: on
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 Check: all good.
 $ git status --short
 $
@@ -185,7 +185,7 @@ Then choose:
 
 ## 3. Connect a tool
 
-Copilot can **read** Jira, Confluence, Bitbucket (Data Center), Jama and Jenkins for you. The connectors only read: nothing is created, changed or posted in those tools.
+Copilot can **read** Jira, Confluence, Bitbucket (Data Center), Jama, Jenkins, SonarQube, Black Duck and Artifactory for you. The connectors only read: nothing is created, changed or posted in those tools.
 
 > **Never paste a token or password into the chat.** Copilot never needs one. If one ends up in a chat anyway, revoke it in the tool, create a new one, and save it with `connect` yourself.
 
@@ -216,13 +216,13 @@ Run it again at any time to change something. Press Enter to keep a saved value.
 
 ### Connect your role's tools in one go
 
-At the end of the onboarding Copilot offers this; say "not now" and it does not ask again. You can run it at any time, **in your own terminal**:
+At the end of the onboarding Copilot offers this; say "not now" and it records nothing (it offers again next time). You can run it at any time, **in your own terminal**:
 
 ```bash
 python3 .ai-sdlc/kit/setup.py connect --suggested
 ```
 
-It goes through the tools your roles usually use (the "Connectors for your roles" line of the setup summary), **one at a time**, leaving out the ones already connected. For each it asks `y` (connect it now, with exactly the questions of `connect <name>`), `s` (skip this one) or `a` (skip all the rest). **Pressing Enter skips.** Then it offers the other tools: type a name to connect it, or press Enter to finish.
+It goes through the tools your roles usually use (the "Connectors for your roles" line of the setup summary), **one at a time**, leaving out the ones already connected, then the tools suggested for this repo ("Tools to connect for this repo"), each with its reason; a repo tool you skip is declined, like `recommend --decline <tool>`. For each it asks `y` (connect it now, with exactly the questions of `connect <name>`), `s` (skip this one) or `a` (skip all the rest). **Pressing Enter skips.** Then it offers the other tools: type a name to connect it, or press Enter to finish.
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py connect --suggested
@@ -232,7 +232,7 @@ Connect Jira. Secrets are typed hidden and saved only on this computer, in /home
 …
 Test: OK: signed in to jira.example.com as Ana Pop.
 Connect Confluence now? [y = yes, s = skip, a = skip all the rest; Enter = skip]: s
-Connect another tool? Available: bitbucket, jama, jenkins (type its name; Enter = done):
+Connect another tool? Available: artifactory, bitbucket, blackduck, jama, jenkins, sonarqube (type its name; Enter = done):
 Connected: jira.
 Skipped: confluence. They are no longer suggested; connect one any time with python3 .ai-sdlc/kit/setup.py connect <name>
 ```
@@ -248,6 +248,9 @@ Skipped: confluence. They are no longer suggested; connect one any time with pyt
 | **Bitbucket** (Data Center) | URL, an HTTP access token | Your profile picture → **Manage account** → **HTTP access tokens** → Create token. *Read* permission is enough. A project or repository token also works. Bitbucket Cloud (`bitbucket.org`) is not supported. |
 | **Jama** | URL, API client ID, API client secret | An **OAuth API client**: in Jama, your profile → **Set API credentials** (or ask your Jama admin). Copy the secret when it is shown; you cannot see it again. |
 | **Jenkins** | URL, your Jenkins user name, an API token | Your name (top right) → **Security** (older Jenkins: **Configure**) → **API Token** → Add new token. |
+| **SonarQube** | URL, a user token | Your avatar → **My Account** → **Security** → Generate Tokens, type **User**. |
+| **Black Duck** | URL, an API token | Your name (top right) → **My Access Tokens** → Create New Token, **read** access. The connector exchanges it once per run for a short-lived token. |
+| **Artifactory** | URL **with `/artifactory`** (e.g. `https://artifactory.example.com/artifactory`), an access or identity token, and optionally your default Maven, npm and Go repository keys (e.g. `maven-virtual`; Enter skips) | Your profile (top right) → **Edit Profile** → **Generate an Identity Token**, or an access token from your admin. |
 
 Every tool also asks for an optional **CA bundle**. Press Enter to skip it, unless you are on a company network that needs one (see below).
 
@@ -267,11 +270,14 @@ $ python3 .ai-sdlc/kit/setup.py connect jira --test
 Jira: OK: signed in to jira.example.com as Ana Pop.
 $ python3 .ai-sdlc/kit/setup.py connections
 Connectors (saved in /home/ana/.config/ai-sdlc/connectors):
+- artifactory: not connected (python3 .ai-sdlc/kit/setup.py connect artifactory)
 - bitbucket: not connected (python3 .ai-sdlc/kit/setup.py connect bitbucket)
+- blackduck: not connected (python3 .ai-sdlc/kit/setup.py connect blackduck)
 - confluence: not connected (python3 .ai-sdlc/kit/setup.py connect confluence)
 - jama: not connected (python3 .ai-sdlc/kit/setup.py connect jama)
 - jenkins: not connected (python3 .ai-sdlc/kit/setup.py connect jenkins)
 - jira: https://jira.example.com · Data Center · user ana · last test OK 2026-10-08T12:30:26Z · from file
+- sonarqube: not connected (python3 .ai-sdlc/kit/setup.py connect sonarqube)
 $ python3 .ai-sdlc/kit/setup.py disconnect jira --yes
 Removed the saved Jira connection.
 ```
@@ -305,10 +311,11 @@ Once a tool is connected, ask Copilot in plain words. It reads the data, gives a
 
 | Role | Ask Copilot |
 |---|---|
-| Developer | "Which Jira issues are assigned to me and not done?" · "Show the open pull requests in PRJ/app and summarise PR 42 with its comments." · "Why did the last build of team/app/main fail? Show the failing tests." |
+| Developer | "Which Jira issues are assigned to me and not done?" · "Show the open pull requests in PRJ/app and summarise PR 42 with its comments." · "Why did the last build of team/app/main fail? Show the failing tests." · "Why did the quality gate fail?" · "Which versions of commons-text does the mirror have?" |
 | QA | "List the bugs in project ABC updated this week." · "Show Jama item 1001 and what it is traced to." · "Which test runs failed in test cycle 77?" · "Show the failed tests of the last build of team/app/main." |
 | Product Owner / Product Manager | "Summarise ABC-123 with its linked issues." · "Find the Confluence pages about 'release plan' in space ENG." · "Find Jama requirements that mention 'export'." |
 | Scrum Master | "Which sprints are active on board 42?" · "List the open issues of the current sprint by status." · "Summarise the retrospective page 123456." |
+| Architect | "Open Black Duck policy violations for My App 2.3." |
 
 ### The same in the terminal
 
@@ -360,6 +367,30 @@ python3 $K/connectors.py jama testruns --cycle 77 --json                # or --p
 python3 $K/connectors.py jenkins job team/app/main
 python3 $K/connectors.py jenkins build team/app/main last --json        # or a number, lastSuccessful, lastFailed
 python3 $K/connectors.py jenkins tests team/app/main lastFailed         # --all: every test case
+```
+
+**SonarQube** (`<project>` is the project key)
+
+```bash
+python3 $K/connectors.py sonarqube gate my-project
+python3 $K/connectors.py sonarqube issues my-project --new-code --severity high --json
+python3 $K/connectors.py sonarqube rule java:S2095
+```
+
+**Black Duck** (project and version by name)
+
+```bash
+python3 $K/connectors.py blackduck vulns "My App" 2.3 --json     # with fixed_in from upgrade guidance
+python3 $K/connectors.py blackduck components "My App" 2.3 --violations
+python3 $K/connectors.py blackduck policy "My App" 2.3
+```
+
+**Artifactory** (`--repo` or your saved default repository)
+
+```bash
+python3 $K/connectors.py artifactory versions org.apache.commons:commons-text --json
+python3 $K/connectors.py artifactory npm @scope/pkg
+python3 $K/connectors.py artifactory go github.com/example/mod
 ```
 
 Real output (plain text, then `--json`):
@@ -415,12 +446,12 @@ $ python3 .ai-sdlc/kit/connectors.py jira search "project = ABC" --json
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py change --lang de --git-comfort guided --rituals none --add-skill skill-creator --drop-skill drawio
-Updated AI-SDLC 0.9.0 for Ana: Product Owner, QA · German (Deutsch).
+Updated AI-SDLC 0.10.0 for Ana: Product Owner, QA · German (Deutsch).
 - Hidden from git: .ai-sdlc/ and every ai-sdlc-* file.
 - Wrote 3 file(s): .agents/skills/ (1 in 1 skill), .ai-sdlc/ (1), .github/instructions/ (1)
 - Removed 6 file(s) no longer needed: .agents/skills/ (6 in 1 skill)
 - Skills: … · git: guided · session summary: off
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 Check: all good.
 ```
 
@@ -447,7 +478,17 @@ To say no to the rest: python3 .ai-sdlc/kit/setup.py recommend --decline <skill 
 - `recommend --decline javafx` (a skill name, or the id `add:javafx`; or `--decline all`) remembers a no in `.ai-sdlc/state.json`; that suggestion is not offered again by setup or update, and `recommend` lists it under "Declined earlier". Taking it later with `change --add-skill javafx` clears the no.
 - `recommend --json` prints `{"suggestions": [...], "others": [...]}`.
 
-Suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.
+**Tools to connect for this repo.** When the repo's files show a tool your roles do not already suggest (SonarQube, Black Duck, or Artifactory for a repo with code), `recommend` adds a part "Tools to connect for this repo", each with its reason; you connect one yourself, in your own terminal (`connect <name>` or `connect --suggested`). `--decline <tool>` (or `connect:<tool>`) says no to one, `--decline all-tools` to all of them; `--decline all` stays skills only. `--json` adds `"connectors": [...]`. Setup, update and a change of roles add one line: `- Tools to connect for this repo: sonarqube (say 'connect sonarqube')`.
+
+```text
+$ python3 .ai-sdlc/kit/setup.py recommend          # a Product Owner, in a Maven repo
+Tools to connect for this repo (from its files; you type the login yourself, in your own terminal):
+1. connect:artifactory — Artifactory: this repo downloads packages; the connector checks which versions the company mirror has (pom.xml).
+To connect one: python3 .ai-sdlc/kit/setup.py connect <name>   (in your own terminal), or all of them with connect --suggested
+To say no: python3 .ai-sdlc/kit/setup.py recommend --decline connect:artifactory   (or the tool name)
+```
+
+Skill suggestions depend only on the repo and your roles, never on your home folder: two people with the same roles in the same repo get the same list. Tool suggestions also leave out a tool you have already connected (only whether a login is saved is read, never its values). Setup, update and a change of roles add one line when there are open suggestions: `- Skill suggestions for this repo: 5 (say "recommend skills")`.
 
 Your current choices are in `.ai-sdlc/USER.md`. Read it, but do not edit it by hand: use `change`. `change` with no options repairs the setup: it puts back missing files and hides them again.
 
@@ -467,13 +508,13 @@ python3 .ai-sdlc/kit/setup.py check --quiet --hook   # the same line as JSON, fo
 
 ```text
 $ python3 .ai-sdlc/kit/setup.py check --quiet
-AI-SDLC 0.9.0 · roles: PO, QA · en · ok
+AI-SDLC 0.10.0 · roles: PO, QA · en · ok
 $ python3 .ai-sdlc/kit/setup.py check
 Check: 3 to look at:
 - [missing:.github/instructions/ai-sdlc-qa.instructions.md] .github/instructions/ai-sdlc-qa.instructions.md is missing.
 - [unknown:.github/instructions/ai-sdlc-extra.instructions.md] .github/instructions/ai-sdlc-extra.instructions.md looks like a kit file, but the kit did not write it.
 - [team-agents-md] The team has its own AGENTS.md. Copilot reads it together with the kit's instructions.
-- Connectors for your roles: jira, confluence, jama, jenkins (say 'connect jira')
+- Connectors for your roles: jira, confluence, jama, jenkins, sonarqube (say 'connect jira')
 ```
 
 `check` also names the tools your roles usually connect to, marking the ones connected or skipped.

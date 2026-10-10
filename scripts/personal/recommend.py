@@ -12,6 +12,12 @@ code, none of its `unless` signals is found, and the skill is theirs (not one th
 themselves). The person's explicit choice always wins: a skill they left out is never
 suggested back, a skill they added is never suggested for dropping. Nothing here places
 or changes anything; accepted suggestions go through `change --add-skill`.
+
+Connector suggestions (design 2026-10-10 §6.2): a `connect` rule suggests a connector,
+for anyone, when one of its signals is found and the connector is not in the person's
+role defaults. `connector_items` lists them; it reads one fact from this computer, the
+set of connectors with a saved login, which the caller passes in (`connected`), so the
+engine itself still reads no home folder. `compute` returns skill items only.
 """
 from __future__ import annotations
 
@@ -27,8 +33,8 @@ RULES_REL = "roles/recommend.json"
 DETECT_REL = f"{packs.SKILLS_REL}/maven-via-artifactory/scripts/detect_stack.py"
 SIGNALS = ("java", "maven", "javafx", "go", "node", "python", "jest", "react", "web", "sonar", "blackduck", "code")
 CODE = ("java", "go", "node", "python")
-ACTIONS = ("add", "drop")
-RULE_KEYS = {"skill", "action", "when", "unless", "roles", "reason"}
+ACTIONS = ("add", "drop", "connect")
+RULE_KEYS = {"skill", "connector", "action", "when", "unless", "roles", "reason"}
 ROLE_PLAYBOOKS = "Role playbooks"
 OTHER = "Other"
 MAX_REASON = 120
@@ -73,7 +79,8 @@ def compute(kit, root, st, all_packs) -> list[dict]:
     roles = set(c["roles"])
     declined = set(st.get("declined_recommendations", []))
     out = []
-    for r in sorted(load(kit)["rules"], key=lambda r: (r["action"] != "add", r["skill"])):
+    rules = [r for r in load(kit)["rules"] if r.get("action") != "connect"]
+    for r in sorted(rules, key=lambda r: (r["action"] != "add", r["skill"])):
         sid = f"{r['action']}:{r['skill']}"
         if r.get("roles") and not roles & set(r["roles"]):
             continue
@@ -95,6 +102,51 @@ def compute(kit, root, st, all_packs) -> list[dict]:
 def open_items(items) -> list[dict]:
     """Suggestions not declined yet."""
     return [i for i in items if not i["declined"]]
+
+
+def _titles() -> dict:
+    """{connector name: TITLE}; {} when discovery fails (a title is only a label)."""
+    try:
+        from .connectors import registry
+        return {n: c.title for n, c in registry.discover().items()}
+    except Exception:  # noqa: BLE001  a broken connector module must not stop suggestions
+        return {}
+
+
+def connector_items(kit, root, st, all_packs, connected) -> list[dict]:
+    """The connector suggestions for this repo and these choices, sorted by connector.
+    `connected`: the names with a saved login (passed in; read by the caller). A rule for a
+    role default never appears; declined (or skipped) and connected ones are marked."""
+    rules = [r for r in load(kit)["rules"] if r.get("action") == "connect"]
+    if not rules:
+        return []                                   # no repo scan when there is no rule
+    found = signals(root, kit)
+    c = st["choices"]
+    roles = set(c["roles"])
+    defaults = set(packs.role_connectors(all_packs, [r for r in c["roles"] if r in all_packs]))
+    declined = set(st.get("declined_recommendations", []))
+    skipped = set(st.get("skipped_connectors", []))
+    titles = _titles()
+    out = []
+    for r in sorted(rules, key=lambda r: r["connector"]):
+        name = r["connector"]
+        if r.get("roles") and not roles & set(r["roles"]):
+            continue
+        hit = [s for s in r["when"] if s in found]
+        if not hit or name in defaults:
+            continue
+        sid = f"connect:{name}"
+        out.append({"id": sid, "action": "connect", "connector": name,
+                    "title": titles.get(name) or name, "reason": r["reason"],
+                    "evidence": sorted({e for s in hit for e in found[s]})[:3],
+                    "declined": sid in declined or name in skipped,
+                    "connected": name in connected})
+    return out
+
+
+def open_connectors(items) -> list[dict]:
+    """Connector suggestions not declined (or skipped) and not connected."""
+    return [i for i in items if not i["declined"] and not i["connected"]]
 
 
 def _description(kit, skill) -> str:
@@ -162,18 +214,24 @@ def validate(kit) -> list[str]:
     rules = data.get("rules", [])
     if not isinstance(rules, list):
         return ["rules must be a list"]
+    connectors = set(packs.available_connectors(kit))
     seen = set()
     for n, r in enumerate(rules, 1):
         if not isinstance(r, dict):
             errs.append(f"rule {n} must be an object")
             continue
+        if r.get("action") == "connect":
+            errs += _connect_rule_errors(n, r, connectors, roles, seen)
+            continue
         where = f"rule {n} ({r.get('action')}:{r.get('skill')})"
         errs += [f"{where}: unknown key {k}" for k in sorted(set(r) - RULE_KEYS)]
         skill, action = r.get("skill"), r.get("action")
+        if "connector" in r:
+            errs.append(f"{where}: connector goes only with action connect")
         if skill not in known:
             errs.append(f"{where}: skill {skill!r} is not in {packs.SKILLS_REL}")
         if action not in ACTIONS:
-            errs.append(f"{where}: action must be add or drop")
+            errs.append(f"{where}: action must be add, drop or connect")
             continue
         sid = f"{action}:{skill}"
         if sid in seen:
@@ -202,6 +260,8 @@ def validate(kit) -> list[str]:
             errs.append(f"{where}: reason must be 1 to {MAX_REASON} characters")
         if action == "add" and skill in in_packs:
             errs.append(f"{where}: {skill} is in a role pack already; add rules are for library skills")
+    errs += [f"a connector and a skill share the name {x}; rename one, so --decline {x} "
+             "means one thing" for x in sorted(connectors & known)]
     groups = data.get("groups", [])
     if not isinstance(groups, list) or OTHER not in groups:
         errs.append(f"groups must be a list that includes {OTHER!r}")
@@ -221,4 +281,37 @@ def validate(kit) -> list[str]:
         s = entry.get("summary")
         if not isinstance(s, str) or not 1 <= len(s.strip()) or len(s) > MAX_SUMMARY:
             errs.append(f"{where}: summary must be 1 to {MAX_SUMMARY} characters")
+    return errs
+
+
+def _connect_rule_errors(n, r, connectors, roles, seen) -> list[str]:
+    """A `connect` rule: a known connector, a non-empty `when` of known signals, optional
+    known `roles`, a reason, and no `skill` or `unless`."""
+    name = r.get("connector")
+    where = f"rule {n} (connect:{name})"
+    errs = [f"{where}: unknown key {k}" for k in sorted(set(r) - RULE_KEYS)]
+    if name not in connectors:
+        errs.append(f"{where}: connector {name!r} is not in {packs.CONNECTORS_REL}")
+    sid = f"connect:{name}"
+    if sid in seen:
+        errs.append(f"{where}: a second rule for {sid}; one rule per id")
+    seen.add(sid)
+    for key in ("skill", "unless"):
+        if key in r:
+            errs.append(f"{where}: connect takes connector and when, not {key}")
+    sigs = r.get("when")
+    if not isinstance(sigs, list) or not sigs:
+        errs.append(f"{where}: connect needs a non-empty when list")
+    else:
+        errs += [f"{where}: unknown signal {s!r} (known: {', '.join(SIGNALS)})"
+                 for s in sigs if s not in SIGNALS]
+    rr = r.get("roles")
+    if rr is not None:
+        if not isinstance(rr, list):
+            errs.append(f"{where}: roles must be a list")
+        else:
+            errs += [f"{where}: unknown role {x!r}" for x in rr if x not in roles]
+    reason = r.get("reason")
+    if not isinstance(reason, str) or not 1 <= len(reason.strip()) or len(reason) > MAX_REASON:
+        errs.append(f"{where}: reason must be 1 to {MAX_REASON} characters")
     return errs

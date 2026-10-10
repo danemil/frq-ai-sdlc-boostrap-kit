@@ -99,6 +99,46 @@ class TestConnectors(unittest.TestCase):
             self.assertEqual(got.get(label), pack["connectors"], pid)
         self.assertIn("do not suggest connecting the tool", table)
 
+    def test_the_command_table_has_every_connector_and_its_commands(self):
+        """Derived from the registry: a new connector module needs a row, with its commands."""
+        from personal.connectors import registry
+        table = skill("connectors").split("## Read data", 1)[1].split("## When it fails", 1)[0]
+        rows = dict(re.findall(r"(?m)^\| `([a-z]+)` \| (.+) \|$", table))
+        connectors = registry.discover()
+        self.assertEqual(sorted(rows), sorted(connectors))
+        for name, c in connectors.items():
+            with self.subTest(connector=name):
+                got = [cell.strip().strip("`").split()[0] for cell in rows[name].split(" · ")]
+                self.assertEqual(got, ["whoami", *c.commands])
+
+    def test_the_description_names_every_tool(self):
+        from personal.connectors import registry
+        text = skill("connectors")
+        desc = re.search(r"(?m)^description: (.+)$", text).group(1)
+        self.assertLessEqual(len(desc), 1024)
+        for c in registry.discover().values():
+            self.assertIn(c.title, desc)
+
+    def test_what_to_have_ready_names_every_tool_and_matches_onboarding(self):
+        """Copilot re-test 2026-10-10 (N2)."""
+        from personal.connectors import registry
+        part = skill("connectors").split("## Is it connected?", 1)[1].split("\n## ", 1)[0]
+        ready = re.search(r"What to have ready: [^\n]+", part)
+        self.assertTrue(ready, "no 'What to have ready' line")
+        line = ready.group(0)
+        for c in registry.discover().values():
+            self.assertIn(c.title, line)
+        self.assertIn("Artifactory: an access or identity token, plus your default repository "
+                      "keys", line)
+        onboarding = (KIT / "ONBOARDING.md").read_text(encoding="utf-8")
+        self.assertIn(line, onboarding)
+
+    def test_tools_for_this_repo(self):
+        part = skill("connectors").split("## Tools for this repo", 1)[1].split("\n## ", 1)[0]
+        for needed in ("setup.py recommend", "Tools to connect for this repo",
+                       "in their own terminal", "recommend --decline <tool>"):
+            self.assertIn(needed, part)
+
     def test_my_sprint_needs_no_board_id(self):
         text = skill("connectors")
         self.assertIn('jira search "sprint in openSprints() AND assignee = currentUser()"', text)

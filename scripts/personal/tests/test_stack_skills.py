@@ -115,6 +115,13 @@ READ_ONLY_RULE = ("- **Read-only:** work from the report the person pastes or ex
                   "see or repeat a token or password, and never change anything in the tool: marking a "
                   "finding as a false positive, accepted or ignored is the person's decision, made in "
                   "the tool.")
+# 0.10.0: the two findings skills read through a connector when it is connected, so their
+# read-only rule names the connector too (design 2026-10-10 §7.1, §7.2).
+READ_ONLY_CONNECTOR_RULE = ("- **Read-only:** work from the kit's read-only connector's output, or "
+                            "from a report the person pastes or exports. Never ask for, see or "
+                            "repeat a token or password, and never change anything in the tool: "
+                            "marking a finding as a false positive, accepted or ignored is the "
+                            "person's decision, made in the tool.")
 INSTALLS = re.compile(r"@latest|\bgo install\b|\bnpm (?:install|i)\b[^\n]*(?:\s-g\b|--global)|"
                       r"\bnpx (?!--no-install)|\bpip3? install\b|\bbrew install\b|"
                       r"curl [^\n|]*\|\s*(?:ba)?sh")
@@ -246,7 +253,8 @@ class Checks:
         else:
             self.assertIn(MIRROR_RULE, rules)
         if self.skill in ("sonarqube-findings", "blackduck-findings"):
-            self.assertIn(READ_ONLY_RULE, rules)
+            self.assertIn(READ_ONLY_CONNECTOR_RULE, rules)
+            self.assertNotIn(READ_ONLY_RULE, rules)     # the 0.9.0 report-only wording
 
     def test_no_internet_installs(self):
         # A line that forbids it ("never use `@latest`", MIRROR_RULE itself) is fine.
@@ -454,6 +462,19 @@ class TestMavenViaArtifactory(Checks, unittest.TestCase):
                        "Spring Boot", "JUnit", "](scripts/detect_stack.py)"):
             self.assertIn(needed, text)
 
+    def test_check_the_mirror_has_the_version(self):
+        text = self.text("SKILL.md")
+        part = text.split("## 6. Check the mirror has the version", 1)[1]
+        for needed in ("connectors.py artifactory whoami --json",
+                       "connectors.py artifactory versions", "connectors.py artifactory npm",
+                       "connectors.py artifactory go", "propose only a version in that list",
+                       "say the version is not confirmed", "section 3"):
+            self.assertIn(needed, part)
+        self.assertIn("Check the mirror has the version", text.split("## 6.", 1)[0])  # from 5
+        # Copilot re-test 2026-10-10 (N4)
+        self.assertIn("Say which version the repo uses now (the POM, or detect_stack output) "
+                      "next to the mirror's list.", part)
+
 
 class TestSonarqubeFindings(Checks, unittest.TestCase):
     skill = "sonarqube-findings"
@@ -468,6 +489,22 @@ class TestSonarqubeFindings(Checks, unittest.TestCase):
         self.assertEqual([line for line in text.splitlines()
                           if "token" in line.lower() and "never" not in line.lower()], [])
 
+    def test_reads_through_the_connector_when_connected(self):
+        text = self.text("SKILL.md")
+        for needed in ("connectors.py sonarqube whoami --json", "connectors.py sonarqube gate",
+                       "connectors.py sonarqube issues", "connectors.py sonarqube hotspots",
+                       "connectors.py sonarqube rule", "exit code 3", "say *connect sonarqube*",
+                       r"grep -E '^\s*sonar\.projectKey'", "never print the whole file",
+                       "filter_sent", "`url`"):
+            self.assertIn(needed, text)
+        for gone in ("You never talk to SonarQube yourself", "## 7. Later: a connector"):
+            self.assertNotIn(gone, text)
+        for line in text.splitlines():
+            if "setup.py connect" in line:
+                self.assertIn("in their own terminal", line)
+        self.assertIn("reads SonarQube through the read-only sonarqube connector when connected",
+                      description(text))
+
 
 class TestBlackduckFindings(Checks, unittest.TestCase):
     skill = "blackduck-findings"
@@ -478,6 +515,29 @@ class TestBlackduckFindings(Checks, unittest.TestCase):
             self.assertIn(needed, text)
         self.assertEqual([line for line in text.splitlines()
                           if "npm audit fix" in line and "never" not in line.lower()], [])
+
+    def test_reads_through_the_connector_and_checks_the_mirror(self):
+        text = self.text("SKILL.md")
+        for needed in ("connectors.py blackduck whoami --json", "connectors.py blackduck vulns",
+                       "connectors.py blackduck policy", "connectors.py blackduck components",
+                       "--violations", "fixed_in", "detect.project.name",
+                       "detect.project.version.name", "by key only", "exit code 3",
+                       "say *connect blackduck*",
+                       "`ai-sdlc-maven-via-artifactory` (\"Check the mirror has the version\")"):
+            self.assertIn(needed, text)
+        for gone in ("You never talk to Black Duck yourself", "## 7. Later: a connector"):
+            self.assertNotIn(gone, text)
+        for line in text.splitlines():
+            if "setup.py connect" in line:
+                self.assertIn("in their own terminal", line)
+        self.assertIn("reads Black Duck through the read-only blackduck connector when connected",
+                      description(text))
+        # Copilot re-test 2026-10-10 (S4): the mirror commands inline in section 3, step 2
+        step2 = text.split("2. **Check that the mirror has it.**", 1)[1].split("\n3. ", 1)[0]
+        for needed in ("`python3 .ai-sdlc/kit/connectors.py artifactory versions <group:artifact> --json`",
+                       "`artifactory npm <package> --json`", "`artifactory go <module> --json`",
+                       "cite the mirror item's `url` next to the versions you name"):
+            self.assertIn(needed, step2)
 
 
 class TestPack(unittest.TestCase):

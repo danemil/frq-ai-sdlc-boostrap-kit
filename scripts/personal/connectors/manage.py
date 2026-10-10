@@ -190,16 +190,18 @@ def _choice(ask, say, prompt):
     return "s"
 
 
-def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=getpass.getpass,
-            say=print, client_kwargs=None):
+def suggest(defaults, *, extra=(), connectors=None, isatty=None, ask=input,
+            ask_secret=getpass.getpass, say=print, client_kwargs=None):
     """setup.py connect --suggested: offer the role connectors (`defaults`) one at a time,
-    then any other tool by name. `y` runs connect() exactly as `connect <name>` does.
+    then the tools suggested for this repo (`extra`: [(name, reason)]), each with its
+    reason, then any other tool by name. `y` runs connect() exactly as `connect <name>` does.
 
-    Returns (exit code, closing lines, {"connected": [...], "skipped": [...]}). Only the
-    role connectors the person skipped (s, Enter, or a) are in "skipped"; the caller
-    remembers them. Without a terminal it asks nothing and changes nothing."""
+    Returns (exit code, closing lines, {"connected", "skipped", "declined"}). The role
+    connectors the person skipped (s, Enter, or a) are in "skipped", the repo tools they
+    skipped in "declined"; the caller remembers both. Without a terminal it asks nothing
+    and changes nothing."""
     connectors = registry.discover() if connectors is None else connectors
-    result = {"connected": [], "skipped": []}
+    result = {"connected": [], "skipped": [], "declined": []}
     tty = sys.stdin.isatty() if isatty is None else isatty
     if not tty:
         return 2, ["connect --suggested asks questions (and secrets), so it runs only in your "
@@ -221,6 +223,7 @@ def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=get
         return False
 
     todo = [n for n in dict.fromkeys(defaults) if n in connectors]
+    repo = [(n, why) for n, why in dict(extra).items() if n in connectors and n not in todo]
     stopped = False
     if todo:
         say("Connect the tools your roles usually use, one at a time. Logins are typed here, "
@@ -238,6 +241,7 @@ def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=get
             break
         if answer == "a":
             result["skipped"] += [n for n in todo[i:] if not is_connected(connectors[n])]
+            result["declined"] += [n for n, _ in repo if not is_connected(connectors[n])]
             stopped = True
             break
         if answer == "s":
@@ -247,9 +251,34 @@ def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=get
             stopped = True
             break
 
+    if not stopped and repo:
+        say("Tools that fit this repo, from its files:")
+    for i, (name, why) in enumerate(repo if not stopped else []):
+        title = connectors[name].title
+        if is_connected(connectors[name]):
+            say(f"- {title}: already connected.")
+            continue
+        answer = _choice(ask, say, f"Connect {title} now? It fits this repo: {why}. "
+                                   f"[y = yes, s = skip, a = skip all the rest; Enter = skip]: ")
+        if answer is None:
+            say("No more answers; skipping the rest for now.")
+            stopped = True
+            break
+        if answer == "a":
+            result["declined"] += [n for n, _ in repo[i:] if not is_connected(connectors[n])]
+            stopped = True
+            break
+        if answer == "s":
+            result["declined"].append(name)
+            continue
+        if run_connect(name):
+            stopped = True
+            break
+
+    offered = set(todo) | {n for n, _ in repo}
     tries = 0
     while not stopped and tries < MAX_TRIES:
-        others = [n for n in connectors if n not in todo and not is_connected(connectors[n])]
+        others = [n for n in connectors if n not in offered and not is_connected(connectors[n])]
         if not others:
             break
         try:
@@ -274,6 +303,9 @@ def suggest(defaults, *, connectors=None, isatty=None, ask=input, ask_secret=get
     if result["skipped"]:
         lines.append(f"Skipped: {', '.join(result['skipped'])}. They are no longer suggested; "
                      f"connect one any time with {SETUP} connect <name>")
+    if result["declined"]:
+        lines.append(f"Not now for this repo: {', '.join(result['declined'])}. Say \"recommend "
+                     f"skills\" to see them again.")
     if not lines:
         lines.append("Nothing was connected.")
     return 0, lines, result
@@ -294,9 +326,15 @@ def connections(connectors=None, skipped=()):
         values = registry.load_values(c) or {}
         doc = store.read_file(name) or {}
         last = doc.get("last_test") or {}
-        user = c.identity(values) or last.get("user") or "?"
+        user = c.identity(values) or last.get("user")
         kind = _kind_label(c, values)
-        parts = [values.get("url", "?")] + ([kind] if kind else []) + [f"user {user}"]
+        parts = [values.get("url", "?")] + ([kind] if kind else [])
+        if src == "env" and not user and not last:
+            # Only environment variables: no saved test, no known user (Copilot re-test N3).
+            parts.append(f"from environment (run {SETUP} connect {name} --test to check)")
+            lines.append(f"- {name}: " + " · ".join(parts))
+            continue
+        parts.append(f"user {user or '?'}")
         if last:
             parts.append(f"last test {'OK' if last.get('ok') else 'FAILED'} {last.get('at', '')}")
         else:

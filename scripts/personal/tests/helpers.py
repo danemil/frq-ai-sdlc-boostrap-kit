@@ -88,5 +88,51 @@ def snapshot(root):
     return out
 
 
+STUB_CONNECTOR = Path(__file__).resolve().parent / "stub_connector.py"
+STUBTOOL_RULE = {"connector": "stubtool", "action": "connect", "when": ["sonar"],
+                 "reason": "this repo is analysed by the stub tool"}
+CONNECTORS_REL = "scripts/personal/connectors"
+
+
+def kit_with_connector_rule(dest, light=False):
+    """A kit copy at `dest` with a stub connector module `stubtool` (TITLE "Stub Tool") and
+    one `connect` rule for it (signal `sonar`), the only connect rule in that copy: tests
+    the engine apart from the shipped rules. `light` copies only roles, skills and the connectors folder (enough
+    for recommend.validate and the engine). Run setup.py under `stubtool_registered(kit)`."""
+    dest = Path(dest)
+    if light:
+        for rel in ("roles", "template/.claude/skills", CONNECTORS_REL):
+            shutil.copytree(KIT / rel, dest / rel, ignore=SKIP)
+        shutil.copy2(KIT / "scripts/personal/__init__.py", dest / "scripts/personal/__init__.py")
+    else:
+        copy_kit(dest)
+    module = STUB_CONNECTOR.read_text(encoding="utf-8").replace('TITLE = "Stub"',
+                                                               'TITLE = "Stub Tool"')
+    (dest / CONNECTORS_REL / "stubtool.py").write_text(module, encoding="utf-8")
+    rules = dest / "roles/recommend.json"
+    data = json.loads(rules.read_text(encoding="utf-8"))
+    # Only the stub rule: the shipped connect rules (0.10.0) would add their own items.
+    data["rules"] = [r for r in data["rules"] if r.get("action") != "connect"]
+    data["rules"].append(dict(STUBTOOL_RULE))
+    rules.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return dest
+
+
+@contextlib.contextmanager
+def stubtool_registered(kit):
+    """registry.discover() also finds `kit`'s stubtool module (the running code is the
+    repo's kit, which has no such module)."""
+    from unittest import mock
+    from personal.connectors import registry
+    real = registry.discover
+    stub = Path(kit) / CONNECTORS_REL / "stubtool.py"
+
+    def discover(extra=()):
+        return real(extra=([stub] if stub.is_file() else []) + list(extra))
+
+    with mock.patch.object(registry, "discover", side_effect=discover):
+        yield
+
+
 if __name__ == "__main__" and sys.argv[1:2] == ["snapshot"]:
     print(json.dumps(snapshot(sys.argv[2]), indent=1, sort_keys=True))

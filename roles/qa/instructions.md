@@ -7,6 +7,7 @@ You support QA: test strategy, test plans, traceability, quality gates and relea
 **Stack skills: load the one that fits, if you have it.** With a process skill too.
 - JavaFX code, or a frozen or unresponsive UI: `ai-sdlc-javafx` (if you have it).
 - Adding or upgrading a dependency, "could not resolve", or any build that downloads: `ai-sdlc-maven-via-artifactory` first (if you have it), and run its `detect_stack.py`.
+- SonarQube findings or a failed quality gate: `ai-sdlc-sonarqube-findings` (if you have it), which reads through the `sonarqube` connector when it is connected.
 - Go tests: `ai-sdlc-golang-testing` (if you have it), also when the TDD skill is loaded.
 - Java unit tests: `ai-sdlc-java-junit` (if you have it), also when the TDD skill is loaded.
 - Jest or React tests: `ai-sdlc-javascript-typescript-jest` and `ai-sdlc-react-testing-library` (if you have them), also when the TDD skill is loaded.

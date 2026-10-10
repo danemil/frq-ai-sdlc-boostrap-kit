@@ -13,13 +13,21 @@ def read(rel):
 
 class TestRelease(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(read("VERSION").strip(), "0.9.0")
+        self.assertEqual(read("VERSION").strip(), "0.10.0")
 
     def test_the_newest_changelog_entry_is_the_version_and_unreleased_is_empty(self):
         log = read("CHANGELOG.md")
         unreleased = log.split("## [Unreleased]", 1)[1].split("\n## [", 1)
         self.assertEqual(unreleased[0].strip(), "")
         self.assertTrue(unreleased[1].startswith(read("VERSION").strip() + "] — "))
+
+    def test_changelog_0_10_0_has_the_connectors(self):
+        entry = read("CHANGELOG.md").split("## [0.10.0]", 1)[1].split("\n## [", 1)[0]
+        for text in ("sonarqube", "blackduck", "artifactory", "token exchange", "POST", "impacts",
+                     "Tools to connect for this repo", "--decline all-tools", "fixed_in",
+                     "maven-metadata.xml", "No AQL", "SharePoint", "live confirmation",
+                     "Copilot re-test fixes", "from environment"):
+            self.assertIn(text, entry)
 
     def test_changelog_0_9_0_has_the_stack_pack(self):
         entry = read("CHANGELOG.md").split("## [0.9.0]", 1)[1].split("\n## [", 1)[0]

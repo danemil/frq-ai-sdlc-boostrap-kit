@@ -1,11 +1,11 @@
 ---
 name: connectors
-description: Read facts from Jira, Confluence, Bitbucket Data Center, Jama and Jenkins through the kit's read-only connectors, and cite each item's link. Use when the person asks about issues, sprints, pages, pull requests, branches, requirements, test runs, builds or test reports in those tools, says "connect Jira" (or another tool), or a connector command fails or says it is not connected.
+description: Read facts from Jira, Confluence, Bitbucket Data Center, Jama, Jenkins, SonarQube, Black Duck and Artifactory through the kit's read-only connectors, and cite each item's link. Use when the person asks about issues, sprints, pages, pull requests, branches, requirements, test runs, builds, test reports, quality gates, code findings, vulnerable components or the versions a package mirror has in those tools, says "connect Jira" (or another tool), or a connector command fails or says it is not connected.
 ---
 
 # Connectors (read-only)
 
-The kit reads five tools from the command line: `jira`, `confluence`, `bitbucket` (Data Center), `jama` and `jenkins`. The person saves their own login once, in their own terminal. You only run the read commands below, from the repo root, and relay what they return.
+The kit reads eight tools from the command line: `jira`, `confluence`, `bitbucket` (Data Center), `jama`, `jenkins`, `sonarqube`, `blackduck` and `artifactory`. The person saves their own login once, in their own terminal. You only run the read commands below, from the repo root, and relay what they return.
 
 ## Rules
 
@@ -26,6 +26,8 @@ If the one you need is not connected (or a command exits with code 3), tell the 
 python3 .ai-sdlc/kit/setup.py connect <name>
 ```
 
+What to have ready: Jira and Confluence: a personal access token (Data Center), or your email and an API token (Cloud); Bitbucket: an HTTP access token; Jama: an API client ID and client secret; Jenkins: your user name and an API token; SonarQube: a user token; Black Duck: an API token; Artifactory: an access or identity token, plus your default repository keys if you know them.
+
 To go through all the tools their roles usually use (the setup summary's "Connectors for your roles"), suggest instead that they run, **themselves, in their own terminal**: `python3 .ai-sdlc/kit/setup.py connect --suggested`. It asks about each tool one at a time (`y` connect, `s` skip, `a` skip the rest; Enter skips), then offers any other tool. **Never run `connect` or `connect --suggested` yourself**: they ask for secrets. A tool marked "skipped" was skipped on purpose; do not suggest it again unless the person asks for it.
 
 When they say it is done, or ask you to test it, run `python3 .ai-sdlc/kit/setup.py connect <name> --test`. It uses the saved login, asks nothing, and makes one read-only call. To delete a saved login, only when they ask: run `python3 .ai-sdlc/kit/setup.py disconnect <name>` first (without `--yes` it changes nothing; it shows what it would remove and asks), relay that and ask the person, and run it again with `--yes` only after they say yes. Never add `--yes` on your own.
@@ -45,6 +47,11 @@ Always add `--json`. The output is `{"connector", "command", "source", "item"}` 
 | `bitbucket` | `whoami` · `prs <project>/<repo> [--state OPEN\|MERGED\|DECLINED\|ALL] [--limit N]` · `pr <project>/<repo>/<id> [--diff] [--comments]` · `branches <project>/<repo> [--filter TEXT] [--limit N]` |
 | `jama` | `whoami` · `item <id>` · `search "<words>" [--project ID] [--type ID] [--limit N]` · `relationships <id> [--direction up\|down\|both]` · `testruns (--cycle ID \| --plan ID) [--limit N]` |
 | `jenkins` | `whoami` · `job <folder/job>` · `build <folder/job> <number\|last\|lastSuccessful\|lastFailed>` · `tests <folder/job> <number\|last> [--all]` |
+| `sonarqube` | `whoami` · `gate <project>` · `issues <project> [--severity …] [--type …] [--rule KEY] [--file PATH] [--new-code] [--limit N]` · `hotspots <project> [--status TO_REVIEW\|REVIEWED] [--limit N]` · `measures <project> [--metrics a,b]` · `rule <key>` |
+| `blackduck` | `whoami` · `projects <text> [--limit N]` · `versions <project> [--limit N]` · `vulns <project> <version> [--severity …] [--limit N]` · `components <project> <version> [--violations] [--limit N]` · `policy <project> <version>` |
+| `artifactory` | `whoami` · `repos [--type maven\|npm\|go\|…]` · `versions <group:artifact> [--repo KEY]` · `latest <group:artifact> [--repo KEY]` · `npm <package> [--repo KEY]` · `go <module> [--repo KEY]` |
+
+SonarQube's `<project>` is the project key; Black Duck's project and version are names, not ids. The findings skills `ai-sdlc-sonarqube-findings` and `ai-sdlc-blackduck-findings`, and `ai-sdlc-maven-via-artifactory` for the mirror's versions, say how to use them (if you have them).
 
 **Jira sprints.** For "my current sprint" or "the open sprint", search by JQL; no board id is needed: `python3 .ai-sdlc/kit/connectors.py jira search "sprint in openSprints() AND assignee = currentUser()" --json` (drop the `assignee` part for the whole team's sprint, or add `AND project = KEY`). Ask for a board id only when the person wants a board's sprint list (`sprints <board-id>`).
 
@@ -75,9 +82,13 @@ Suggest connecting only the tools for the person's roles (the core instructions 
 |---|---|
 | Product Owner, Product Manager | jira, confluence, jama |
 | Scrum Master / Team Coach | jira, confluence |
-| Developer | bitbucket, jira, jenkins |
-| QA | jira, jama, jenkins |
-| Architect | confluence, bitbucket, jira |
+| Developer | bitbucket, jira, jenkins, sonarqube, blackduck, artifactory |
+| QA | jira, jama, jenkins, sonarqube |
+| Architect | confluence, bitbucket, jira, sonarqube, blackduck |
 | Engineering Manager | jenkins, bitbucket, jira |
 
-When a task would use evidence from a tool outside that list (for example builds or pull requests for a Scrum Master), say what evidence is missing and do not suggest connecting the tool; anyone may connect any of the five if they ask.
+When a task would use evidence from a tool outside that list (for example builds or pull requests for a Scrum Master), say what evidence is missing and do not suggest connecting the tool; anyone may connect any of the eight if they ask.
+
+## Tools for this repo
+
+`python3 .ai-sdlc/kit/setup.py recommend` may list "Tools to connect for this repo": a tool the person's roles do not usually use, suggested from the repo's files (for example SonarQube when the repo has `sonar-project.properties`). Relay each one with its reason, in one plain sentence. The person connects it themselves, in their own terminal (`python3 .ai-sdlc/kit/setup.py connect <name>`, or `connect --suggested` for all of them), or says no: then run `python3 .ai-sdlc/kit/setup.py recommend --decline <tool>`. A declined tool is not suggested again.

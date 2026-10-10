@@ -30,9 +30,11 @@ CONNECTORS = {
     "po": ["jira", "confluence", "jama"],
     "pm": ["jira", "confluence", "jama"],
     "sm": ["jira", "confluence"],
-    "dev": ["bitbucket", "jira", "jenkins"],
-    "qa": ["jira", "jama", "jenkins"],
-    "architect": ["confluence", "bitbucket", "jira"],
+    # 0.10.0 (owner approval 2026-10-10, design 2026-10-10 §6.1): SonarQube, Black Duck and
+    # Artifactory appended for dev; SonarQube for qa; SonarQube and Black Duck for architect.
+    "dev": ["bitbucket", "jira", "jenkins", "sonarqube", "blackduck", "artifactory"],
+    "qa": ["jira", "jama", "jenkins", "sonarqube"],
+    "architect": ["confluence", "bitbucket", "jira", "sonarqube", "blackduck"],
     "em": ["jenkins", "bitbucket", "jira"],
 }
 CORE_SKILLS = ["connectors", "deceneus", "doc-excel", "doc-pdf", "doc-powerpoint", "doc-word", "drawio",
@@ -203,6 +205,32 @@ class TestRoles(unittest.TestCase):
 
     def test_all_packs_validate(self):
         self.assertEqual(packs.validate(KIT), [])
+
+    def test_connector_routing_lines(self):
+        """Design 2026-10-10 §7.4: the findings and mirror skills read through connectors."""
+        sonar = ("- SonarQube findings or a failed quality gate: `ai-sdlc-sonarqube-findings` (if "
+                 "you have it), which reads through the `sonarqube` connector when it is connected.")
+        duck = ("- Black Duck findings, a vulnerable dependency or a policy violation: "
+                "`ai-sdlc-blackduck-findings` (if you have it), which reads through the "
+                "`blackduck` connector when it is connected.")
+        mirror = ("- Before proposing a dependency version: check it with the `artifactory` "
+                  "connector (`ai-sdlc-maven-via-artifactory`, if you have it).")
+        want = {"dev": [sonar, duck, mirror], "qa": [sonar], "architect": [sonar, duck]}
+        for pid in ("po", "pm", "sm", "dev", "qa", "architect", "em"):
+            text = self.packs[pid]["instructions"]
+            for line in (sonar, duck, mirror):
+                with self.subTest(role=pid, line=line[:30]):
+                    if line in want.get(pid, []):
+                        self.assertIn(line, text)
+                    else:
+                        self.assertNotIn(line, text)
+
+    def test_the_core_connectors_line_names_every_tool(self):
+        from personal.connectors import registry
+        line = next(l for l in self.packs["core"]["instructions"].splitlines()
+                    if l.startswith("**Connectors.**"))
+        for c in registry.discover().values():
+            self.assertIn(c.title, line)
 
     def test_no_client_names_in_copilot_guidance(self):
         for rel, text in guidance_texts():

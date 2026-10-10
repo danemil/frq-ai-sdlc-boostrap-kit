@@ -49,6 +49,16 @@ class TestCli(unittest.TestCase):
         args = setup.parser().parse_args(["recommend", "--decline", "add:javafx,add:java-junit"])
         self.assertEqual(args.decline, "add:javafx,add:java-junit")
 
+    def test_recommend_decline_help_mentions_tools(self):
+        sys.path.insert(0, str(helpers.KIT))
+        import setup  # the kit-root setup.py
+        help_text = " ".join(setup.parser()._subparsers._group_actions[0]
+                             .choices["recommend"].format_help().split())
+        self.assertIn("skill names or ids, all (skills), a tool name, connect:<tool> or "
+                      "all-tools", help_text)
+        self.assertIn("--decline <skill names or ids>|all|<tool>|connect:<tool>|all-tools",
+                      " ".join(setup.__doc__.split()))
+
     def test_runs_from_a_moved_copy_with_another_working_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             kit = helpers.copy_kit(Path(tmp) / "repo/.ai-sdlc/kit")

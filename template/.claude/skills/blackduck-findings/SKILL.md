@@ -1,27 +1,50 @@
 ---
 name: blackduck-findings
-description: 'Understand and fix Black Duck findings from a report the person pastes or exports: vulnerable components (CVE, BDSA), policy violations, licence risks, and upgrade paths through the company mirror. Read-only. Use when the person says "Black Duck", "BDSA", "vulnerable dependency", "policy violation", "licence risk".'
+description: 'Understand and fix Black Duck findings (reads Black Duck through the read-only blackduck connector when connected, else from a report the person pastes or exports): vulnerable components (CVE, BDSA), policy violations, licence risks, and upgrade paths through the company mirror. Read-only. Use when the person says "Black Duck", "BDSA", "vulnerable dependency", "policy violation", "licence risk".'
 license: MIT
 ---
 
-# Black Duck findings (from a report)
+# Black Duck findings
 
-Help the person understand what Black Duck found in the project's open-source components and fix it with the smallest safe upgrade. You work only from what they give you: rows copied from Black Duck, or a CSV or JSON file they exported. You never talk to Black Duck yourself.
+Help the person understand what Black Duck found in the project's open-source components and fix it with the smallest safe upgrade. When the kit's `blackduck` connector is connected, you read the findings through it (read-only). Otherwise you work from what the person gives you: rows copied from Black Duck, or a CSV or JSON file they exported.
 
 ## Rules
 
 - **Git:** never commit, push or merge on your own. Follow the person's git-comfort setting and ask before each commit.
 - **Show before you change:** before editing or creating any file (a new test file too), show the proposed diff or content and wait for a yes; if you can't ask, stop after proposing. Report evidence (the test output), never just "Fixed".
 - **Packages only through the company mirror:** never add `<repositories>` to a POM, never use `@latest`, and never run `npx` or `go install` against the public internet. Ask before anything that downloads. Load `ai-sdlc-maven-via-artifactory` (if you have it) to find the mirror and the versions this repo uses.
-- **Read-only:** work from the report the person pastes or exports. Never ask for, see or repeat a token or password, and never change anything in the tool: marking a finding as a false positive, accepted or ignored is the person's decision, made in the tool.
+- **Read-only:** work from the kit's read-only connector's output, or from a report the person pastes or exports. Never ask for, see or repeat a token or password, and never change anything in the tool: marking a finding as a false positive, accepted or ignored is the person's decision, made in the tool.
 - **Credential files stay closed:** never `cat`, `grep` or print `settings.xml`, `.npmrc`, `.netrc` or similar credential files. To find the mirror, run `.agents/skills/ai-sdlc-maven-via-artifactory/scripts/detect_stack.py` (`--home` for the home folder) if you have that skill.
 - **Only versions the mirror has:** propose an upgrade only to a version that is available in the company mirror. If you cannot confirm it, say so and ask the person to check.
 - **Licences are not yours to decide:** explain what a licence asks; the person (and the company's legal or open-source contact) decides.
 - **Never `npm audit fix`**, with or without `--force`: it changes many packages at once and can jump major versions. Propose each change yourself, as a diff.
 
-## 1. Ask for the report
+## 1. Connected?
 
-If the person has not given you findings yet, ask for rows or an export from the project version in Black Duck: the bill of materials (BOM) or the vulnerability report. The useful columns are:
+Run `python3 .ai-sdlc/kit/connectors.py blackduck whoami --json`.
+
+- **Connected** (exit code 0): read with the connector (below).
+- **Not connected** (exit code 3): ask for a report (further below). Say once: "You can connect Black Duck yourself: say *connect blackduck*; you type the login in your own terminal." Never run the connect command for them.
+- **Any other error:** relay it in plain words with the table in `ai-sdlc-connectors`, then ask for a report.
+
+### Read with the connector
+
+**Project and version names.** Ask the person, or read `detect.project.name` and `detect.project.version.name` from the repo **by key only** (for example `grep -E '^\s*detect\.project\.(name|version\.name)' <file>`). Never print the whole file: the same files can hold `blackduck.api.token`, and you never repeat a token. Then, always with `--json`:
+
+| The person asks about | Run |
+|---|---|
+| vulnerabilities in a release | `python3 .ai-sdlc/kit/connectors.py blackduck vulns <project> <version> --json` (add `--severity critical,high` to narrow) |
+| policy status | `python3 .ai-sdlc/kit/connectors.py blackduck policy <project> <version> --json` |
+| components that violate a policy | `python3 .ai-sdlc/kit/connectors.py blackduck components <project> <version> --violations --json` |
+| which projects or versions exist | `python3 .ai-sdlc/kit/connectors.py blackduck projects <part of the name> --json`, `versions <project> --json` |
+
+- Names are matched exactly (not case-sensitive). If several projects match, the error lists them: ask which one.
+- Each vulnerability has `fixed_in` (`short_term`, `long_term`, from Black Duck's upgrade guidance) or `null`. Use it in section 3, step 1.
+- Cite each item's `url` next to the fact you use. If `truncated` is `true`, say there are more and offer a narrower filter.
+
+### Ask for the report
+
+When the connector is not connected (or failed), and the person has not given you findings yet, ask for rows or an export from the project version in Black Duck: the bill of materials (BOM) or the vulnerability report. The useful columns are:
 
 | Column | Example |
 |---|---|
@@ -49,8 +72,8 @@ Prefer the locked version (`package-lock.json`, `go.sum`, the resolved tree) ove
 
 ## 3. The smallest upgrade that fixes it
 
-1. **Find the fixed version** from the report (fixed-in or upgrade guidance) or the advisory text the person pastes. Prefer the closest version in the same major line.
-2. **Check that the mirror has it.** Ask the person to look it up in the company mirror, or, after a yes, list the versions through the mirror: `npm view <package> versions` (uses `.npmrc`) or `go list -m -versions <module>` (uses `GOPROXY`). For Maven, the person checks the mirror's web page for the artifact.
+1. **Find the fixed version**: `fixed_in` from `vulns`, or the report (fixed-in or upgrade guidance), or the advisory text the person pastes. Prefer the closest version in the same major line.
+2. **Check that the mirror has it.** First use `ai-sdlc-maven-via-artifactory` ("Check the mirror has the version"): with the `artifactory` connector connected, run `python3 .ai-sdlc/kit/connectors.py artifactory versions <group:artifact> --json` (npm: `artifactory npm <package> --json`; Go: `artifactory go <module> --json`), propose only a version the mirror lists, never a version the mirror lacks, and cite the mirror item's `url` next to the versions you name. If it is not connected, ask the person to look it up in the company mirror, or, after a yes, list the versions through the mirror: `npm view <package> versions` (uses `.npmrc`) or `go list -m -versions <module>` (uses `GOPROXY`). For Maven, the person checks the mirror's web page for the artifact.
 3. **Check it fits the project:** the Java release (17 or 21), the Spring Boot line if there is one, the Go version in `go.mod`, the Node version. A new major usually means code changes; say so before proposing it.
 4. **Propose the change as a diff**, in the right place:
 
@@ -96,7 +119,3 @@ Used?   StringSubstitutor.createInterpolator() not found in this repo.
 Fix:    my-lib 2.5 brings commons-text 1.10.0 (in the mirror: please confirm).
         Diff for the parent POM below, waiting for your yes.
 ```
-
-## 7. Later: a connector
-
-A later kit version can read Black Duck directly (a read-only connector). Until then, use only what the person gives you, and never change anything in Black Duck.

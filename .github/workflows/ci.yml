@@ -260,6 +260,47 @@ jobs:
           test ! -e .config                             # no login folder inside the repo
           test -z "$(git status --porcelain)"
 
+      # 0.10.0: the three new connectors as a script runs them (env logins, no terminal),
+      # against the same fake server; Black Duck's token exchange included. No token shown.
+      - name: SonarQube, Black Duck and Artifactory read from a fake server; no secret shown
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/team"
+          K=.ai-sdlc/kit
+          S="$GITHUB_WORKSPACE/scripts/personal/tests"
+          LOG="$RUNNER_TEMP/connect-c10.log"
+          python3 "$S/fake_tools.py" > "$RUNNER_TEMP/fake-c10.url" &
+          FAKE=$!
+          trap 'kill "$FAKE"' EXIT
+          for _ in $(seq 50); do test -s "$RUNNER_TEMP/fake-c10.url" && break; sleep 0.1; done
+          URL="$(cat "$RUNNER_TEMP/fake-c10.url")"
+          # AI_SDLC_{SONARQUBE,BLACKDUCK,ARTIFACTORY}_* from fake_tools.env_for, never echoed
+          export $(python3 - "$S" "$URL" <<'PY'
+          import sys
+          sys.path.insert(0, sys.argv[1])
+          import fake_tools
+          env = fake_tools.env_for(sys.argv[2])
+          print(" ".join(f"{k}={v}" for k, v in env.items()
+                         if k.split("_")[2] in ("SONARQUBE", "BLACKDUCK", "ARTIFACTORY")))
+          PY
+          )
+          check() { python3 -c "import json, sys; d = json.load(sys.stdin); assert $1, d"; }
+          out="$(python3 $K/connectors.py sonarqube gate demo --json)"
+          printf '%s\n' "$out" | tee -a "$LOG" | check 'd["item"]["status"] == "ERROR" and d["item"]["url"]'
+          out="$(python3 $K/connectors.py blackduck policy App 1.0 --json)"
+          printf '%s\n' "$out" | tee -a "$LOG" | check 'd["item"]["status"] == "IN_VIOLATION" and d["item"]["url"]'
+          out="$(python3 $K/connectors.py artifactory versions org.example:lib --json)"
+          printf '%s\n' "$out" | tee -a "$LOG" | check 'd["item"]["versions"][0] == "1.2.0" and d["item"]["url"]'
+          python3 - "$S" "$LOG" <<'PY'
+          import sys
+          sys.path.insert(0, sys.argv[1])
+          import fake_tools
+          log = open(sys.argv[2], encoding="utf-8").read()
+          if any(s in log for s in fake_tools.SECRETS):
+              sys.exit("a secret was printed")
+          PY
+          test -z "$(git status --porcelain)"
+
       - name: Update from a newer copy; an edited file is kept
         run: |
           set -euo pipefail

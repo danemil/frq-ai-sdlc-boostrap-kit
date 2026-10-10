@@ -22,3 +22,7 @@ The kit maintainer reviews this skill when the mirror setup changes (for example
 Artifactory URL scheme or a Go proxy), when `detect_stack.py` gains a field another skill
 needs, and at each kit release. Changes to the script go test-first in
 `test_detect_stack.py`, on Python 3.9 and the current Python.
+
+## Changes
+
+- 0.10.0 (2026-10-10): checks the mirror's versions through the kit's read-only `artifactory` connector when connected; the person checks the mirror's page otherwise.
