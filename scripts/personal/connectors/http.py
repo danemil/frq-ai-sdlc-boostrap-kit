@@ -1,9 +1,10 @@
 """A small read-only HTTP client for connectors. Stdlib only (urllib, ssl, json).
 
-- GET only. The one POST is the OAuth client-credentials token request, made by
-  `OAuthClientCredentials` itself; connector code has no way to send a write.
-- Auth per kind: `bearer(token)`, `basic(user, secret)`,
-  `oauth_client_credentials(client_id, client_secret)`.
+- GET only. The only POSTs are token exchanges (Jama OAuth, Black Duck), made by
+  `TokenExchange` itself through `Client._exchange`, and only to the auth's own
+  `token_path`; connector code has no way to send a write.
+- Auth per kind: `bearer(token)`, `basic(user, secret)`, `token_as_user(token)`,
+  `oauth_client_credentials(client_id, client_secret)`, `blackduck_token(api_token)`.
 - TLS is always verified. A CA bundle comes from the connector's `ca_bundle`, else
   AI_SDLC_CA_BUNDLE, else SSL_CERT_FILE; it is added to the system's trusted CAs.
 - Proxies: HTTPS_PROXY / HTTP_PROXY / NO_PROXY, through urllib's ProxyHandler.
@@ -28,6 +29,7 @@ import urllib.request
 RETRY_STATUSES = (429, 500, 502, 503, 504)
 MAX_WAIT = 30.0
 REDACTED = "<redacted>"
+READ_ONLY = "Connectors are read-only: only GET requests are sent."
 SECRET_HEADERS = ("authorization", "proxy-authorization", "cookie")
 
 
@@ -81,16 +83,59 @@ class Basic(Auth):
         return [self._secret, self._encoded]
 
 
-class OAuthClientCredentials(Auth):
-    """OAuth2 client credentials (Jama): POST <base><token_path>, then Bearer."""
-    kind = "oauth"
+class TokenAsUser(Auth):
+    """A token sent as the Basic user name with an empty password (SonarQube). Unlike
+    `basic(token, "")`, `secrets()` lists the token itself, so an error that quotes it
+    is scrubbed."""
+    kind = "basic"
 
-    def __init__(self, client_id, client_secret, token_path="/rest/oauth/token"):
-        self._basic = Basic(client_id, client_secret)
-        self.token_path = token_path
+    def __init__(self, token):
+        self._token = token
+        self._encoded = base64.b64encode(f"{token}:".encode("utf-8")).decode("ascii")
+
+    def headers(self, client) -> dict:
+        return {"Authorization": f"Basic {self._encoded}"}
+
+    def secrets(self) -> list[str]:
+        return [self._token, self._encoded]
+
+
+class TokenExchange(Auth):
+    """Base for auths that trade a long-lived secret for a short-lived bearer token.
+
+    A subclass sets `token_path` (the one path this auth may POST to) and overrides
+    `exchange_request()`, `parse(data)`, `unauthorized_message(host)` and
+    `long_secrets()`; it may override `no_token_message(host)`. The base fetches the
+    token through `client._exchange(self)` when there is none or it is about to
+    expire (30 s early), caches it, and sends `Authorization: Bearer <token>`.
+    """
+    kind = "exchange"
+    token_path = ""
+
+    def __init__(self):
         self._token = None
         self._expires = 0.0
 
+    # -- what a subclass says --
+    def exchange_request(self):
+        """(headers, body bytes, content type or None, accept) of the token request."""
+        raise NotImplementedError
+
+    def parse(self, data):
+        """(token or None, seconds it lives) from the token answer's JSON."""
+        raise NotImplementedError
+
+    def unauthorized_message(self, host) -> str:
+        return f"401 Unauthorized from {host}: the login was not accepted."
+
+    def no_token_message(self, host) -> str:
+        return f"{host} gave no token for the login."
+
+    def long_secrets(self) -> list[str]:
+        """The long-lived secrets (and any encoded form) to scrub."""
+        return []
+
+    # -- shared --
     def headers(self, client) -> dict:
         if not self._token or time.time() >= self._expires:
             self._fetch(client)
@@ -98,26 +143,81 @@ class OAuthClientCredentials(Auth):
 
     def _fetch(self, client):
         try:
-            resp = client._send("POST", client.url(self.token_path), self._basic.headers(client),
-                                b"grant_type=client_credentials",
-                                "application/x-www-form-urlencoded")
+            resp = client._exchange(self)
         except ConnectorError as exc:
             if exc.kind == "unauthorized":
-                raise ConnectorError(
-                    f"401 Unauthorized from {client.host}: the client ID or client secret was "
-                    "not accepted (check them, and that the API client is still active).",
-                    "unauthorized", 401) from None
+                raise ConnectorError(self.unauthorized_message(client.host),
+                                     "unauthorized", 401) from None
             raise
         data = resp.json()
-        token = data.get("access_token") if isinstance(data, dict) else None
+        token, life = self.parse(data if isinstance(data, dict) else {})
         if not token:
-            raise ConnectorError(f"{client.host} gave no access token for the client "
-                                 "credentials.", "bad_response")
+            raise ConnectorError(self.no_token_message(client.host), "bad_response")
         self._token = token
-        self._expires = time.time() + max(30, int(data.get("expires_in") or 3600) - 30)
+        self._expires = time.time() + max(30, int(life) - 30)
 
     def secrets(self) -> list[str]:
-        return self._basic.secrets() + ([self._token] if self._token else [])
+        return self.long_secrets() + ([self._token] if self._token else [])
+
+
+class OAuthClientCredentials(TokenExchange):
+    """OAuth2 client credentials (Jama): POST <base><token_path>, then Bearer."""
+    kind = "oauth"
+
+    def __init__(self, client_id, client_secret, token_path="/rest/oauth/token"):
+        super().__init__()
+        self._basic = Basic(client_id, client_secret)
+        self.token_path = token_path
+
+    def exchange_request(self):
+        return (self._basic.headers(None), b"grant_type=client_credentials",
+                "application/x-www-form-urlencoded", "application/json")
+
+    def parse(self, data):
+        return data.get("access_token"), float(data.get("expires_in") or 3600)
+
+    def unauthorized_message(self, host) -> str:
+        return (f"401 Unauthorized from {host}: the client ID or client secret was "
+                "not accepted (check them, and that the API client is still active).")
+
+    def no_token_message(self, host) -> str:
+        return f"{host} gave no access token for the client credentials."
+
+    def long_secrets(self) -> list[str]:
+        return self._basic.secrets()
+
+
+class BlackDuckToken(TokenExchange):
+    """Black Duck: POST /api/tokens/authenticate with `Authorization: token <API token>`,
+    then the `bearerToken` (lives about two hours) as Bearer."""
+
+    token_path = "/api/tokens/authenticate"
+    ACCEPT = "application/vnd.blackducksoftware.user-4+json"
+
+    def __init__(self, api_token):
+        super().__init__()
+        self._api_token = api_token
+
+    def exchange_request(self):
+        return {"Authorization": f"token {self._api_token}"}, b"", None, self.ACCEPT
+
+    def parse(self, data):
+        ms = data.get("expiresInMilliseconds")
+        try:
+            life = float(ms) / 1000 if ms is not None else 3600.0
+        except (TypeError, ValueError):
+            life = 3600.0
+        return data.get("bearerToken"), life
+
+    def unauthorized_message(self, host) -> str:
+        return (f"401 Unauthorized from {host}: the API token was not accepted (check it, "
+                "and that it is not expired or revoked).")
+
+    def long_secrets(self) -> list[str]:
+        return [self._api_token]
+
+
+token_exchange = TokenExchange
 
 
 def bearer(token) -> Auth:
@@ -128,8 +228,16 @@ def basic(user, secret) -> Auth:
     return Basic(user, secret)
 
 
+def token_as_user(token) -> Auth:
+    return TokenAsUser(token)
+
+
 def oauth_client_credentials(client_id, client_secret, token_path="/rest/oauth/token") -> Auth:
     return OAuthClientCredentials(client_id, client_secret, token_path)
+
+
+def blackduck_token(api_token) -> TokenExchange:
+    return BlackDuckToken(api_token)
 
 
 # --- helpers ------------------------------------------------------------------
@@ -385,10 +493,24 @@ class Client:
         if self.debug:
             print(line, file=self._stderr or sys.stderr)
 
-    def _send(self, method, url, auth_headers, data, content_type, accept="application/json"):
-        if method != "GET" and not (method == "POST" and isinstance(self.auth,
-                                                                     OAuthClientCredentials)):
-            raise ConnectorError("Connectors are read-only: only GET requests are sent.", "config")
+    def _exchange(self, auth) -> Response:
+        """The token request of the client's own token-exchange auth: the only POST."""
+        if auth is not self.auth or not isinstance(auth, TokenExchange):
+            raise ConnectorError(READ_ONLY, "config")
+        headers, body, ctype, accept = auth.exchange_request()
+        return self._send("POST", self.url(auth.token_path), headers, body, ctype, accept,
+                          _exchange=auth)
+
+    def _post_allowed(self, method, url, auth) -> bool:
+        return (method == "POST" and auth is not None and auth is self.auth
+                and isinstance(auth, TokenExchange) and bool(auth.token_path)
+                and urllib.parse.urlsplit(url).path
+                == urllib.parse.urlsplit(self.url(auth.token_path)).path)
+
+    def _send(self, method, url, auth_headers, data, content_type, accept="application/json",
+              *, _exchange=None):
+        if method != "GET" and not self._post_allowed(method, url, _exchange):
+            raise ConnectorError(READ_ONLY, "config")
         headers = {"Accept": accept, "User-Agent": "ai-sdlc-connectors/1"}
         headers.update(auth_headers)
         if content_type:

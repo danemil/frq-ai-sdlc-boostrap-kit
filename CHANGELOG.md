@@ -9,6 +9,8 @@ All notable changes to the AI-SDLC Bootstrap Kit. Format: [Keep a Changelog](htt
 - Every PR that changes `roles/`, `scripts/personal/`, `setup.py`, `ONBOARDING.md` or `template/` adds a line under **Unreleased**. A release moves those lines under the new version and bumps `VERSION`.
 
 ## [Unreleased]
+### Changed
+- Connectors: one token-exchange auth for Jama's OAuth and Black Duck; a stricter POST gate (only an auth's own token request), with a test that no connector module can send a POST. A token sent as the Basic user name (`token_as_user`) is scrubbed from errors like any other secret.
 
 ## [0.9.0] — 2026-10-10
 ### Added

@@ -666,6 +666,207 @@ class TestTestingHelpers(Base):
         self.assertEqual(json.loads(out)["items"][0]["name"], "a")
 
 
+# --- 0.10.0: token as user, token exchange, the POST gate ------------------------------------
+
+BD_API = "bd-API-token-9876"
+BD_BEARER = "BEARER-1-very-secret"
+BD_USER = "application/vnd.blackducksoftware.user-4+json"
+TOKEN_PATH = "/api/tokens/authenticate"
+
+
+def _bd_routes(expires_ms=7199000, bearer=BD_BEARER):
+    return {TOKEN_PATH: {"bearerToken": bearer, "expiresInMilliseconds": expires_ms},
+            "/api/current-user": {}}
+
+
+class TestTokenAsUser(Base):
+    def test_header_is_basic_token_colon_empty(self):
+        srv = self.server({"/api/me": ME})
+        http.Client(srv.url, http.token_as_user(SECRET)).get_json("/api/me")
+        want = base64.b64encode(f"{SECRET}:".encode()).decode()
+        self.assertEqual(srv.requests[0].headers["Authorization"], f"Basic {want}")
+        self.assertEqual(http.token_as_user(SECRET).secrets(), [SECRET, want])
+
+    def test_the_token_is_scrubbed(self):
+        srv = self.server({"/api/me": Reply(400, {"message": f"bad token {SECRET}"})})
+        err = io.StringIO()
+        c = http.Client(srv.url, http.token_as_user(SECRET), debug=True, stderr=err)
+        with self.assertRaises(http.ConnectorError) as cm:
+            c.get_json("/api/me")
+        self.assertIn("<redacted>", str(cm.exception))
+        self.assertNotIn(SECRET, str(cm.exception))
+        self.assertNotIn(SECRET, err.getvalue())
+        self.assertNotIn(base64.b64encode(f"{SECRET}:".encode()).decode(), err.getvalue())
+
+
+class TestTokenExchange(Base):
+    def test_blackduck_exchange_once_then_bearer(self):
+        srv = self.server(_bd_routes())
+        c = http.Client(srv.url, http.blackduck_token(BD_API))
+        c.get_json("/api/current-user")
+        c.get_json("/api/current-user")
+        posts = [r for r in srv.requests if r.method == "POST"]
+        gets = [r for r in srv.requests if r.method == "GET"]
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0].path, TOKEN_PATH)
+        self.assertEqual(posts[0].headers["Authorization"], f"token {BD_API}")
+        self.assertEqual(posts[0].headers["Accept"], BD_USER)
+        self.assertEqual(posts[0].body, b"")
+        self.assertEqual([g.headers["Authorization"] for g in gets],
+                         [f"Bearer {BD_BEARER}"] * 2)
+
+    def test_refreshes_when_expired(self):
+        srv = self.server(_bd_routes(expires_ms=1000))
+        now = [1000.0]
+        clock = mock.Mock()
+        clock.time = lambda: now[0]
+        clock.sleep = lambda s: None
+        with mock.patch.object(http, "time", clock):
+            c = http.Client(srv.url, http.blackduck_token(BD_API))
+            c.get_json("/api/current-user")
+            c.get_json("/api/current-user")
+            self.assertEqual(sum(r.method == "POST" for r in srv.requests), 1)
+            now[0] += 31  # past the 30 s floor of a short-lived token
+            c.get_json("/api/current-user")
+        self.assertEqual(sum(r.method == "POST" for r in srv.requests), 2)
+
+    def test_401_on_exchange_says_api_token_not_accepted(self):
+        srv = self.server({TOKEN_PATH: Reply(401, {"errorMessage": f"bad {BD_API}"})})
+        c = http.Client(srv.url, http.blackduck_token(BD_API))
+        with self.assertRaises(http.ConnectorError) as cm:
+            c.get_json("/api/current-user")
+        self.assertIn("API token was not accepted", str(cm.exception))
+        self.assertEqual(cm.exception.kind, "unauthorized")
+        self.assertNotIn(BD_API, str(cm.exception))
+
+    def test_no_bearer_in_answer_is_bad_response(self):
+        srv = self.server({TOKEN_PATH: {"expiresInMilliseconds": 1000}})
+        c = http.Client(srv.url, http.blackduck_token(BD_API))
+        with self.assertRaises(http.ConnectorError) as cm:
+            c.get_json("/api/current-user")
+        self.assertEqual(cm.exception.kind, "bad_response")
+        self.assertFalse(any(r.method == "GET" for r in srv.requests))
+
+    def test_bearer_token_never_printed(self):
+        srv = self.server({**_bd_routes(),
+                           "/api/fail": Reply(400, {"errorMessage": f"echo {BD_BEARER}"})})
+        os.environ["AI_SDLC_DEBUG"] = "1"
+        err = io.StringIO()
+        c = http.Client(srv.url, http.blackduck_token(BD_API), stderr=err)
+        c.get_json("/api/current-user")
+        with self.assertRaises(http.ConnectorError) as cm:
+            c.get_json("/api/fail")
+        self.assertIn("> Authorization: <redacted>", err.getvalue())
+        for secret in (BD_API, BD_BEARER):
+            self.assertNotIn(secret, err.getvalue())
+            self.assertNotIn(secret, str(cm.exception))
+
+    def test_jama_oauth_is_a_token_exchange(self):
+        self.assertIsInstance(http.oauth_client_credentials("i", "s"), http.TokenExchange)
+        self.assertIsInstance(http.blackduck_token("t"), http.TokenExchange)
+        self.assertIs(http.token_exchange, http.TokenExchange)
+        self.assertEqual(http.blackduck_token("t").token_path, TOKEN_PATH)
+
+
+def _posting_command(ctx, args):
+    ctx.client._send("POST", ctx.client.url("/x"), {}, b"", None)
+    return registry.Result(item={"user": "", "display_name": "", "url": ""})
+
+
+class TestPostGate(Base):
+    def assert_refused(self, fn, srv):
+        with self.assertRaises(http.ConnectorError) as cm:
+            fn()
+        self.assertEqual(cm.exception.kind, "config")
+        self.assertIn("read-only", str(cm.exception))
+        self.assertEqual(srv.requests, [])
+
+    def test_a_command_cannot_post(self):
+        srv = self.server({**_bd_routes(), "/x": {}})
+        self.connectors[NAME].commands["post"] = registry.Command("post", run=_posting_command)
+        for auth in (http.bearer(SECRET), http.blackduck_token(BD_API)):
+            ctx = registry.Context(NAME, http.Client(srv.url, auth), {}, "")
+            self.assert_refused(lambda: self.connectors[NAME].commands["post"].run(ctx, None),
+                                srv)
+
+    def test_exchange_only_by_the_clients_own_auth(self):
+        srv = self.server(_bd_routes())
+        c = http.Client(srv.url, http.blackduck_token(BD_API))
+        self.assert_refused(lambda: c._exchange(http.blackduck_token("other-token")), srv)
+        g = http.Client(srv.url, http.bearer(SECRET))
+        self.assert_refused(lambda: g._exchange(g.auth), srv)
+
+    def test_exchange_only_to_its_token_path(self):
+        srv = self.server({**_bd_routes(), "/other": {}})
+        c = http.Client(srv.url, http.blackduck_token(BD_API))
+        self.assert_refused(lambda: c._send("POST", c.url("/other"), {}, b"", None,
+                                            _exchange=c.auth), srv)
+        self.assert_refused(lambda: c._send("POST", c.url(TOKEN_PATH), {}, b"", None), srv)
+
+    def test_put_patch_delete_refused(self):
+        srv = self.server(_bd_routes())
+        c = http.Client(srv.url, http.blackduck_token(BD_API))
+        for method in ("PUT", "PATCH", "DELETE", "HEAD"):
+            self.assert_refused(lambda: c._send(method, c.url(TOKEN_PATH), {}, b"", None,
+                                                _exchange=c.auth), srv)
+
+    def test_connector_modules_never_post(self):
+        files = [registry.HERE / f"{n}.py" for n in registry.names()] + [STUB_FILE]
+        self.assertGreaterEqual(len(files), 6)
+        for path in files:
+            with self.subTest(module=path.name):
+                self.assertEqual(scan_for_writes(path.read_text(encoding="utf-8")), [])
+
+    def test_the_scan_finds_what_it_must(self):
+        bad = ("import urllib.request\nfrom urllib import error\nimport http.client\n"
+               "from http import client\nimport urllib.parse\nx.client._send('GET')\n"
+               "c._exchange(a)\nm = 'POST'\nurllib.request.urlopen(u)\n")
+        found = scan_for_writes(bad)
+        for want in ("urllib.request", "urllib.error", "http.client", "_send", "_exchange",
+                     "'POST'"):
+            self.assertTrue(any(want in f for f in found), (want, found))
+        self.assertEqual(scan_for_writes("import urllib.parse\nurllib.parse.quote('a')\n"
+                                         "from . import http\n"), [])
+
+
+FORBIDDEN_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def scan_for_writes(source) -> list:
+    """What in a connector module's source could send a write. `urllib.parse` (quoting)
+    is allowed; any other urllib part, http.client, `_send`, `_exchange` and a method
+    name as a string are not."""
+    import ast
+    found = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if (a.name == "urllib" or a.name.startswith("urllib.")) \
+                        and a.name != "urllib.parse":
+                    found.append(f"import {a.name}")
+                if a.name == "http" or a.name.startswith("http."):
+                    found.append(f"import {a.name}")
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            mod = node.module
+            if mod == "urllib":
+                found += [f"from urllib import {a.name} (urllib.{a.name})"
+                          for a in node.names if a.name != "parse"]
+            elif mod.startswith("urllib.") and mod != "urllib.parse":
+                found.append(f"from {mod}")
+            elif mod == "http" or mod.startswith("http."):
+                found.append(f"from {mod} (http.client)" if mod == "http" else f"from {mod}")
+        elif isinstance(node, ast.Attribute):
+            if node.attr in ("_send", "_exchange"):
+                found.append(f".{node.attr}")
+            if isinstance(node.value, ast.Name) and node.value.id == "urllib" \
+                    and node.attr != "parse":
+                found.append(f"urllib.{node.attr}")
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                and node.value.upper() in FORBIDDEN_METHODS:
+            found.append(repr(node.value))
+    return found
+
+
 class TestText(unittest.TestCase):
     def test_html_to_text(self):
         html = "<h1>Title</h1><p>One &amp; <b>two</b></p><script>x()</script><ul><li>a</li></ul>"
