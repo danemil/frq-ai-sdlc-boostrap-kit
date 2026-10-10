@@ -49,7 +49,7 @@ Then read what the question needs (always with `--json`):
 
 - Cite each item's `url` next to the fact you use.
 - If `truncated` is `true`, say there are more and offer a narrower filter (`--file`, `--rule`, `--severity`, `--new-code`).
-- `server_version` and `filter_sent` (in `extra`) say which issue model the server uses (section 4) and which filter was really sent. When the server is 10.2 or newer, mention `filter_sent`: the old and the new severities do not line up one to one.
+- `server_version` and `filter_sent` (top-level keys of the JSON) say which issue model the server uses (section 4) and which filter was really sent. When the server is 10.2 or newer, mention `filter_sent`: the old and the new severities do not line up one to one.
 
 Then go on with section 5 for each finding.
 
