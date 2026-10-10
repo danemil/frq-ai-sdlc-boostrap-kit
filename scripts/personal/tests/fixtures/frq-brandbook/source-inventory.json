@@ -1,0 +1,571 @@
+{
+ "skill": "frq-4-pptx-agent",
+ "version": "1.0",
+ "date": "2026-10-09",
+ "note": "Every file of the kit owner's skill as received, with its SHA-256 and size; the master's slide master, layout, theme and media parts; the headings of its SKILL.md and brand-rules.md. Used by test_frq_brandbook.py to prove nothing was lost in the merge.",
+ "files": [
+  {
+   "path": "SKILL.md",
+   "sha256": "45c306b5b2137b3204f8af4ef5d3b6c28e57d2270dddd4b677574d2bade93ab6",
+   "size": 7400
+  },
+  {
+   "path": "assets/brand-tokens.json",
+   "sha256": "23b831146d967e974095791a89e9be5d4340de4d624e1c93a4b11d735da097cc",
+   "size": 1310
+  },
+  {
+   "path": "assets/examples/02-tell-a-story.jpg",
+   "sha256": "8ec7668e5177e0dd25c185ce40e22b8336c6459e0c139550050ebdc819ad2243",
+   "size": 86699
+  },
+  {
+   "path": "assets/examples/03-message-pyramid-and-story-flow.jpg",
+   "sha256": "53188ed4a2c17a4ee3402631f60df8226cb6f34ed0c9a74792ffc49c84e3b3a5",
+   "size": 95881
+  },
+  {
+   "path": "assets/examples/04-content-area.jpg",
+   "sha256": "ff25bf4cf04a55c29175b0d6ee17a14bdd7856c19f58f52dc37610826cf9eb5f",
+   "size": 71646
+  },
+  {
+   "path": "assets/examples/05-fonts-language-writing.jpg",
+   "sha256": "e9d3dc90070c71527f572f61cc33fd277ea10ec2ade19c427f9aa5bdf9e67f77",
+   "size": 53266
+  },
+  {
+   "path": "assets/examples/07-gradient-background-use.jpg",
+   "sha256": "a86819d78fd47ece422de658d208503c7d27bad6b50e4ce700edf4662666828d",
+   "size": 44010
+  },
+  {
+   "path": "assets/examples/08-donts.jpg",
+   "sha256": "40b8dbd06e3987692cb853d1dd115492640251e32ec6c323a256f08bf344ca6c",
+   "size": 95707
+  },
+  {
+   "path": "assets/examples/15-agenda-numbered-sections.jpg",
+   "sha256": "93ecde21a577cfed4aba45a646f38e5606555c55207bbad800eb6cf4f49b519d",
+   "size": 50960
+  },
+  {
+   "path": "assets/examples/30-simple-table.jpg",
+   "sha256": "f8ffb1718e0e5703883c33cd37b8119fda971bf1063c8d0c4749bdb38972108a",
+   "size": 67458
+  },
+  {
+   "path": "assets/examples/31-four-column-text.jpg",
+   "sha256": "5baea9b412d7a1547d92a38f152391f661d34640fe80ca467e321cc86b5e6a86",
+   "size": 71347
+  },
+  {
+   "path": "assets/examples/32-org-chart.jpg",
+   "sha256": "8320aba139f9c684a4a165d47d142cb9544dee422a6996d7d8347f167d1b2591",
+   "size": 45751
+  },
+  {
+   "path": "assets/examples/33-phases-chevrons.jpg",
+   "sha256": "87c47a6c87d55b1513e872c3100f34461e9ee0260b5e72ec90ece0d039d78b6b",
+   "size": 63084
+  },
+  {
+   "path": "assets/examples/34-numbered-steps-band.jpg",
+   "sha256": "81c693ceefaa7cb0b206f53bfc7decf678799a89e670fb02285e2f930df06658",
+   "size": 70172
+  },
+  {
+   "path": "assets/examples/35-project-cycle.jpg",
+   "sha256": "83050857eb0483c94962d60cbb54309e23485e1ee4c90e670a2f8fecda8c2111",
+   "size": 38279
+  },
+  {
+   "path": "assets/examples/38-history-timeline.jpg",
+   "sha256": "a6cab9d3a4b9f3cfcabb47787747a16cea022a3ad0ed5164c9a54943bdbe47ff",
+   "size": 73846
+  },
+  {
+   "path": "assets/examples/39-timeline-roadmap-streams.jpg",
+   "sha256": "cb5de6aaa649d437fb3c4ba358022c1506860359ef4fb07bee792977ec37b47f",
+   "size": 57093
+  },
+  {
+   "path": "assets/examples/40-roadmap-project-plan.jpg",
+   "sha256": "396ca1b884273437a02c1306213b59839d18c5bbebe6cbb85a8de4daf6b47fdf",
+   "size": 40152
+  },
+  {
+   "path": "assets/examples/42-map-highlight-region.jpg",
+   "sha256": "f8ba0fd3b9c57aad330ba170d90e2888d83144915b05c1b886b103aaab2c1349",
+   "size": 52069
+  },
+  {
+   "path": "assets/examples/44-map-americas-footprint.jpg",
+   "sha256": "db8acabe5be0a0b3f23afe99491c15d08feb5535e6a0db2f3233e44247cdbb6d",
+   "size": 65314
+  },
+  {
+   "path": "assets/examples/50-bar-chart-highlight.jpg",
+   "sha256": "54933f676f0269854f5601ed81dd5594ca7681f38ade2fbe3118a14966954d1c",
+   "size": 54778
+  },
+  {
+   "path": "assets/examples/51-kpi-donuts.jpg",
+   "sha256": "158a902ccda209768a0202d7720f60f5fafdc6aa6b2457895678a87c05966198",
+   "size": 44684
+  },
+  {
+   "path": "assets/examples/52-donut-chart.jpg",
+   "sha256": "96f2374272fb2c71430debb6d5ef3c024d978488f818676b73357694138a4017",
+   "size": 48469
+  },
+  {
+   "path": "assets/examples/53-venn-diagram.jpg",
+   "sha256": "2edde121c6f82dd32d1c7a9cd611705c9ba81b9f3e8e752a4d1c050d82f386dd",
+   "size": 54760
+  },
+  {
+   "path": "assets/frequentis-brand.css",
+   "sha256": "07360d0882309dc94618c57d74846136ce4bf2176390d67631ae694396d578c6",
+   "size": 1394
+  },
+  {
+   "path": "assets/frq-master.pptx",
+   "sha256": "d756cbd12ca3f7862872db1739e87399a01fc3d44869c1e231b11c34709195f7",
+   "size": 8865992
+  },
+  {
+   "path": "assets/key-visuals/atm-aircraft-clouds-wide.jpg",
+   "sha256": "313bf2e54590fa279b3cd4504224a0e2cf37535af472a2f17c62e149a6eb1c2b",
+   "size": 74919
+  },
+  {
+   "path": "assets/key-visuals/atm-aircraft.jpg",
+   "sha256": "a6527bb90db985730785cfbe4bf6abafb8ab2a964fd27fa68f5c76f5f64920e5",
+   "size": 29296
+  },
+  {
+   "path": "assets/key-visuals/corporate-globe.jpg",
+   "sha256": "97bf3fe4386dd077222d32e461f380ea57e7371523b26a1165e98aab84c4f33c",
+   "size": 433073
+  },
+  {
+   "path": "assets/key-visuals/defence.jpg",
+   "sha256": "f2066d808d447cbfadbb884f014a90db7a52162486d35d8a6dd1fa27a4329a42",
+   "size": 27470
+  },
+  {
+   "path": "assets/key-visuals/maritime.jpg",
+   "sha256": "d8091427e01943bdbc55e851bbaf9261f66da42f10a0f963abe7601caf2176b9",
+   "size": 67128
+  },
+  {
+   "path": "assets/key-visuals/public-safety.jpg",
+   "sha256": "4d8421c7618eabbf97ad21236ffe9436c85645317f9b616edc38f5526453539c",
+   "size": 78804
+  },
+  {
+   "path": "assets/key-visuals/public-transport.jpg",
+   "sha256": "78f9366469bac83bda0ec97b6b4d9c8cd7814d0d1dea76914d5dd201724f6394",
+   "size": 200387
+  },
+  {
+   "path": "assets/layouts/01-standard-title.jpg",
+   "sha256": "c8326ff3019434642d951b0d8a97c160ddf674989b7e655e445709ea885d9ca6",
+   "size": 57148
+  },
+  {
+   "path": "assets/layouts/02-special-topic-title.jpg",
+   "sha256": "65369acf157d72f9fac4186fa5a615f712d9a5b19c969dd4c418b5caa0c29d6b",
+   "size": 58249
+  },
+  {
+   "path": "assets/layouts/03-headline-standard.jpg",
+   "sha256": "e5cf00dced88cd70e3143b084aa6b6d4b07af8ad932891021c33cfb13c8a47b4",
+   "size": 13402
+  },
+  {
+   "path": "assets/layouts/04-sub-headline-alternative.jpg",
+   "sha256": "bf8df76da6f8e596a1e41639083779ca3de8b18200407114220625ed4cf77857",
+   "size": 14991
+  },
+  {
+   "path": "assets/layouts/05-headline-categorie.jpg",
+   "sha256": "028cac20c583e4c65a4aa8815b0ff258fe927de4b92be8365334c08662dd29e9",
+   "size": 15606
+  },
+  {
+   "path": "assets/layouts/06-headline-field.jpg",
+   "sha256": "cc8372bea091000291557c3475dd088d7deecf6cd45b76bc0216199482e3677d",
+   "size": 17927
+  },
+  {
+   "path": "assets/layouts/07-sub-headline-field.jpg",
+   "sha256": "38a1a5a5725f516878cd8edde882f0358f95cd66432fe036e7898557970d3dc5",
+   "size": 19122
+  },
+  {
+   "path": "assets/layouts/08-sub-headline-50-50.jpg",
+   "sha256": "d573fc8d4e39fda17e576d5796399fb637c5a1846a2bb8d241994c910ee75181",
+   "size": 23045
+  },
+  {
+   "path": "assets/layouts/09-sub-headline-33-67.jpg",
+   "sha256": "91c2984f5939876034c35b219050901379ab657ab3f11e78372ed2f7d8768d0f",
+   "size": 22936
+  },
+  {
+   "path": "assets/layouts/10-sub-headline-67-33.jpg",
+   "sha256": "e363e7cfe56948d2e93c9b8ee5e58b0b1bed556055d3ce1b59da3baa231c60ea",
+   "size": 23103
+  },
+  {
+   "path": "assets/layouts/11-sub-headline-33-33-33.jpg",
+   "sha256": "f0295c508109d10cf5bed9aea221b5534a1b46ca7fab4791321c7326af3d8393",
+   "size": 26884
+  },
+  {
+   "path": "assets/layouts/12-map.jpg",
+   "sha256": "f1dee5b48832b854f97e9b808522f6650797a5bb5297f986c605aed10642d7c2",
+   "size": 29127
+  },
+  {
+   "path": "assets/layouts/13-reference.jpg",
+   "sha256": "ab23eb87d2666504d1e4da89b05c1dfaf36ca42eab7d1c5ad3f267840a6a7b66",
+   "size": 19181
+  },
+  {
+   "path": "assets/layouts/14-reference-design-only.jpg",
+   "sha256": "6c10ffd1163156efe5db5187c3beefa0daa7040b3a378bd44c175405be4bcd34",
+   "size": 25308
+  },
+  {
+   "path": "assets/layouts/15-1-blanc.jpg",
+   "sha256": "341ff97061aa28023d4033d0bf21e6fa1d68d4be20f7fd5bc0f38cc0d27b70eb",
+   "size": 7950
+  },
+  {
+   "path": "assets/layouts/16-divider-blue-world.jpg",
+   "sha256": "0dea113747306594c35d62c8880a782b2ddb536ead678872dcd8040a413000d4",
+   "size": 25372
+  },
+  {
+   "path": "assets/layouts/17-speaker-intro.jpg",
+   "sha256": "0f7f2c5da0d80d045319fb68a2ce433eeeb72b37489eee01f1e8cde09141c069",
+   "size": 26041
+  },
+  {
+   "path": "assets/layouts/18-small-side-bar-1.jpg",
+   "sha256": "7bc2079a309006d1075d0e7d3dbb121b3d98c92683d93c8fbc9598e8f6997b6c",
+   "size": 13831
+  },
+  {
+   "path": "assets/layouts/19-small-side-bar-2.jpg",
+   "sha256": "bfaadb5e3672435099cd854b9ecbae8737a86f792b8bca31e2005796bf8e1fed",
+   "size": 14044
+  },
+  {
+   "path": "assets/layouts/20-medium-side-bar-1.jpg",
+   "sha256": "6b1c3e6e92e9fa3d34c7115410f3ad2f13f7c5702d723e3b2864ef45d5dfe351",
+   "size": 14554
+  },
+  {
+   "path": "assets/layouts/21-medium-side-bar-2.jpg",
+   "sha256": "1f748044e09f6fa6424f32ec06e9292fa2f6be14b3fad7818f6512fb4b8d3f55",
+   "size": 14838
+  },
+  {
+   "path": "assets/layouts/22-wide-side-bar.jpg",
+   "sha256": "cb1dcefecd6c085d5be881f158350122e5d9bf331212982591aa52b2b8cc2d56",
+   "size": 15721
+  },
+  {
+   "path": "assets/layouts/23-video-background.jpg",
+   "sha256": "324ef371d3770f19ef8de6edf6d93abbd1ac4b33a7d63a9f5765a5f7fd18710c",
+   "size": 13590
+  },
+  {
+   "path": "assets/layouts/24-closing-slide.jpg",
+   "sha256": "460971577130d67ab2b68cf2ad33fe9faf14b1d1153b3a805bc546d8a3974553",
+   "size": 77369
+  },
+  {
+   "path": "assets/layouts/25-1-headline-standard.jpg",
+   "sha256": "5b6a329cc653de04a5489d5f936aa77e08ed00548c18b7d629a63d8ca9894722",
+   "size": 17041
+  },
+  {
+   "path": "assets/layouts/26-divider.jpg",
+   "sha256": "b762f6db3bc626e936386be98afb806c3a74ff2e41b26fe66c0729cb424a7d72",
+   "size": 20748
+  },
+  {
+   "path": "assets/layouts/27-1-agenda.jpg",
+   "sha256": "50e4c634757a670d271c0bade571b1108ba74c90c21a6a5fe6373e43eee15a2c",
+   "size": 15837
+  },
+  {
+   "path": "assets/layouts/28-4-headline.jpg",
+   "sha256": "8fb19170c2171f48600183fa48b107cc5bf7e4ec3cf89dd5b01c4a1bbf500db9",
+   "size": 17279
+  },
+  {
+   "path": "assets/layouts/29-blanc.jpg",
+   "sha256": "fb9d02e48d340f0ed28b35f31e5217019c8921c86030ee64867413311bc1631d",
+   "size": 11236
+  },
+  {
+   "path": "assets/layouts/30-guidelines.jpg",
+   "sha256": "72d0b32dcf16bcce471618950c301d792c276e2cc581649cc1845ce1d988f767",
+   "size": 21196
+  },
+  {
+   "path": "assets/layouts/31-2-agenda.jpg",
+   "sha256": "bc56c2bd0a4d11e9a7eb6acaa9d5b0763e5eddc9f8c3c73e86489a3ac5460aa5",
+   "size": 21077
+  },
+  {
+   "path": "assets/layouts/32-agenda-point.jpg",
+   "sha256": "f6d5b7871419428c57f4c3279c89e6e1896f35303e4f58e6c23ec9e7ed833138",
+   "size": 25528
+  },
+  {
+   "path": "assets/layouts/33-r-and-d.jpg",
+   "sha256": "0dfdbc2c16ecb595ec37b2ebc5b07a3bd79c34f3578af9eeb390a8697d64e29e",
+   "size": 35759
+  },
+  {
+   "path": "assets/layouts/34-teams.jpg",
+   "sha256": "7d1adfd11b5a34754de7aaf12a33741fefb6798a61fa07f0a30a4653413b29e1",
+   "size": 42940
+  },
+  {
+   "path": "assets/layouts/35-next-presentation.jpg",
+   "sha256": "c8f4c8e17276153f33a68e469ee2c0b488bc6a04d8c27b0e32c1b32685daa8fd",
+   "size": 50600
+  },
+  {
+   "path": "assets/layouts/36-break.jpg",
+   "sha256": "9166f553f6140feebfb221217e5e90f24aad8bbe4ff1a11fa7d4affcebb3764e",
+   "size": 60216
+  },
+  {
+   "path": "assets/layouts/37-q-and-a.jpg",
+   "sha256": "b5a1e4cf0a49672c1b919663bc9bb9e591adc3c0847e6d7999246084d9989b48",
+   "size": 45784
+  },
+  {
+   "path": "assets/layouts/38-world-map.jpg",
+   "sha256": "5d349ce468ca9ba25c102179cac91aad76dce136f2d9c23172e9bd6a74ef6860",
+   "size": 47344
+  },
+  {
+   "path": "assets/layouts/39-world-map-americas.jpg",
+   "sha256": "4df01d7f627d2e3f9357ca1f33a4574aea0e82bad859fc6d7c4a3d8d89b4c883",
+   "size": 39996
+  },
+  {
+   "path": "assets/layouts/40-1-map-apac.jpg",
+   "sha256": "0df0f1b069e61b97220428006b04914ec5f7323032830738ba8615b7b183d234",
+   "size": 39535
+  },
+  {
+   "path": "assets/layouts/41-world-map-emea.jpg",
+   "sha256": "5a8ed579c31c0dd6fba61aa2b0ff24d23d043786512ffc3a6a528a06a55e4479",
+   "size": 40590
+  },
+  {
+   "path": "assets/layouts/42-1-world-map-europe.jpg",
+   "sha256": "91c70cdd19063ca9ec48204af07ab9ae83b886bcd9f6e0e497c9864d7b7f402c",
+   "size": 41387
+  },
+  {
+   "path": "assets/layouts/43-world-map-germany.jpg",
+   "sha256": "b1ea59cd7929ce8c30a22e763e1358146f0f96ec99034ee4a02df9b387bc75eb",
+   "size": 35827
+  },
+  {
+   "path": "assets/layouts/44-world-map-uk.jpg",
+   "sha256": "42ddacc0267229b320c7faad8264a785def558bd9fc7b3a86ac22eccff193e58",
+   "size": 34454
+  },
+  {
+   "path": "assets/logo/frequentis-logo-black.svg",
+   "sha256": "237b47c98de47d67538de7c1ad27913eb398902f72270dd6ac4bdb05d49eb1e1",
+   "size": 13889
+  },
+  {
+   "path": "assets/logo/frequentis-logo-blue.svg",
+   "sha256": "326703e92389ba44e69486e62eb179455a8f02b91857cbc1646b3f14da008bfb",
+   "size": 13889
+  },
+  {
+   "path": "assets/logo/frequentis-logo-white.svg",
+   "sha256": "f314fe12cc06e351a633fea5cac48ef929f74171a854cff056eee7e15d5571f7",
+   "size": 13889
+  },
+  {
+   "path": "references/brand-rules.md",
+   "sha256": "5514ad91fec9c1f23241453c75035b942bd472519ea0db05373706c8df7a4574",
+   "size": 14265
+  },
+  {
+   "path": "references/build-spec.md",
+   "sha256": "e34364b435f7a98ad55fbc140f740cd0fbaa030cccf3593b338c33686d867c82",
+   "size": 6496
+  },
+  {
+   "path": "references/layouts.md",
+   "sha256": "f42f20b9f6587513255585c16c48191e13c19312f228970ba8c5537e13d512b1",
+   "size": 9363
+  },
+  {
+   "path": "scripts/frq_pptx.py",
+   "sha256": "9f4c23277f7c7875df9b2e0d2f6dd2f5eab18c9801af19d5194e71b75c38a3e0",
+   "size": 34087
+  }
+ ],
+ "master_parts": {
+  "ppt/media/hdphoto1.wdp": "ccc8ada706da99034715050c11625e6fe3c039d09e4df43b7fce3ee875b0d090",
+  "ppt/media/image1.jpeg": "97bf3fe4386dd077222d32e461f380ea57e7371523b26a1165e98aab84c4f33c",
+  "ppt/media/image10.jpg": "bc18d503cd4d03246327565af6cdda071cb3e5c6044dbbe003dc462d877901b0",
+  "ppt/media/image11.png": "664ddf5021d210a71daefc913c89c3305eba1765696d2ad43e6ea50f8de79c36",
+  "ppt/media/image12.jpg": "207c87389a830ac0c904421bc5f877d09c098d05c20e6c174f2be1e69b308450",
+  "ppt/media/image13.jpg": "30b3f91130aa09ac8444502330b0b28672c01d65f377b5896683b9f10855adbf",
+  "ppt/media/image14.png": "fe0f3cc898ba262192111a5e5f96b62969dfb991d2eb8fd61dcd5390943d0594",
+  "ppt/media/image15.jpg": "013649c6579bd1764b70ef6a94d33c893a9d6480cebb9e26c1dd6e36290bee86",
+  "ppt/media/image2.jpeg": "a6527bb90db985730785cfbe4bf6abafb8ab2a964fd27fa68f5c76f5f64920e5",
+  "ppt/media/image3.jpeg": "4d8421c7618eabbf97ad21236ffe9436c85645317f9b616edc38f5526453539c",
+  "ppt/media/image4.jpeg": "78f9366469bac83bda0ec97b6b4d9c8cd7814d0d1dea76914d5dd201724f6394",
+  "ppt/media/image5.jpeg": "d8091427e01943bdbc55e851bbaf9261f66da42f10a0f963abe7601caf2176b9",
+  "ppt/media/image6.jpeg": "f2066d808d447cbfadbb884f014a90db7a52162486d35d8a6dd1fa27a4329a42",
+  "ppt/media/image7.png": "14f884b02f35fe454dbc4661970cfcbbb148cb8d6007d628c8662851951fa82b",
+  "ppt/media/image8.jpg": "ab8c5a1e1d9518f9044d027f534c7b1ff5699d1b71c04fcfea7120d29a6b6135",
+  "ppt/media/image9.jpg": "abed40f905fbf533e073316c46db28d56e9357253771d2c0898e09500f601c85",
+  "ppt/slideLayouts/_rels/slideLayout1.xml.rels": "2403a707425090643226f0964b6bdbeee04d8e839b7f9b09080be2e9ec7f1d63",
+  "ppt/slideLayouts/_rels/slideLayout10.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout11.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout12.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout13.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout14.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout15.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout16.xml.rels": "90a7b16e119766f4611d78ef95f2ef4163fb10787eaca238bc64205e3a072216",
+  "ppt/slideLayouts/_rels/slideLayout17.xml.rels": "90a7b16e119766f4611d78ef95f2ef4163fb10787eaca238bc64205e3a072216",
+  "ppt/slideLayouts/_rels/slideLayout18.xml.rels": "034c44e34f2fb00a46e779cdb1654c6e7e6cf4f534778351000bd3f2535fef8f",
+  "ppt/slideLayouts/_rels/slideLayout19.xml.rels": "034c44e34f2fb00a46e779cdb1654c6e7e6cf4f534778351000bd3f2535fef8f",
+  "ppt/slideLayouts/_rels/slideLayout2.xml.rels": "13566441b646053f09c45872370287856d31907fd0d06c96162464502b5255a6",
+  "ppt/slideLayouts/_rels/slideLayout20.xml.rels": "fce383878a4687d4ad2e1bfba03edaa4803aab16f879a8cdbf56e9ce2052894c",
+  "ppt/slideLayouts/_rels/slideLayout21.xml.rels": "fce383878a4687d4ad2e1bfba03edaa4803aab16f879a8cdbf56e9ce2052894c",
+  "ppt/slideLayouts/_rels/slideLayout22.xml.rels": "730f3c0b6eeda0087ff1f3502d4abac7b15aa65bff95c42e123d06fb1db2f428",
+  "ppt/slideLayouts/_rels/slideLayout23.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout24.xml.rels": "90a7b16e119766f4611d78ef95f2ef4163fb10787eaca238bc64205e3a072216",
+  "ppt/slideLayouts/_rels/slideLayout25.xml.rels": "0e45f1715f54a808686200f29e2c9740fde289937be25ecdcee98c13f334de34",
+  "ppt/slideLayouts/_rels/slideLayout26.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout27.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout28.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout29.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout3.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout30.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout31.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout32.xml.rels": "90a7b16e119766f4611d78ef95f2ef4163fb10787eaca238bc64205e3a072216",
+  "ppt/slideLayouts/_rels/slideLayout33.xml.rels": "c17f76bc154e98ba55686c5210b3197e73177eb2f0154f00facbbf3b50f79ee1",
+  "ppt/slideLayouts/_rels/slideLayout34.xml.rels": "3945f0c7f11e25ae6b0c39322a8392bc1144921b874b60b87b586b5418fc4216",
+  "ppt/slideLayouts/_rels/slideLayout35.xml.rels": "13566441b646053f09c45872370287856d31907fd0d06c96162464502b5255a6",
+  "ppt/slideLayouts/_rels/slideLayout36.xml.rels": "89a66375617ab1f876c01bec4535e51665d015869f3774fc133b0cf608e80002",
+  "ppt/slideLayouts/_rels/slideLayout37.xml.rels": "b0203be79b2e1dfe07bd5786abe74ab4762a299d69554415d1b9bcbb3cf8518a",
+  "ppt/slideLayouts/_rels/slideLayout38.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout39.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout4.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout40.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout41.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout42.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout43.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout44.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout5.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout6.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout7.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout8.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/_rels/slideLayout9.xml.rels": "7c1f290acd6ca3ce664fe95aaf0b129bbb3cbf2b75c8d09905a2821641981027",
+  "ppt/slideLayouts/slideLayout1.xml": "18a446068be10dab62a19a81a6d9281c08c67537e7956e1cc0ab32330adb9b4d",
+  "ppt/slideLayouts/slideLayout10.xml": "ef067b88d0e109af2268e84c2ebd8f31b3aa75564465332c7d19943afa92a6e2",
+  "ppt/slideLayouts/slideLayout11.xml": "8d267291fb7fd365b021e14555b3ff1986e2b06aea7c18a45c4ed0f163f6af4c",
+  "ppt/slideLayouts/slideLayout12.xml": "af2f3c159c4741f4be1f88239279da3c1cc888503ac2f12d50c2731f5df431c8",
+  "ppt/slideLayouts/slideLayout13.xml": "d112a883ffc109bba4612ce62e65ac5e66768587938a0693017d776116c80679",
+  "ppt/slideLayouts/slideLayout14.xml": "6d7402ab2a9d7afcf455d44a0189dc7451689fd2c89d139d968a86fa03cb585d",
+  "ppt/slideLayouts/slideLayout15.xml": "3a5ee1c2046ed9316e6974065f24166cbccfe8501fd8c2cf8e5b19b03f3b0d53",
+  "ppt/slideLayouts/slideLayout16.xml": "5c25c04715aacfec774e9c9b84dd6360ed1654b5c21e0c6fdd821229b8a8ceef",
+  "ppt/slideLayouts/slideLayout17.xml": "a20b2c10c532b8b072a239c16b47a8e0b57a4898595029830c8a9c1c532bff68",
+  "ppt/slideLayouts/slideLayout18.xml": "fb8421e582fdfc2b585066658f04a3572cc171988e43661b649fa7c4daa15d4d",
+  "ppt/slideLayouts/slideLayout19.xml": "e0944be95243a0751304e8e476fa3301e8226e8077306ef7d9f75380edb4d7c7",
+  "ppt/slideLayouts/slideLayout2.xml": "4ec3351d4cc47a369063364f675c63c5f8161e6b02ec27d64d2ea33c118c48fe",
+  "ppt/slideLayouts/slideLayout20.xml": "9187022751c8bb1dcaef1ebafe6d9133e501b30a5f3c2ad252087da9935e2425",
+  "ppt/slideLayouts/slideLayout21.xml": "ebdb6e8d51e1abd0b2c9d7b8ac55bfff4af15d2f0bd6952db2e4a999026759a2",
+  "ppt/slideLayouts/slideLayout22.xml": "fdf83573f050983bfc3e249caa162e328806993f867994d3ec8f751b08a0fca0",
+  "ppt/slideLayouts/slideLayout23.xml": "9cc3ed48cad5ea5f96fd8970d6c62833be76491f940ff7fa9c7f5d75232fffa4",
+  "ppt/slideLayouts/slideLayout24.xml": "b5a47293d9df604bc5d154781edb9830c03cb78f7d99e411e2fc522cc5e90aa4",
+  "ppt/slideLayouts/slideLayout25.xml": "cfb35b43560cde5315a3062a1754afaee3bec89150c3501d88cacc950952c06a",
+  "ppt/slideLayouts/slideLayout26.xml": "6a1da3ef183ad8efb48cbe66a3f4b875feaf4f8d538f1ba03aa5fc2edc7c2fcc",
+  "ppt/slideLayouts/slideLayout27.xml": "178c7b14bd17e4edaff38f3870d5f33c4da4b5e6659e2d720724dbb547726565",
+  "ppt/slideLayouts/slideLayout28.xml": "5b3794712eaba549777de4c8ef27f16c737b588f93a816c97862682ad763ced2",
+  "ppt/slideLayouts/slideLayout29.xml": "93754320a372b9f77443ef5e0f598fb8e84f645322db261e364c560ed78c7224",
+  "ppt/slideLayouts/slideLayout3.xml": "f4576a0f8be1f8dec87755634b4e50080323cd23f811b96cf7167141c0bc3df4",
+  "ppt/slideLayouts/slideLayout30.xml": "4ad83e4cc59eb5fe5c5eec4b02c28abb1e2eda4da960bfbe5fe049dc4cc8320c",
+  "ppt/slideLayouts/slideLayout31.xml": "3c96fd2398604438d13652e5375dc47523678ed2d041284ba3aa6db96d311b39",
+  "ppt/slideLayouts/slideLayout32.xml": "fc24ef061136d8422315a1a48fa4abb47e0371005aa37472eca98cc9c3fa9aad",
+  "ppt/slideLayouts/slideLayout33.xml": "4d944cacfe1ba19cc5c0eebf358e36966e7dc7a4a3154009f0d8eade05c57d0c",
+  "ppt/slideLayouts/slideLayout34.xml": "c5aa29c69c4c288eec67ef9f599e4dc74fcc1db816a306690393f86376c6a468",
+  "ppt/slideLayouts/slideLayout35.xml": "44b5799cf1d5b6580d75efffe60111aba1b03f57f0f0dfaa2b7cc5b2d4b0b64a",
+  "ppt/slideLayouts/slideLayout36.xml": "3ec14b092a7e7650572b0706293a0147806a6c97a364f5cbc8567e1cc186cfc6",
+  "ppt/slideLayouts/slideLayout37.xml": "cc2b738adf9c7d9c7844268a95a0ce86b17aeca4761a2c63062a1742a613be1b",
+  "ppt/slideLayouts/slideLayout38.xml": "ae43b0bd69813ae45279d30babfe6c62c9dee03b345da87becd577992632d0bc",
+  "ppt/slideLayouts/slideLayout39.xml": "d9317752114107a53fb8f556c7f06b57eef410626a65dd94c116340f74dbcd75",
+  "ppt/slideLayouts/slideLayout4.xml": "3acb21474448620e1455406458dfa7c4b9c21806dec68e856582961595e57088",
+  "ppt/slideLayouts/slideLayout40.xml": "fe1ee76b3e2c0ba827da71bd2f65f6b601b8fe4d2b6bc52086b8e6504b74a1ef",
+  "ppt/slideLayouts/slideLayout41.xml": "182cd9282a0a1cccd4ac0209aeed4f1f3ae01744fbab1960be67aa8d3a118bc1",
+  "ppt/slideLayouts/slideLayout42.xml": "221a90abbdc4b697d1b65813013476b7212e1925e3d3d1ae9ec2ee366cefc3ca",
+  "ppt/slideLayouts/slideLayout43.xml": "23b5eed6a892e408578eb3bcacaab1bc6e6c4a050c51d9b8e03502a1576f81c4",
+  "ppt/slideLayouts/slideLayout44.xml": "326a0c833a37f4fb70c73356e15a01ea9d00007678565e1ff50deb38d80357b7",
+  "ppt/slideLayouts/slideLayout5.xml": "37986b02a22d8a998da27b164663c34689669f207dec2f9b4b65dd5a5b0d93f5",
+  "ppt/slideLayouts/slideLayout6.xml": "ffa0a08087cffb12c0898e20cbce9bfa2ccfbe65d1ad9a8e88abd4b250b9e803",
+  "ppt/slideLayouts/slideLayout7.xml": "2cca3259b8e85d509e23ecd9b2946853c2a857609eaa107e9b1c5f04dd1e5b9e",
+  "ppt/slideLayouts/slideLayout8.xml": "790722020b5922a5f1db1b2c92166803b05e68eafe7a0bb99d9aabff90dcf17e",
+  "ppt/slideLayouts/slideLayout9.xml": "cffa3f73ea7a8e605892e3ae7cde8bdd3f4eb00d56b4fdc5a84efbaed4939e59",
+  "ppt/slideMasters/_rels/slideMaster1.xml.rels": "ce91fedfd4f10a232773aae75cca95fc59c8540bd24d700fb0a1e6e65129791a",
+  "ppt/slideMasters/slideMaster1.xml": "68df83abef538c02308b2322ab96bec4c27662dd8b5c951b2ae5db9f71bb0cbf",
+  "ppt/theme/theme1.xml": "615916580d790f505ec05136929f1d60f8a5e636080a30563c5db8702c20cc61",
+  "ppt/theme/theme2.xml": "d5bd8844a4562a2a81267fe92b692f7e33d545d595186c5d05aea94f3bdb0809",
+  "ppt/theme/theme3.xml": "d5bd8844a4562a2a81267fe92b692f7e33d545d595186c5d05aea94f3bdb0809"
+ },
+ "headings": {
+  "SKILL.md": [
+   "Frequentis decks and artifacts (agent version)",
+   "Bundled resources",
+   "Non-negotiables",
+   "Workflow: Create",
+   "Workflow: Apply (existing deck)",
+   "Other artifacts (HTML, diagrams, documents)",
+   "Known limits"
+  ],
+  "references/brand-rules.md": [
+   "Frequentis brand rules (full reference)",
+   "Story and slide format",
+   "Story first",
+   "Slide format and content area",
+   "Master typography",
+   "Gradient background (divider, agenda, deep dive)",
+   "Pictures in the template",
+   "Footer and housekeeping",
+   "Colours",
+   "Typography, shapes and effects",
+   "Tables, charts, diagrams, maps and visuals",
+   "Logo, tagline, key visuals, icons and images",
+   "Logo",
+   "Tagline \"FOR A SAFER WORLD\"",
+   "Key visuals",
+   "Icons",
+   "Images",
+   "Writing rules (English decks)",
+   "German and other languages"
+  ]
+ }
+}

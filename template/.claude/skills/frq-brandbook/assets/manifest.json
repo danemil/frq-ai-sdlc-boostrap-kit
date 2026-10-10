@@ -2,7 +2,7 @@
  "schema": "frq-brandbook-assets/1",
  "generated": "2026-10-09",
  "note": "Every bundled asset, its size and use. Brand materials owned by Frequentis AG; see ../PROVENANCE.md for what was left out and why.",
- "total_bytes": 1891126,
+ "total_bytes": 10729825,
  "assets": [
   {
    "file": "assets/background/bg-gradient-frequentis.svg",
@@ -223,6 +223,17 @@
    "use": "On blue #004182 or calm dark photos (PDF p.4).",
    "source": "template slide master (wordmark) or title layout (with tagline): vector shapes converted shape for shape",
    "sha256": "c5c173a4517702388ddb8821abf2a00a054b08ec64ef7413ca78c40cb2d56bfa"
+  },
+  {
+   "file": "assets/templates/frq-master.pptx",
+   "type": "template",
+   "variant": "full official master: 1 master, 44 layouts, no slides; personal and tenant metadata removed",
+   "bytes": 8838699,
+   "dimensions": "16:9, 10 x 5.625 in",
+   "use": "Base for a deck that needs a layout only the full master has (maps, event layouts); the slim template is the default.",
+   "source": "owner skill v1.0",
+   "from": "assets/frq-master.pptx",
+   "sha256": "9842e0fc910d752bf153cf73b30fc481b273ca6ccd8c7e696b84f9969c321ee8"
   },
   {
    "file": "assets/templates/frq-template-slim-core.pptx",

@@ -30,10 +30,14 @@ SKILL = KIT / packs.SKILLS_REL / "frq-brandbook"
 CHECK = SKILL / "scripts/check_brand.py"
 NEW_DECK = SKILL / "scripts/new_deck.py"
 TEMPLATE = SKILL / "assets/templates/frq-template-slim-core.pptx"
+FULL = SKILL / "assets/templates/frq-master.pptx"          # the full 44-layout master (design §8.3)
 TOKENS = SKILL / "brand-tokens.json"
 GOLDEN = Path(__file__).resolve().parent / "fixtures/frq-brandbook/offbrand-test.pptx"
+# The kit owner's skill frq-4-pptx-agent v1.0 as received: every file with its SHA-256, the
+# master's parts and the headings of its text (plan 2026-10-09, Task B1 step 1).
+INVENTORY = Path(__file__).resolve().parent / "fixtures/frq-brandbook/source-inventory.json"
 PLACED = ".agents/skills/ai-sdlc-frq-brandbook"
-BUDGET = 2_500_000                     # bytes for the whole skill folder (~2 MB of assets)
+BUDGET_ALL = 14_000_000                # bytes for the whole skill folder (design §8.7)
 
 NS_P = "http://schemas.openxmlformats.org/presentationml/2006/main"
 NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -398,7 +402,7 @@ class TestSkillFiles(unittest.TestCase):
 
     def test_size_budget(self):
         total = sum(p.stat().st_size for p in SKILL.rglob("*") if p.is_file())
-        self.assertLessEqual(total, BUDGET, f"{total} bytes")
+        self.assertLessEqual(total, BUDGET_ALL, f"{total} bytes")
 
     def test_manifest_lists_every_asset_with_its_size(self):
         man = json.loads((SKILL / "assets/manifest.json").read_text(encoding="utf-8"))
@@ -463,6 +467,62 @@ class TestSkillFiles(unittest.TestCase):
         self.assertEqual(tokens["fonts"]["office"]["family"], "Arial")
         for bu in tokens["business_units"]:
             self.assertTrue((SKILL / bu["key_visual"]).is_file(), bu["id"])
+
+
+def inventory():
+    return json.loads(INVENTORY.read_text(encoding="utf-8"))
+
+
+class TestFullMaster(unittest.TestCase):
+    """The full official master, cleaned of personal and tenant data (design §8.3)."""
+
+    def test_the_inventory_lists_the_84_files_of_the_owner_skill(self):
+        inv = inventory()
+        self.assertEqual((inv["skill"], inv["version"], inv["date"]), ("frq-4-pptx-agent", "1.0", "2026-10-09"))
+        paths_ = [f["path"] for f in inv["files"]]
+        self.assertEqual(len(paths_), 84)
+        self.assertEqual(paths_, sorted(paths_))
+        for f in inv["files"]:
+            self.assertFalse(f["path"].startswith("/") or ".." in f["path"], f["path"])
+            self.assertRegex(f["sha256"], r"^[0-9a-f]{64}$")
+        self.assertNotIn("@", INVENTORY.read_text(encoding="utf-8"))
+
+    def test_the_full_master_has_44_layouts_and_no_slides(self):
+        with zipfile.ZipFile(FULL) as z:
+            names = z.namelist()
+        self.assertFalse([n for n in names if n.startswith("ppt/slides/")], "no sample slides")
+        self.assertEqual(len([n for n in names if re.fullmatch(r"ppt/slideLayouts/slideLayout\d+\.xml", n)]), 44)
+        self.assertEqual(len([n for n in names if re.fullmatch(r"ppt/slideMasters/slideMaster\d+\.xml", n)]), 1)
+
+    def test_the_full_master_carries_no_personal_or_tenant_metadata(self):
+        with zipfile.ZipFile(FULL) as z:
+            names = z.namelist()
+            for gone in ("ppt/commentAuthors.xml", "docProps/custom.xml", "docProps/thumbnail.jpeg"):
+                self.assertNotIn(gone, names)
+            self.assertFalse([n for n in names if n.startswith("customXml/")])
+            core = z.read("docProps/core.xml").decode("utf-8")
+            self.assertIn("<dc:creator></dc:creator>", core)
+            self.assertIn("<cp:lastModifiedBy></cp:lastModifiedBy>", core)
+            app = z.read("docProps/app.xml").decode("utf-8")
+            self.assertEqual(re.findall(r"<(\w+)>", app), ["Application", "PresentationFormat"])
+            for n in names:
+                if n.endswith((".xml", ".rels")):
+                    text = z.read(n).decode("utf-8")
+                    self.assertNotIn("@", text.replace("@ ", ""), n)
+                    self.assertNotIn("MSIP_", text, n)
+                    for gone in ("commentAuthors", "customXml", "thumbnail", "custom-properties"):
+                        self.assertNotIn(gone, text, n)
+
+    def test_only_metadata_changed(self):
+        parts = inventory()["master_parts"]
+        self.assertTrue([n for n in parts if n.startswith("ppt/slideLayouts/")])
+        self.assertTrue([n for n in parts if n.startswith("ppt/media/")])
+        with zipfile.ZipFile(FULL) as z:
+            here = {n for n in z.namelist() if n.startswith(("ppt/slideMasters/", "ppt/slideLayouts/",
+                                                              "ppt/theme/", "ppt/media/"))}
+            self.assertEqual(sorted(here), sorted(parts))
+            for n, sha in parts.items():
+                self.assertEqual(hashlib.sha256(z.read(n)).hexdigest(), sha, n)
 
 
 class TestCheckBrandScript(unittest.TestCase):
