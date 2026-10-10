@@ -749,6 +749,14 @@ class TestRealConnectorRules(Base):
     def test_an_empty_repo_gets_none(self):
         self.assertEqual(self.connect_ids(self.repo({"README.md": "x\n"}), ["po"]), [])
 
+    def test_the_catalogue_says_the_skills_read_through_connectors(self):
+        """Copilot re-test 2026-10-10 (S1): the summaries still said "from a report"."""
+        cat = recommend.load(KIT)["catalogue"]
+        for name in ("sonarqube-findings", "blackduck-findings"):
+            self.assertIn("read-only connector, or a report you paste", cat[name]["summary"])
+        self.assertIn("checks which versions the mirror has",
+                      cat["maven-via-artifactory"]["summary"])
+
 
 if __name__ == "__main__":
     unittest.main()
